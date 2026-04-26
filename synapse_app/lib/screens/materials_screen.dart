@@ -11,17 +11,171 @@ class MaterialsScreen extends StatefulWidget {
 }
 
 class _MaterialsScreenState extends State<MaterialsScreen> {
-  // 1. Simpan Future di sini agar tidak memanggil API berkali-kali saat mengetik
   late Future<List<dynamic>> _materialsFuture;
-  
-  // 2. Variabel penyimpan teks dari kolom pencarian
-  String _searchQuery = '';
 
   @override
   void initState() {
     super.initState();
-    // Panggil API HANYA 1x saat halaman pertama dibuka
     _materialsFuture = MaterialService().getMaterials();
+  }
+
+  // --- FUNGSI UNTUK MENAMPILKAN BOTTOM SHEET (SLIDE-UP) ---
+  void _showAllMaterialsSheet(BuildContext context, List<dynamic> allMaterials) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true, // Agar bisa di-set tingginya melebihi setengah layar
+      backgroundColor: Colors.transparent, // Transparan agar ujungnya bisa melengkung
+      builder: (context) {
+        String localSearchQuery = ''; // State pencarian khusus untuk bottom sheet
+
+        // StatefulBuilder digunakan agar kita bisa merender ulang (setState)
+        // HANYA di dalam bottom sheet saat user mengetik di kolom pencarian.
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setStateSheet) {
+            final filteredMaterials = localSearchQuery.isEmpty 
+              ? allMaterials 
+              : allMaterials.where((item) {
+                  final title = (item['title'] ?? '').toString().toLowerCase();
+                  return title.contains(localSearchQuery.toLowerCase());
+                }).toList();
+
+            return Container(
+              height: MediaQuery.of(context).size.height * 0.85, // Tinggi 85% layar
+              decoration: const BoxDecoration(
+                color: Color(0xFF2A9D8F), // Warna Teal sesuai desain
+                borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Gagang kecil di atas bottom sheet (indikator bisa di-swipe turun)
+                  Center(
+                    child: Container(
+                      margin: const EdgeInsets.only(top: 12, bottom: 20),
+                      width: 50,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.5),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
+                  
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20),
+                    child: Text('Materi Tersedia', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Kolom Pencarian
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(30)),
+                      child: TextField(
+                        onChanged: (value) {
+                          setStateSheet(() {
+                            localSearchQuery = value;
+                          });
+                        },
+                        decoration: const InputDecoration(
+                          hintText: 'Search here...', 
+                          border: InputBorder.none, 
+                          suffixIcon: Icon(Icons.search, color: Colors.black54)
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  
+                  // Grid Materi
+                  Expanded(
+                    child: filteredMaterials.isEmpty 
+                    ? const Center(child: Text("Materi tidak ditemukan", style: TextStyle(color: Colors.white)))
+                    : GridView.builder(
+                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                        physics: const BouncingScrollPhysics(),
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2, 
+                          crossAxisSpacing: 16, 
+                          mainAxisSpacing: 16, 
+                          childAspectRatio: 0.85, 
+                        ),
+                        itemCount: filteredMaterials.length, 
+                        itemBuilder: (context, index) {
+                          final item = filteredMaterials[index]; 
+                          return _buildMaterialCard(context, item);
+                        },
+                      ),
+                  ),
+                ],
+              ),
+            );
+          }
+        );
+      },
+    );
+  }
+
+  // --- WIDGET HELPER UNTUK DESAIN KARTU MATERI ---
+  Widget _buildMaterialCard(BuildContext context, dynamic item) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => MaterialDetailScreen(material: item)),
+        );
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white, 
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 5))
+          ]
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Bagian Atas: Area Gambar/Ikon (Putih)
+            Expanded(
+              flex: 3,
+              child: Container(
+                decoration: const BoxDecoration(
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                ),
+                child: const Center(
+                  // CATATAN: Ganti Icon ini dengan Image.network(item['image_url']) 
+                  // jika API Kapten sudah mengembalikan link gambar.
+                  child: Icon(Icons.data_usage_rounded, size: 60, color: Colors.grey),
+                ),
+              ),
+            ),
+            // Bagian Bawah: Judul (Teal Muda)
+            Expanded(
+              flex: 2,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFC4E8E2), // Warna background teks (teal muda)
+                  borderRadius: const BorderRadius.vertical(bottom: Radius.circular(20)),
+                ),
+                child: Center(
+                  child: Text(
+                    item['title'] ?? 'Materi', 
+                    style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF2A9D8F), fontSize: 14),
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -35,20 +189,12 @@ class _MaterialsScreenState extends State<MaterialsScreen> {
             return const Center(child: CircularProgressIndicator(color: Colors.teal));
           }
 
-          // 3. JAGA-JAGA NULL: Ini yang mencegah error 'length' merah tadi
           final materials = snapshot.data ?? [];
 
-          // 4. FILTER MATERI: Cek apakah ada teks di pencarian
-          final filteredMaterials = _searchQuery.isEmpty 
-              ? materials 
-              : materials.where((item) {
-                  final title = (item['title'] ?? '').toString().toLowerCase();
-                  return title.contains(_searchQuery.toLowerCase());
-                }).toList();
-
           return CustomScrollView(
+            physics: const BouncingScrollPhysics(),
             slivers: [
-              // --- 1. HEADER TITLE (Ayo Belajar di SYNAPSE) ---
+              // --- 1. HEADER TITLE ---
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.only(left: 20, top: 60, right: 20, bottom: 20),
@@ -58,17 +204,37 @@ class _MaterialsScreenState extends State<MaterialsScreen> {
                       children: [
                         TextSpan(text: 'Ayo Belajar\n'),
                         TextSpan(text: 'di '),
-                        TextSpan(text: 'S Y N A P S E !', style: TextStyle(color: Colors.teal)),
+                        TextSpan(text: 'S Y N A P S E !', style: TextStyle(color: Color(0xFF2A9D8F))),
                       ],
                     ),
                   ),
                 ),
               ),
 
-              // --- 2. KOTAK ATAS: SLIDER MATERI (Tampilkan data asli) ---
+              // --- 2. HEADER REKOMENDASI MATERI & TOMBOL PANAH ---
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Rekomendasi Materi', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      IconButton(
+                        icon: const Icon(Icons.arrow_forward_rounded, color: Colors.black87),
+                        onPressed: () {
+                          // Panggil fungsi slide-up saat panah diklik
+                          _showAllMaterialsSheet(context, materials);
+                        },
+                      )
+                    ],
+                  ),
+                ),
+              ),
+
+              // --- 3. SLIDER REKOMENDASI MATERI ---
               SliverToBoxAdapter(
                 child: SizedBox(
-                  height: 200,
+                  height: 200, // Tinggikan sedikit agar desain card baru muat
                   child: ListView.builder(
                     scrollDirection: Axis.horizontal,
                     physics: const BouncingScrollPhysics(),
@@ -76,30 +242,11 @@ class _MaterialsScreenState extends State<MaterialsScreen> {
                     itemCount: materials.length > 5 ? 5 : materials.length, 
                     itemBuilder: (context, index) {
                       final item = materials[index];
-                      return GestureDetector(
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => MaterialDetailScreen(material: item)),
-                        ),
-                        child: Container(
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 16),
+                        child: SizedBox(
                           width: 160,
-                          margin: const EdgeInsets.only(right: 16),
-                          decoration: BoxDecoration(
-                            color: Colors.grey[300], 
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Align(
-                              alignment: Alignment.bottomLeft,
-                              child: Text(
-                                item['title'] ?? 'Materi',
-                                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey[800], fontSize: 16),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ),
+                          child: _buildMaterialCard(context, item), // Gunakan desain card baru
                         ),
                       );
                     },
@@ -107,13 +254,15 @@ class _MaterialsScreenState extends State<MaterialsScreen> {
                 ),
               ),
 
-              // --- 3. DAFTAR MINI QUIZ (Vertikal) ---
+              // --- 4. HEADER REKOMENDASI MINI KUIS ---
               const SliverToBoxAdapter(
                 child: Padding(
                   padding: EdgeInsets.fromLTRB(20, 30, 20, 10),
-                  child: Text('Kuis Tersedia', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  child: Text('Rekomendasi Mini Kuis', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 ),
               ),
+
+              // --- 5. DAFTAR MINI KUIS ---
               SliverList(
                 delegate: SliverChildBuilderDelegate(
                   (context, index) {
@@ -121,20 +270,22 @@ class _MaterialsScreenState extends State<MaterialsScreen> {
                     return Container(
                       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                       decoration: BoxDecoration(
-                        color: Colors.grey[300],
+                        color: Colors.white, // Sesuaikan desain gambar 1 (putih)
                         borderRadius: BorderRadius.circular(15),
+                        boxShadow: [
+                          BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 8, offset: const Offset(0, 2))
+                        ]
                       ),
                       child: ListTile(
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        title: Text('Kuis: ${item['title']}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                        subtitle: const Text('Uji pemahamanmu di sini'),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        title: Text('Kuis ${item['title']}', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87)),
+                        subtitle: const Text('Uji pemahamanmu di sini!', style: TextStyle(fontSize: 12)),
                         trailing: const Icon(Icons.arrow_forward_rounded, color: Colors.black87),
                         onTap: () {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
                               builder: (context) => PracticeScreen(
-                                // Catatan: Jika ID di DB berupa angka (int), .toString() ini sangat membantu mencegah error
                                 materialId: item['id'].toString(), 
                                 materialTitle: item['title'] ?? 'Kuis',
                               ),
@@ -147,115 +298,9 @@ class _MaterialsScreenState extends State<MaterialsScreen> {
                   childCount: materials.length > 3 ? 3 : materials.length, 
                 ),
               ),
-
-              // --- 4. BAGIAN BAWAH TEAL (Semua Materi dengan Filter) ---
-              SliverToBoxAdapter(
-                child: Container(
-                  margin: const EdgeInsets.only(top: 20),
-                  padding: const EdgeInsets.all(20),
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF2A9D8F), 
-                    borderRadius: BorderRadius.only(topLeft: Radius.circular(30), topRight: Radius.circular(30)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Materi Tersedia', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 16),
-                      
-                      // 👇 KOLOM PENCARIAN (Sudah terhubung dengan variabel) 👇
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(30)),
-                        child: TextField(
-                          // Setiap kali diketik, kita update nilai _searchQuery
-                          onChanged: (value) {
-                            setState(() {
-                              _searchQuery = value;
-                            });
-                          },
-                          decoration: const InputDecoration(
-                            hintText: 'Cari materi...', 
-                            border: InputBorder.none, 
-                            suffixIcon: Icon(Icons.search, color: Colors.teal)
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      
-                      // 👇 GRID ITEM MENAMPILKAN DATA FILTER 👇
-                      filteredMaterials.isEmpty 
-                      ? const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 20),
-                          child: Center(child: Text("Materi tidak ditemukan", style: TextStyle(color: Colors.white))),
-                        )
-                      : GridView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2, 
-                            crossAxisSpacing: 16, 
-                            mainAxisSpacing: 16, 
-                            childAspectRatio: 0.85, 
-                          ),
-                          // Gunakan panjang array dari data yang sudah difilter
-                          itemCount: filteredMaterials.length, 
-                          itemBuilder: (context, index) {
-                            // Ambil data dari list yang sudah difilter
-                            final item = filteredMaterials[index]; 
-                            
-                            return GestureDetector(
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => MaterialDetailScreen(material: item),
-                                  ),
-                                );
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: Colors.white, 
-                                  borderRadius: BorderRadius.circular(20),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.05),
-                                      blurRadius: 10,
-                                      offset: const Offset(0, 5),
-                                    )
-                                  ]
-                                ),
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.all(12),
-                                      decoration: BoxDecoration(
-                                        color: Colors.teal.withOpacity(0.1),
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: const Icon(Icons.menu_book_rounded, size: 32, color: Colors.teal),
-                                    ),
-                                    const SizedBox(height: 12),
-                                    Text(
-                                      item['title'] ?? 'Materi Tanpa Judul', 
-                                      style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87, fontSize: 13),
-                                      textAlign: TextAlign.center,
-                                      maxLines: 3,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      const SizedBox(height: 80), 
-                    ],
-                  ),
-                ),
-              ),
+              
+              // Memberi jarak sedikit di bawah layar
+              const SliverToBoxAdapter(child: SizedBox(height: 40)),
             ],
           );
         },

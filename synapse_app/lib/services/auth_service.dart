@@ -1,40 +1,47 @@
 import 'dart:convert';
-import 'dart:io' show Platform; // 👈 Tambahkan ini untuk deteksi Platform
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter/foundation.dart'; 
 
-class AuthService {
-  // 👇 IP Cerdas pendeteksi Platform
-  static String get _getBaseUrl {
-    if (kIsWeb) {
-      return 'http://127.0.0.1:8000/api'; // Untuk Web
-    } else if (Platform.isAndroid) {
-      return 'http://10.0.2.2:8000/api';  // Untuk Emulator Android
-    } else {
-      return 'http://127.0.0.1:8000/api'; // Untuk iOS Simulator
-    }
+String getBaseUrl() {
+  if (kIsWeb) {
+    return 'http://127.0.0.1:8000/api';
   }
 
-  final String baseUrl = _getBaseUrl;
+  if (Platform.isAndroid) {
+    const bool isEmulator =
+        bool.fromEnvironment('ANDROID_EMULATOR', defaultValue: false);
 
+    return isEmulator
+        ? 'http://10.0.2.2:8000/api'
+        : 'http://192.168.1.12:8000/api'; 
+  }
+
+  // iOS Simulator / Desktop
+  return 'http://127.0.0.1:8000/api';
+}
+
+class AuthService {
   // --- 1. LOGIN ---
   Future<bool> login(String email, String password) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/auth/login'),
-        headers: {'Accept': 'application/json','Content-Type': 'application/json',},
-        body: jsonEncode({                    // 👈 Bungkus dengan jsonEncode
+        Uri.parse('${getBaseUrl()}/auth/login'),
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
           'email': email,
           'password': password,
-          }),
+        }),
       );
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        final token = data['token']; // Sesuaikan dengan key token di Laravel Kapten
+        final token = data['token'];
 
-        // Simpan kunci akses (Token) ke brankas HP (SharedPreferences)
         SharedPreferences prefs = await SharedPreferences.getInstance();
         await prefs.setString('token', token);
         return true;
@@ -59,7 +66,7 @@ class AuthService {
   }) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/auth/register'),
+        Uri.parse('${getBaseUrl()}/auth/register'),
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
@@ -68,20 +75,14 @@ class AuthService {
           'name': name,
           'email': email,
           'password': password,
-          'password_confirmation': password, // Laravel biasanya butuh ini
+          'password_confirmation': password,
           'role': role,
           'nim': nim ?? '',
           'kelas': kelas ?? '',
         }),
       );
 
-      // Status 201 = Created (Berhasil Dibuat), 200 = OK
-      if (response.statusCode == 201 || response.statusCode == 200) {
-        return true;
-      } else {
-        debugPrint('Gagal Register: ${response.body}');
-        return false;
-      }
+      return response.statusCode == 200 || response.statusCode == 201;
     } catch (e) {
       debugPrint('Error Koneksi Register: $e');
       return false;
@@ -92,7 +93,7 @@ class AuthService {
   Future<bool> verifyEmail(String email, String otp) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/auth/verify-otp'),
+        Uri.parse('${getBaseUrl()}/auth/verify-otp'),
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
@@ -103,30 +104,23 @@ class AuthService {
         }),
       );
 
-      if (response.statusCode == 200) {
-        return true;
-      } else {
-        debugPrint('Gagal Verifikasi: ${response.body}');
-        return false;
-      }
+      return response.statusCode == 200;
     } catch (e) {
       debugPrint('Error Koneksi Verifikasi: $e');
       return false;
     }
   }
 
-  // --- 4. KIRIM ULANG OTP ---
+  // --- 4. RESEND OTP ---
   Future<bool> resendOTP(String email) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/auth/resend-otp'),
+        Uri.parse('${getBaseUrl()}/auth/resend-otp'),
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
         },
-        body: jsonEncode({
-          'email': email,
-        }),
+        body: jsonEncode({'email': email}),
       );
 
       return response.statusCode == 200;
@@ -136,22 +130,16 @@ class AuthService {
     }
   }
 
-  // --- 5. MENGAMBIL DATA PROFIL ---
-  // --- 5. MENGAMBIL DATA PROFIL ---
+  // --- 5. GET PROFILE ---
   Future<Map<String, dynamic>?> getUserProfile() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token');
 
-    if (token == null) {
-      debugPrint('🚨 TOKEN KOSONG! Berarti belum login atau token gagal disimpan.');
-      return null;
-    }
+    if (token == null) return null;
 
     try {
-      debugPrint('🔑 Mencoba pakai Token: $token'); // Cek apakah tokennya benar-benar ada bentuknya
-
       final response = await http.get(
-        Uri.parse('$baseUrl/auth/me'),
+        Uri.parse('${getBaseUrl()}/auth/me'),
         headers: {
           'Accept': 'application/json',
           'Authorization': 'Bearer $token',
@@ -159,42 +147,32 @@ class AuthService {
       );
 
       if (response.statusCode == 200) {
-        debugPrint('✅ SUKSES AMBIL PROFIL: ${response.body}');
         return jsonDecode(response.body);
-      } else {
-        // 👇 INI YANG PALING PENTING! Kita tangkap alasan penolakan Laravel
-        debugPrint('❌ GAGAL AMBIL PROFIL!');
-        debugPrint('Status Code: ${response.statusCode}');
-        debugPrint('Alasan Laravel: ${response.body}');
-        return null;
       }
+      return null;
     } catch (e) {
-      debugPrint('🔥 Error Koneksi Get User: $e');
+      debugPrint('Error Get Profile: $e');
       return null;
     }
   }
 
-  // --- 6. LOGOUT PENGHANCUR TOKEN ---
+  // --- 6. LOGOUT ---
   Future<bool> logout() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token');
 
     if (token != null) {
       try {
-        // Pamit dulu ke Laravel
         await http.post(
-          Uri.parse('$baseUrl/auth/logout'),
+          Uri.parse('${getBaseUrl()}/auth/logout'),
           headers: {
             'Accept': 'application/json',
             'Authorization': 'Bearer $token',
           },
         );
-      } catch (e) {
-        debugPrint('API Logout Gagal (Abaikan saja): $e');
-      }
+      } catch (_) {}
     }
 
-    // Wajib hancurkan kunci di HP meskipun internet mati!
     await prefs.remove('token');
     return true;
   }

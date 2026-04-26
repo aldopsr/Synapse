@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_html/flutter_html.dart'; // 🌟 TAMBAHAN: Impor flutter_html
+import 'package:flutter_html/flutter_html.dart';
 import 'practice_screen.dart';
 import '../utils/constants.dart';
+import 'ar_view_screen.dart'; // 🌟 IMPOR HALAMAN AR KAPTEN
+import '../services/auth_service.dart'; // 🌟 UNTUK GET BASE URL
 
 class MaterialDetailScreen extends StatelessWidget {
   final Map<String, dynamic> material;
@@ -10,13 +12,17 @@ class MaterialDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 🌟 DETEKSI RADAR: Apakah materi ini punya file 3D?
+    String? modelPath = material['model_3d_path'];
+    bool hasAr = modelPath != null && modelPath.toString().isNotEmpty;
+
     return Scaffold(
       backgroundColor: Colors.white,
       
       body: CustomScrollView(
         physics: const BouncingScrollPhysics(),
         slivers: [
-          // 👇 HEADER BESAR DENGAN WARNA GRADASI (Tetap sama seperti milik Kapten)
+          // 👇 HEADER BESAR (Sama persis dengan milik Kapten)
           SliverAppBar(
             expandedHeight: 220.0,
             floating: false,
@@ -58,7 +64,7 @@ class MaterialDetailScreen extends StatelessWidget {
             ),
           ),
 
-          // 👇 KONTEN MATERI
+          // 👇 KONTEN MATERI (HTML)
           SliverToBoxAdapter(
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 30.0),
@@ -73,7 +79,6 @@ class MaterialDetailScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Label "Pendahuluan"
                   Row(
                     children: [
                       Container(
@@ -91,7 +96,6 @@ class MaterialDetailScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   
-                  // Kotak Deskripsi
                   Text(
                     material['description'] ?? 'Tidak ada deskripsi',
                     style: TextStyle(
@@ -107,14 +111,13 @@ class MaterialDetailScreen extends StatelessWidget {
                     child: Divider(color: Colors.black12, thickness: 1.5),
                   ),
                   
-                  // Label "Isi Materi"
                   const Text(
                     'Isi Materi',
                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87),
                   ),
                   const SizedBox(height: 16),
                   
-                  // 🌟 UPDATE UTAMA: Widget Html yang sudah dipercanggih
+                  // WIDGET HTML KAPTEN (Tetap dipertahankan agar dosen nyaman)
                   Html(
                     data: material['content'] ?? '<p>Isi materi belum tersedia.</p>',
                     style: {
@@ -125,9 +128,7 @@ class MaterialDetailScreen extends StatelessWidget {
                         margin: Margins.zero,
                         padding: HtmlPaddings.zero,
                       ),
-                      "table": Style(
-                        backgroundColor: Colors.grey.shade50,
-                      ),
+                      "table": Style(backgroundColor: Colors.grey.shade50),
                       "th": Style(
                         padding: HtmlPaddings.all(8),
                         border: Border.all(color: Colors.grey),
@@ -138,20 +139,15 @@ class MaterialDetailScreen extends StatelessWidget {
                         border: Border.all(color: Colors.grey),
                       ),
                     },
-                    // 👇 BAGIAN PENTING: BENGKEL PERBAIKAN GAMBAR 👇
                     extensions: [
                       TagExtension(
                         tagsToExtend: {"img"},
                         builder: (extensionContext) {
                           String imgUrl = extensionContext.attributes['src'] ?? '';
-
-                          // 👇 KITA BALIK LOGIKANYA! Paksa jadi localhost
                           if (imgUrl.contains('10.0.2.2:8000')) {
-                              imgUrl = imgUrl.replaceFirst('10.0.2.2:8000', '127.0.0.1:8000');
+                              imgUrl = imgUrl.replaceFirst('10.0.2.2:8000', '192.168.1.12:8000');
                           }
                           
-                          print("✅ URL SETELAH DIHAKIMI FLUTTER: $imgUrl");
-
                           return Padding(
                             padding: const EdgeInsets.symmetric(vertical: 12.0),
                             child: ClipRRect(
@@ -160,16 +156,6 @@ class MaterialDetailScreen extends StatelessWidget {
                                 imgUrl,
                                 width: double.infinity,
                                 fit: BoxFit.contain,
-                                loadingBuilder: (ctx, child, loadingProgress) {
-                                  if (loadingProgress == null) return child;
-                                  return Container(
-                                    height: 200,
-                                    color: Colors.grey[100],
-                                    child: const Center(
-                                      child: CircularProgressIndicator(strokeWidth: 2),
-                                    ),
-                                  );
-                                },
                                 errorBuilder: (ctx, error, stackTrace) => Container(
                                   height: 150,
                                   width: double.infinity,
@@ -191,7 +177,8 @@ class MaterialDetailScreen extends StatelessWidget {
                     ],
                   ),
                   
-                  const SizedBox(height: 100), // Ruang untuk FAB Latihan
+                  // 🌟 Beri ruang ekstra panjang di bawah agar konten tidak tertutup 2 tombol!
+                  SizedBox(height: hasAr ? 160 : 100), 
                 ],
               ),
             ),
@@ -199,45 +186,95 @@ class MaterialDetailScreen extends StatelessWidget {
         ],
       ),
 
+      // 👇 AREA TOMBOL MENGAMBANG
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       floatingActionButton: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24.0),
-        child: SizedBox(
-          width: double.infinity,
-          height: 56,
-          child: ElevatedButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => PracticeScreen(
-                    materialId: material['id'],
-                    materialTitle: material['title'] ?? 'Latihan',
+        child: Column(
+          mainAxisSize: MainAxisSize.min, // Penting agar tidak memenuhi layar
+          children: [
+            // 🌟 TOMBOL AR (Muncul otomatis HANYA jika ada model 3D)
+            if (hasAr)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12.0),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      String baseUrl = getBaseUrl(); 
+                      String fullModelUrl = modelPath.startsWith('http') 
+                          ? modelPath 
+                          : '$baseUrl/download-model/$modelPath';
+
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ARViewScreen(
+                            title: material['title'] ?? 'AR Hologram',
+                            modelUrl: fullModelUrl,
+                          ),
+                        ),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.purpleAccent, // Beda warna agar mencolok
+                      foregroundColor: Colors.white,
+                      elevation: 6,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+                    ),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.view_in_ar_rounded, size: 28),
+                        SizedBox(width: 10),
+                        Text(
+                          'Lihat Bentuk 3D / AR',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.greenAccent[700],
-              foregroundColor: Colors.white,
-              elevation: 8,
-              shadowColor: Colors.greenAccent.withOpacity(0.5),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(28),
+              ),
+
+            // 👇 TOMBOL LATIHAN (Selalu Muncul)
+            SizedBox(
+              width: double.infinity,
+              height: 56,
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => PracticeScreen(
+                        materialId: material['id'],
+                        materialTitle: material['title'] ?? 'Latihan',
+                      ),
+                    ),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.greenAccent[700],
+                  foregroundColor: Colors.white,
+                  elevation: 8,
+                  shadowColor: Colors.greenAccent.withOpacity(0.5),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+                ),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.play_circle_fill_rounded, size: 28),
+                    SizedBox(width: 10),
+                    Text(
+                      'Mulai Latihan Sekarang',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
               ),
             ),
-            child: const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.play_circle_fill_rounded, size: 28),
-                SizedBox(width: 10),
-                Text(
-                  'Mulai Latihan Sekarang',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 0.5),
-                ),
-              ],
-            ),
-          ),
+          ],
         ),
       ),
     );

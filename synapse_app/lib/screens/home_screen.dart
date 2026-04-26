@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
-import '../services/auth_service.dart'; // 👈 Tambahan untuk koneksi API
-import 'login_screen.dart';             // 👈 Tambahan untuk arahkan ke login
-
+import '../services/auth_service.dart'; 
+import 'login_screen.dart'; 
 import 'materials_screen.dart'; 
 import 'quiz_list_screen.dart'; 
 import 'chatbot_screen.dart';   
-import 'profile_screen.dart';   
+import 'profile_screen.dart';
+import 'ar_gallery_screen.dart';
+import 'ar_view_screen.dart'; // Sesuaikan path ini jika filenya ada di dalam folder lain
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -17,7 +18,6 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
 
-  // 👇 Variabel Keamanan di balik layar
   bool _isGuest = true;
   bool _isLoading = true;
 
@@ -31,23 +31,21 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _loadUserData(); // Cek identitas saat layar pertama kali dibuka
+    _loadUserData(); 
   }
 
-  // 👇 Fungsi Intelijen: Cek Tamu atau Mahasiswa
   Future<void> _loadUserData() async {
     final auth = AuthService();
     final userData = await auth.getUserProfile();
 
     if (mounted) {
       setState(() {
-        _isGuest = userData == null; // Jika null = Tamu!
+        _isGuest = userData == null; 
         _isLoading = false;
       });
     }
   }
 
-  // 👇 Dialog Penolakan Elegan untuk Tamu
   void _showAccessDeniedDialog() {
     showDialog(
       context: context,
@@ -83,7 +81,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _onItemTapped(int index) {
-    // 👇 Cegah Tamu masuk ke Kuis (index 1) dan AI (index 2)
     if (_isGuest && (index == 1 || index == 2)) {
       _showAccessDeniedDialog();
       return;
@@ -96,7 +93,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Tampilkan loading mulus saat aplikasi mengecek token
     if (_isLoading) {
       return Scaffold(
         backgroundColor: Colors.grey[100],
@@ -113,7 +109,6 @@ class _HomeScreenState extends State<HomeScreen> {
         children: _pages,
       ),
 
-      // NAVBAR GAYA "FLOATING ISLAND" KARYA KAPTEN
       bottomNavigationBar: SafeArea(
         child: Container(
           margin: const EdgeInsets.only(left: 20, right: 20, bottom: 20),
@@ -146,7 +141,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // --- WIDGET UNTUK TOMBOL MENU DENGAN ANIMASI ---
   Widget _buildNavItem(int index, IconData icon, String label, {bool isLocked = false}) {
     bool isSelected = _selectedIndex == index;
     
@@ -186,7 +180,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 ]
               ],
             ),
-            // 👇 Indikator Gembok Merah Kecil Jika Tamu
             if (isLocked)
               Positioned(
                 top: -2,
@@ -207,49 +200,46 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // --- WIDGET UNTUK TOMBOL TENGAH (GRADIENT & GLOW) ---
+  // --- WIDGET UNTUK TOMBOL TENGAH (SUDAH DIUPDATE) ---
   Widget _buildCenterButton() {
-    return GestureDetector(
-      onTap: () {
-        // 👇 Cegah Tamu buka AR
-        if (_isGuest) {
-          _showAccessDeniedDialog();
-          return;
-        }
+  return GestureDetector(
+    onTap: () {
+      if (_isGuest) {
+        _showAccessDeniedDialog();
+        return;
+      }
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Fitur AR sedang dibangun di galangan kapal! 🛠️'),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            backgroundColor: Colors.blueGrey[800],
-          )
-        );
-      },
-      child: Container(
-        height: 55,
-        width: 55,
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Colors.blueAccent, Colors.lightBlue], 
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ArGalleryScreen(),
+        ),
+      );
+    },
+    child: Container(
+      height: 55,
+      width: 55,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Colors.blueAccent, Colors.lightBlue],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.blueAccent.withOpacity(0.4),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.blueAccent.withOpacity(0.4),
-              blurRadius: 12, 
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: const Icon(
-          Icons.view_in_ar_rounded,
-          color: Colors.white,
-          size: 28,
-        ),
+        ],
       ),
-    );
-  }
+      child: const Icon(
+        Icons.view_in_ar_rounded,
+        color: Colors.white,
+        size: 28,
+      ),
+    ),
+  );
+}
 }

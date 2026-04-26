@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../services/quiz_service.dart';
 import '../models/quiz_model.dart';
 import '../models/question_model.dart';
+bool _isSubmitting = false;
 
 class QuizScreen extends StatefulWidget {
   final QuizModel quiz; 
@@ -69,30 +70,52 @@ class _QuizScreenState extends State<QuizScreen> {
   }
 
   Future<void> _submitQuiz() async {
-    _timer?.cancel(); 
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(child: CircularProgressIndicator(color: Colors.teal)),
+  if (_isSubmitting) return; // cegah double klik
+
+  setState(() => _isSubmitting = true);
+  _timer?.cancel();
+
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) =>
+        const Center(child: CircularProgressIndicator(color: Colors.teal)),
+  );
+
+  List<Map<String, dynamic>> formattedAnswers =
+      _answers.entries.map((e) {
+    return {'question_id': e.key, 'answer': e.value};
+  }).toList();
+
+  try {
+    final result = await _quizService.submitQuiz(
+      quizId: widget.quiz.id,
+      timeTakenSeconds: _timeTakenSeconds,
+      answers: formattedAnswers,
     );
 
-    List<Map<String, dynamic>> formattedAnswers = _answers.entries.map((e) {
-      return {'question_id': e.key, 'answer': e.value};
-    }).toList();
+    Navigator.pop(context);
 
-    try {
-      final result = await _quizService.submitQuiz(
-        quizId: widget.quiz.id,
-        timeTakenSeconds: _timeTakenSeconds,
-        answers: formattedAnswers,
+    if (result != null) {
+      _showResultDialog(
+        result['score'] ?? 0,
+        result['correct_answers'] ?? 0,
+        result['total_questions'] ?? 0,
       );
-      Navigator.pop(context); 
-      _showResultDialog(result['score'], result['correct_answers'], result['total_questions']);
-    } catch (e) {
-      Navigator.pop(context); 
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal mengirim jawaban: $e')));
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Gagal mengirim jawaban')),
+      );
     }
+  } catch (e) {
+    Navigator.pop(context);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error: $e')),
+    );
+  } finally {
+    setState(() => _isSubmitting = false);
   }
+}
 
   void _showResultDialog(int score, int correct, int total) {
     showDialog(

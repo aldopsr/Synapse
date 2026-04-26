@@ -38,7 +38,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
       final token = prefs.getString('token');
       
       // Sesuaikan IP seperti sebelumnya (127.0.0.1 untuk Chrome, atau IP WiFi untuk HP)
-      final url = 'http://127.0.0.1:8000/api/materials/${widget.materialId}/questions';
+      final url = 'http://192.168.1.12:8000/api/materials/${widget.materialId}/questions';
 
       final response = await http.get(
         Uri.parse(url),

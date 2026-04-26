@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'quiz_review_screen.dart';
 
 class QuizStatisticScreen extends StatefulWidget {
@@ -9,27 +12,76 @@ class QuizStatisticScreen extends StatefulWidget {
 }
 
 class _QuizStatisticScreenState extends State<QuizStatisticScreen> {
-  // 👇 INI DATA DUMMY. Nanti Kapten bisa ganti dengan data hasil fetch dari API ya!
-  final List<Map<String, dynamic>> _historyKuis = [
-    {
-      'title': 'Pengenalan Komputer',
-      'score': 100,
-      'date': 'Hari ini',
-      // Data 'questions' ini yang akan dikirim ke QuizReviewScreen
-      'questions': [
-        {'question': 'Apa kepanjangan dari CPU?', 'correct_answer': 'Central Processing Unit'},
-        {'question': 'Perangkat keras yang berfungsi sebagai otak komputer adalah?', 'correct_answer': 'Prosesor'},
-      ]
-    },
-    {
-      'title': 'Jaringan Dasar',
-      'score': 80,
-      'date': 'Kemarin',
-      'questions': [
-        {'question': 'Protokol yang digunakan untuk mengirim email adalah?', 'correct_answer': 'SMTP'},
-      ]
+  List<dynamic> _historyKuis = [];
+  bool _isLoading = true;
+  String _errorMessage = '';
+  
+  int _totalQuizzes = 0;
+  int _averageScore = 0;
+
+  // Pastikan URL ini sama dengan file Kapten yang lain!
+  final String baseUrl = 'http://192.168.1.12:8000/api';
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchHistoryData();
+  }
+
+  Future<void> _fetchHistoryData() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/quiz-history'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Accept': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+        
+        // Menyesuaikan jika Laravel membungkus data dalam "data" (misal: resource API)
+        List<dynamic> dataList = responseData['data'] ?? responseData;
+
+        // Hitung total dan rata-rata
+        int totalKuis = dataList.length;
+        double totalNilai = 0;
+        
+        for (var item in dataList) {
+          totalNilai += (item['score'] ?? 0);
+        }
+        
+        int rataRata = totalKuis > 0 ? (totalNilai / totalKuis).round() : 0;
+
+        if (mounted) {
+          setState(() {
+            _historyKuis = dataList;
+            _totalQuizzes = totalKuis;
+            _averageScore = rataRata;
+            _isLoading = false;
+          });
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            _errorMessage = 'Gagal memuat data: Error ${response.statusCode}';
+            _isLoading = false;
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Koneksi ke server terputus.';
+          _isLoading = false;
+        });
+      }
     }
-  ];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -42,45 +94,93 @@ class _QuizStatisticScreenState extends State<QuizStatisticScreen> {
         iconTheme: const IconThemeData(color: Color(0xFF334155)),
         centerTitle: true,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // --- KARTU RINGKASAN STATISTIK ---
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF2A9D8F), Color(0xFF21867A)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: [
-                  BoxShadow(color: const Color(0xFF2A9D8F).withOpacity(0.3), blurRadius: 15, offset: const Offset(0, 5)),
-                ],
-              ),
-              child: const Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _StatItem(title: 'Kuis Selesai', value: '12', icon: Icons.task_alt_rounded),
-                  _StatItem(title: 'Rata-rata', value: '85', icon: Icons.auto_graph_rounded),
-                ],
-              ),
-            ),
-            
-            const SizedBox(height: 32),
-            const Text('Riwayat Kuis', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF334155))),
-            const SizedBox(height: 16),
+      body: _buildBody(),
+    );
+  }
 
-            // --- LIST RIWAYAT UNTUK MENUJU REVIEW SCREEN ---
-            ListView.builder(
+  Widget _buildBody() {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator(color: Color(0xFF2A9D8F)));
+    }
+
+    if (_errorMessage.isNotEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.wifi_off_rounded, size: 60, color: Colors.grey),
+            const SizedBox(height: 16),
+            Text(_errorMessage, style: const TextStyle(color: Colors.grey)),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () {
+                setState(() { _isLoading = true; _errorMessage = ''; });
+                _fetchHistoryData();
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2A9D8F)),
+              child: const Text('Coba Lagi', style: TextStyle(color: Colors.white)),
+            )
+          ],
+        ),
+      );
+    }
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // --- KARTU RINGKASAN STATISTIK ---
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF2A9D8F), Color(0xFF21867A)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(color: const Color(0xFF2A9D8F).withOpacity(0.3), blurRadius: 15, offset: const Offset(0, 5)),
+              ],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _StatItem(title: 'Kuis Selesai', value: '$_totalQuizzes', icon: Icons.task_alt_rounded),
+                _StatItem(title: 'Rata-rata', value: '$_averageScore', icon: Icons.auto_graph_rounded),
+              ],
+            ),
+          ),
+          
+          const SizedBox(height: 32),
+          const Text('Riwayat Kuis', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF334155))),
+          const SizedBox(height: 16),
+
+          // --- LIST RIWAYAT UNTUK MENUJU REVIEW SCREEN ---
+          _historyKuis.isEmpty 
+          ? const Center(
+              child: Padding(
+                padding: EdgeInsets.only(top: 40),
+                child: Text('Belum ada riwayat kuis.', style: TextStyle(color: Colors.grey)),
+              )
+            )
+          : ListView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: _historyKuis.length,
               itemBuilder: (context, index) {
                 final history = _historyKuis[index];
+                
+                // Menangani kemungkinan nama variabel dari backend (bisa disesuaikan)
+                final int score = history['score'] ?? 0;
+                final String title = history['title'] ?? history['quiz']?['title'] ?? 'Kuis Latihan';
+                
+                // Coba ambil tanggal dari created_at, potong 10 karakter pertama (YYYY-MM-DD)
+                String date = 'Selesai';
+                if (history['created_at'] != null) {
+                   date = history['created_at'].toString().substring(0, 10);
+                }
                 
                 return Container(
                   margin: const EdgeInsets.only(bottom: 16),
@@ -97,15 +197,15 @@ class _QuizStatisticScreenState extends State<QuizStatisticScreen> {
                         width: 50,
                         height: 50,
                         decoration: BoxDecoration(
-                          color: history['score'] >= 80 ? const Color(0xFFE8F5E9) : const Color(0xFFFFF3E0),
+                          color: score >= 80 ? const Color(0xFFE8F5E9) : const Color(0xFFFFF3E0),
                           shape: BoxShape.circle,
                         ),
                         child: Center(
                           child: Text(
-                            '${history['score']}',
+                            '$score',
                             style: TextStyle(
                               fontWeight: FontWeight.bold, 
-                              color: history['score'] >= 80 ? const Color(0xFF2E7D32) : Colors.orange[800],
+                              color: score >= 80 ? const Color(0xFF2E7D32) : Colors.orange[800],
                             ),
                           ),
                         ),
@@ -115,26 +215,31 @@ class _QuizStatisticScreenState extends State<QuizStatisticScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(history['title'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF334155))),
+                            Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF334155))),
                             const SizedBox(height: 4),
-                            Text(history['date'], style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+                            Text(date, style: TextStyle(fontSize: 12, color: Colors.grey[500])),
                           ],
                         ),
                       ),
-                      // 👇 TOMBOL DIRECT KE REVIEW SCREEN
+                      // TOMBOL DIRECT KE REVIEW SCREEN
                       TextButton(
                         style: TextButton.styleFrom(
                           foregroundColor: const Color(0xFF2A9D8F),
                           backgroundColor: const Color(0xFF2A9D8F).withOpacity(0.1),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
+                        // JIKA TOMBOL INI DITEKAN:
                         onPressed: () {
+                          // Pastikan Laravel mengirim array 'questions' di dalam data riwayat ini
+                          // Jika tidak, Kapten harus menembak API lagi di dalam QuizReviewScreen
+                          List<dynamic> questionsList = history['questions'] ?? [];
+
                           Navigator.push(
                             context,
                             MaterialPageRoute(
                               builder: (context) => QuizReviewScreen(
-                                quizTitle: history['title'],
-                                questions: history['questions'], // Kirim data soalnya
+                                quizTitle: title,
+                                questions: questionsList, 
                               ),
                             ),
                           );
@@ -146,14 +251,12 @@ class _QuizStatisticScreenState extends State<QuizStatisticScreen> {
                 );
               },
             ),
-          ],
-        ),
+        ],
       ),
     );
   }
 }
 
-// Widget kecil untuk kotak statistik di atas
 class _StatItem extends StatelessWidget {
   final String title;
   final String value;

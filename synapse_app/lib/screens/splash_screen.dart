@@ -14,28 +14,23 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    _checkLoginStatus(); // Jalankan pengecekan saat aplikasi baru dibuka
+    _checkLoginStatus();
   }
 
   void _checkLoginStatus() async {
-    // Beri waktu 2 detik agar logo aplikasi kita sempat terlihat keren 😎
     await Future.delayed(const Duration(seconds: 2));
 
-    // Buka brankas HP dan cari token
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String? token = prefs.getString('token');
 
-    // Syarat wajib Flutter sebelum pindah halaman
     if (!mounted) return;
 
     if (token != null) {
-      // Jika KTP (Token) ADA -> Langsung ke Dashboard!
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const HomeScreen()),
       );
     } else {
-      // Jika KTP (Token) TIDAK ADA -> Lempar ke halaman Login!
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const LoginScreen()),
@@ -45,28 +40,30 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      backgroundColor: Colors.blue, // Latar belakang biru
+    return Scaffold(
+      backgroundColor: const Color(0xFF1E8E7E), // hijau tosca seperti gambar
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Logo Icon sederhana
-            Icon(Icons.school, size: 100, color: Colors.white), 
-            SizedBox(height: 20),
-            // Nama Aplikasi
-            Text(
+            // LOGO SYNAPSE
+            Image.asset(
+              'assets/images/logo_synapse.png',
+              width: 180,
+            ),
+
+            const SizedBox(height: 30),
+
+            // TULISAN SYNAPSE
+            const Text(
               'SYNAPSE',
               style: TextStyle(
-                fontSize: 36, 
-                fontWeight: FontWeight.bold, 
+                fontSize: 42,
+                fontWeight: FontWeight.w900,
                 color: Colors.white,
-                letterSpacing: 2.0,
+                letterSpacing: 4,
               ),
             ),
-            SizedBox(height: 40),
-            // Animasi Loading muter-muter
-            CircularProgressIndicator(color: Colors.white),
           ],
         ),
       ),
