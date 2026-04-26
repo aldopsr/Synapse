@@ -143,37 +143,53 @@ class QuizController extends Controller
     }
 
     // 5. RIWAYAT KUIS (LOG EVALUASI)
+    // 5. RIWAYAT KUIS (LOG EVALUASI)
     public function getHistory(Request $request)
     {
         $userId = $request->user()->id;
 
+        // 1. Ambil daftar riwayat pengerjaan mahasiswa
         $attempts = QuizAttempt::where('user_id', $userId)
             ->orderBy('created_at', 'desc')
             ->get();
 
         $quizIds = $attempts->pluck('quiz_id')->toArray();
 
+        // 2. Ambil detail kuisnya
         $quizzes = Quiz::whereIn('_id', $quizIds)->get()->keyBy('_id');
 
-        $history = $attempts->map(function ($attempt) use ($quizzes) {
+        // 3. 👇 TAMBAHAN BARU: Ambil semua soal dari kuis-kuis tersebut dan kelompokkan per quiz_id
+        $allQuestions = QuizQuestion::whereIn('quiz_id', $quizIds)->get()->groupBy('quiz_id');
+
+        // 4. Petakan dan gabungkan datanya
+        $history = $attempts->map(function ($attempt) use ($quizzes, $allQuestions) {
             $quizData = $quizzes->get($attempt->quiz_id);
+            
+            // Ambil kumpulan soal khusus untuk kuis ini
+            $quizQuestions = $allQuestions->get($attempt->quiz_id, collect());
+            
+            // Format soal agar rapi untuk dikirim ke Flutter
+            $formattedQuestions = $quizQuestions->map(function($q) {
+                return [
+                    // Catatan: Jika di database Kapten nama kolomnya bahasa Indonesia, 
+                    // ubah menjadi $q->pertanyaan dan $q->jawaban_benar
+                    'question' => $q->question, 
+                    'correct_answer' => $q->correct_answer,
+                ];
+            })->toArray();
+
             return [
                 'quiz_id' => $attempt->quiz_id, 
                 'title' => $quizData ? $quizData->title : 'Kuis Dihapus/Tidak Ditemukan',
                 'score' => $attempt->score,
-                'created_at' => $attempt->created_at
+                'created_at' => $attempt->created_at,
+                'questions' => $formattedQuestions // 👈 SEKARANG DATA SOALNYA IKUT DIKIRIM!
             ];
         });
 
         return response()->json([
-            'message' => 'Berhasil mengambil riwayat',
+            'message' => 'Berhasil mengambil riwayat evaluasi',
             'data' => $history
         ], 200);
-
-        // // 6. Kirim ke Flutter
-        // return response()->json([
-        //     'message' => 'Berhasil mengambil riwayat harta karun',
-        //     'data' => $history
-        // ], 200);
     }
 }

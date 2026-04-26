@@ -6,6 +6,9 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\MaterialController;
 use App\Http\Controllers\Api\QuizController;
 use App\Http\Controllers\Api\AiChatController;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Response;
+use Illuminate\Support\Facades\File;
 
 // =================================================================
 // 1. JALUR PUBLIK (Tanpa perlu Login / Token)
@@ -32,6 +35,8 @@ Route::middleware('auth:sanctum')->group(function () {
     // Auth & Profil
     Route::get('/auth/me', [AuthController::class , 'getUser']);
     Route::post('/auth/logout', [AuthController::class , 'logout']);
+
+    Route::post('/auth/change-password', [AuthController::class, 'changePassword']);
 
     // Papan Peringkat & Pertanyaan
     Route::get('/quizzes/{id}/leaderboard', [QuizController::class , 'leaderboard']);
@@ -68,3 +73,26 @@ Route::middleware(['auth:sanctum', 'role:publik,mahasiswa'])->group(function () 
         );
         Route::post('/chat', [AiChatController::class , 'chat']);
     });
+
+//  JALUR RESMI UNDUH MODEL 3D DENGAN IZIN CORS
+Route::get('/download-model/{path}', function ($path) {
+    // Cari posisi file aslinya di folder storage/app/public/
+    $fullPath = storage_path('app/public/' . $path);
+    
+    if (!File::exists($fullPath)) {
+        return response()->json(['message' => 'File 3D tidak ditemukan'], 404);
+    }
+
+    // Kembalikan file dengan surat izin lengkap (CORS Headers)
+    return response()->file($fullPath, [
+        'Access-Control-Allow-Origin' => '*',
+        'Access-Control-Allow-Methods' => 'GET, OPTIONS',
+        'Access-Control-Allow-Headers' => '*',
+    ]);
+})->where('path', '.*'); // Penting: Agar bisa membaca path yang mengandung garis miring (models/namafile.glb)
+
+Route::get('/ar-gallery', [MaterialController::class, 'arGallery']);
+
+Route::post('/forgot-password/send-otp', [\App\Http\Controllers\Api\AuthController::class, 'sendResetOtp']);
+Route::post('/forgot-password/verify-otp', [\App\Http\Controllers\Api\AuthController::class, 'verifyResetOtp']);
+Route::post('/forgot-password/reset', [\App\Http\Controllers\Api\AuthController::class, 'resetPassword']);

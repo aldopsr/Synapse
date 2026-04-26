@@ -10,9 +10,25 @@ class Material extends Model
     use HasFactory;
     protected $guarded = [];
 
-    // TAMBAHKAN 3 BARIS INI: Relasi 1 Materi punya Banyak Soal (Latihan)
+    // Tambahkan appends agar model_3d_url otomatis muncul di JSON
+    protected $appends = ['model_3d_url'];
+
+    // Accessor: Mengubah path storage menjadi URL publik yang utuh
+    public function getModel3dUrlAttribute()
+    {
+        if (isset($this->attributes['model_3d_path']) && $this->attributes['model_3d_path']) {
+            return asset('storage/' . $this->attributes['model_3d_path']);
+        }
+        return null;
+    }
+
     public function questions()
     {
         return $this->hasMany(Question::class);
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
     }
 }
