@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../services/auth_service.dart'; // Untuk ambil getBaseUrl
 import 'ar_view_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ArGalleryScreen extends StatefulWidget {
   @override
@@ -22,18 +23,52 @@ class _ArGalleryScreenState extends State<ArGalleryScreen> {
   }
 
   Future<void> _fetchArAssets() async {
-    try {
-      final response = await http.get(Uri.parse('${getBaseUrl()}/ar-gallery'));
-      if (response.statusCode == 200) {
-        setState(() {
-          _arAssets = jsonDecode(response.body)['data'];
-          _isLoading = false;
-        });
+  try {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? token = prefs.getString('token');
+
+    final response = await http.get(
+      Uri.parse('${getBaseUrl()}/ar-gallery'),
+      headers: {
+        'Accept': 'application/json',
+        if (token != null) 'Authorization': 'Bearer $token',
+      },
+    );
+
+    print("===== DEBUG AR GALLERY =====");
+    print("Status: ${response.statusCode}");
+    print("Body mentah: ${response.body}");
+    print("============================");
+
+    if (response.statusCode == 200) {
+      final decoded = jsonDecode(response.body);
+      final List dataList = decoded['data'] ?? [];
+
+      // 🌟 PRINT setelah data di-decode, SEBELUM setState
+      if (dataList.isNotEmpty) {
+        print("Jumlah aset: ${dataList.length}");
+        print("Asset pertama LENGKAP: ${dataList[0]}");
+        print("Field 'image' pertama: '${dataList[0]['image']}'");
+        print("Tipe field image: ${dataList[0]['image'].runtimeType}");
+      } else {
+        print("⚠️ dataList kosong!");
       }
-    } catch (e) {
-      print("Error ambil galeri: $e");
+
+      setState(() {
+        _arAssets = dataList;
+        _isLoading = false;
+      });
+    } else {
+      print("Server error: ${response.statusCode}");
+      print("Pesan: ${response.body}");
+      setState(() => _isLoading = false);
     }
+  } catch (e, stackTrace) {
+    print("Error ambil galeri: $e");
+    print("Stack: $stackTrace");
+    setState(() => _isLoading = false);
   }
+}
 
   @override
   Widget build(BuildContext context) {

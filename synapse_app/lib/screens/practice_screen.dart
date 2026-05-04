@@ -33,40 +33,41 @@ class _PracticeScreenState extends State<PracticeScreen> {
   }
 
   Future<void> _fetchQuestions() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('token');
-      
-      // Sesuaikan IP seperti sebelumnya (127.0.0.1 untuk Chrome, atau IP WiFi untuk HP)
-      final url = 'http://192.168.1.12:8000/api/materials/${widget.materialId}/questions';
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+    
+    // Gunakan getBaseUrl() yang sama dengan Service agar tidak typo
+    final url = 'http://192.168.1.21:8000/api/materials/${widget.materialId}/questions';
 
-      final response = await http.get(
-        Uri.parse(url),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Accept': 'application/json',
-        },
-      );
+    final response = await http.get(
+      Uri.parse(url),
+      headers: {
+        'Accept': 'application/json',
+        if (token != null) 'Authorization': 'Bearer $token', // Fleksibel untuk Tamu
+      },
+    );
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        setState(() {
-          _questions = data['data'];
-          _isLoading = false;
-        });
-      } else {
-        setState(() {
-          _errorMessage = 'Gagal mengambil soal dari server.';
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
       setState(() {
-        _errorMessage = 'Terjadi kesalahan jaringan: $e';
+        // Ambil dari 'data' karena di Controller Laravel kita bungkus
+        _questions = data['data'] ?? []; 
+        _isLoading = false;
+      });
+    } else {
+      setState(() {
+        _errorMessage = 'Gagal mengambil soal. (Status: ${response.statusCode})';
         _isLoading = false;
       });
     }
+  } catch (e) {
+    setState(() {
+      _errorMessage = 'Terjadi kesalahan jaringan: $e';
+      _isLoading = false;
+    });
   }
+}
 
   void _nextQuestion() {
     if (_selectedAnswer == null) {

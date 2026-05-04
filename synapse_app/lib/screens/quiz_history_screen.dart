@@ -16,7 +16,7 @@ class _QuizHistoryScreenState extends State<QuizHistoryScreen> {
   bool _isLoading = true;
 
   // Sesuaikan dengan baseUrl aplikasi Kapten
-  final String baseUrl = 'http://192.168.1.12:8000/api'; 
+  final String baseUrl = 'http://192.168.1.21:8000/api'; 
 
   @override
   void initState() {

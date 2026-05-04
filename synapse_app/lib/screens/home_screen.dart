@@ -202,44 +202,40 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // --- WIDGET UNTUK TOMBOL TENGAH (SUDAH DIUPDATE) ---
   Widget _buildCenterButton() {
-  return GestureDetector(
-    onTap: () {
-      if (_isGuest) {
-        _showAccessDeniedDialog();
-        return;
-      }
-
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => ArGalleryScreen(),
-        ),
-      );
-    },
-    child: Container(
-      height: 55,
-      width: 55,
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Colors.blueAccent, Colors.lightBlue],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.blueAccent.withOpacity(0.4),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+    return GestureDetector(
+      onTap: () {
+        // PENGECEKAN TAMU DIHAPUS. Tamu langsung bisa masuk ke AR!
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ArGalleryScreen(), // Pastikan nama class-nya benar
           ),
-        ],
+        );
+      },
+      child: Container(
+        height: 55,
+        width: 55,
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Colors.blueAccent, Colors.lightBlue],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.blueAccent.withOpacity(0.4),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: const Icon(
+          Icons.view_in_ar_rounded,
+          color: Colors.white,
+          size: 28,
+        ),
       ),
-      child: const Icon(
-        Icons.view_in_ar_rounded,
-        color: Colors.white,
-        size: 28,
-      ),
-    ),
-  );
-}
+    );
+  }
 }

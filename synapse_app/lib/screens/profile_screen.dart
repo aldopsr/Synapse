@@ -17,9 +17,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _nim = "";
   String _kelas = "";
   bool _isLoading = true;
+  bool _isGuest = false;
+
 
   // Pastikan baseUrl ini sudah sesuai dengan IP server Kapten!
-  final String baseUrl = 'http://192.168.1.12:8000/api'; 
+  final String baseUrl = 'http://192.168.1.21:8000/api'; 
 
   @override
   void initState() {
@@ -28,39 +30,48 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _fetchUserData() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token');
+  SharedPreferences prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString('token');
 
-    try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/auth/me'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Accept': 'application/json',
-        },
-      );
+  // ✅ Kalau tidak ada token → guest
+  if (token == null || token.isEmpty) {
+    setState(() {
+      _isGuest = true;
+      _isLoading = false;
+    });
+    return;
+  }
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        setState(() {
-          _name = data['name'] ?? 'Unknown User';
-          _nim = data['nim'] ?? '-';
-          _kelas = data['kelas'] ?? '-';
-          _isLoading = false;
-        });
-      } else {
-        setState(() {
-          _name = "Gagal memuat profil";
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
+  try {
+    final response = await http.get(
+      Uri.parse('$baseUrl/auth/me'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
       setState(() {
-        _name = "Koneksi terputus";
+        _name = data['name'] ?? 'Unknown User';
+        _nim = data['nim'] ?? '-';
+        _kelas = data['kelas'] ?? '-';
+        _isLoading = false;
+      });
+    } else {
+      setState(() {
+        _name = "Gagal memuat profil";
         _isLoading = false;
       });
     }
+  } catch (e) {
+    setState(() {
+      _name = "Koneksi terputus";
+      _isLoading = false;
+    });
   }
+}
 
   Future<void> _logout(BuildContext context) async {
     showDialog(
@@ -112,6 +123,65 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+  // ================== ✅ TAMPILAN TAMU ==================
+  if (_isGuest) {
+    return Scaffold(
+      backgroundColor: Colors.grey[100],
+      appBar: AppBar(
+        title: const Text('Profil Tamu'),
+        backgroundColor: Colors.grey[100],
+        foregroundColor: Colors.blueGrey[900],
+        elevation: 0,
+      ),
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: constraints.maxHeight,
+                ),
+                child: IntrinsicHeight(
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.account_circle,
+                            size: 100, color: Colors.grey),
+                        const SizedBox(height: 20),
+                        const Text(
+                          'Anda masuk sebagai Tamu',
+                          style: TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 10),
+                        const Text(
+                          'Silakan login untuk melihat profil dan fitur lengkap.',
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 30),
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (context) => const LoginScreen()),
+                            );
+                          },
+                          icon: const Icon(Icons.login),
+                          label: const Text('Login / Daftar'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
     return Scaffold(
       backgroundColor: Colors.grey[100], 
       appBar: AppBar(
