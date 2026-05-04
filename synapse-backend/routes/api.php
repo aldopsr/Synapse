@@ -86,7 +86,6 @@ Route::middleware(['auth:sanctum', 'role:dosen,admin,superadmin'])->group(functi
     Route::delete('questions/{id}', [MaterialController::class, 'destroyQuestion']);
 
     Route::post('materials/{material_id}/ar', [MaterialController::class, 'attachAr']);
-    Route::get('ar-gallery', [MaterialController::class, 'arGallery']);
     
     Route::post('/admin/materials', [MaterialController::class , 'store']); 
 
@@ -118,4 +117,7 @@ Route::middleware(['auth:sanctum', 'role:publik,mahasiswa'])->group(function () 
         return response()->json(['message' => 'Ini daftar Mini Quiz untuk latihan.']);
     });
     Route::post('/chat', [AiChatController::class , 'chat']);
+
+    Route::get('ar-gallery', [MaterialController::class, 'arGallery']);
+
 });
