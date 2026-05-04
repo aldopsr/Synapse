@@ -1,0 +1,275 @@
+@font-face {
+  font-family: inter; /* set name */
+  src: url(../font/inter/Inter-VariableFont_opsz,wght.woff2); /* url of the font */
+}
+
+@font-face {
+  font-family: inter-italic; /* set name */
+  src: url(../font/inter/Inter-Italic-VariableFont_opsz,wght.woff2); /* url of the font */
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  font-family: inter;
+  box-sizing: border-box;
+}
+
+body {
+  background: #EDEFF1;
+  display: flex;
+  height: 100vh;
+}
+
+/* SIDEBAR */
+.sidebar {
+  width: 270px;
+  background: #279685;
+  color: #FFFFFF;
+  height: 100%;
+  padding: 30px 20px;
+}
+
+.menu {
+  display: flex;
+  flex-direction: column;
+  padding: 18px 0px;
+  gap: 15px 0px;
+}
+
+.menu div {
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  gap: 0px 10px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.menu div:hover {
+  background: #86C3BD;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 10px;
+  text-decoration: none;
+  color: #FFFFFF;
+}
+
+.menu-item:hover {
+  background: #86C3BD;
+}
+
+/* MAIN */
+.main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  padding: 60px 30px;
+}
+
+.topbar {
+  display: flex;
+  flex-direction: column;
+  gap: 20px 0px;
+  color: #44474D;
+}
+
+.table {
+  display: grid;
+  grid-template-columns: auto auto auto;
+  background-color: #FFFFFF;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.table .table-text {
+  display: flex;
+  padding: 20px 30px;
+  align-items: center;
+  font-size: 16px;
+  font-weight: 600;
+  color: #44474D;
+  gap: 0px 8px;
+}
+
+.table .green-background{
+  background-color: #D3EDEB;
+}
+
+.online-circle {
+  height: 15px;
+  width: 15px;
+  background-color: #279685;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+/* CARDS */
+.cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-top: 20px;
+  color: #44474D;
+}
+
+.card {
+  padding: 20px;
+  border-radius: 16px;
+  color: #44474D;;
+}
+
+.card h3 {
+  margin: 0;
+}
+
+.card small {
+  color: #44474D;
+}
+
+/* CONTENT GRID */
+.content {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 20px;
+}
+
+.box {
+  background: white;
+  color: #44474D;
+  padding: 20px;
+  border-radius: 16px;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+}
+
+.box .center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 64px;
+  font-weight: 600;
+}
+
+.profile-card {
+  display: flex;
+  width: 400px;
+  flex-direction: column;
+  padding: 24px;
+  gap: 20px;
+  border-radius: 32px;
+  background-color: #FFFFFF;
+}
+
+.profile-card .profile-text {
+  display: flex;
+  align-items: center;
+  padding: 8px 10px;
+  gap: 8px;
+  color: #44474D;
+  border-radius: 20px;
+}
+
+.profile-card .profile-text .profile-text-form {
+  width:100%; 
+  height:100%; 
+  font-size:16px; 
+  color:#44474D; 
+  border:none; 
+  outline:none;
+}
+
+.button1 {
+  display: flex;
+  position: relative;
+  justify-content: center;
+  align-items: center;
+  width: 50%;
+  height: 50px;
+  padding: 12px;
+  border-radius: 15px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #FFFFFF;
+  background-color: #279685;
+  transition-duration: 0.4s;
+  text-decoration: none;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.button1:hover {
+  color: #279685;
+  background-color: #FFFFFF;
+  outline: 3px solid #279685;
+}
+
+.button1:after {
+  content: "";
+  background: #279685;
+  display: block;
+  position: absolute;
+  padding-top: 300%;
+  padding-left: 350%;
+  margin-left: -20px!important;
+  margin-top: -120%;
+  opacity: 0;
+  transition: all 0.8s
+}
+
+.button1:active:after {
+  padding: 0;
+  margin: 0;
+  opacity: 1;
+  transition: 0s
+}
+
+.button2 {
+  display: flex;
+  position: relative;
+  justify-content: center;
+  align-items: center;
+  width: 50%;
+  height: 50px;
+  padding: 12px;
+  border-radius: 15px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #279685;
+  background-color: #FFFFFF;
+  outline: 3px solid #279685;
+  transition-duration: 0.4s;
+  text-decoration: none;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.button2:hover {
+  color: #FFFFFF;
+  background-color: #279685;
+  outline: none;
+}
+
+.button2:after {
+  content: "";
+  background: #FFFFFF;
+  display: block;
+  position: absolute;
+  padding-top: 300%;
+  padding-left: 350%;
+  margin-left: -20px!important;
+  margin-top: -120%;
+  opacity: 0;
+  transition: all 0.8s
+}
+
+.button2:active:after {
+  padding: 0;
+  margin: 0;
+  opacity: 1;
+  transition: 0s
+}
