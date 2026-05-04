@@ -9,9 +9,10 @@ use App\Http\Controllers\Api\AiChatController;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\File;
+use App\Http\Controllers\Api\DosenController;
 
 // =================================================================
-// 1. JALUR PUBLIK (Tanpa perlu Login / Token)
+// 1. JALUR PUBLIK (Tanpa perlu Login / Token - Tamu Bebas Masuk)
 // =================================================================
 Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class , 'register']);
@@ -20,38 +21,83 @@ Route::prefix('auth')->group(function () {
     Route::post('/resend-otp', [AuthController::class , 'resendOtp']);
 });
 
-// Baca Materi (Publik)
-Route::get('/materials', function () {
-    return response()->json(\App\Models\Material::all());
-});
-Route::get('/materials/{id}', [MaterialController::class , 'show']);
+Route::post('/forgot-password/send-otp', [\App\Http\Controllers\Api\AuthController::class, 'sendResetOtp']);
+Route::post('/forgot-password/verify-otp', [\App\Http\Controllers\Api\AuthController::class, 'verifyResetOtp']);
+Route::post('/forgot-password/reset', [\App\Http\Controllers\Api\AuthController::class, 'resetPassword']);
+
+// --- RUTE BACA MATERI & LATIHAN (Tamu & Mahasiswa) ---
+Route::get('/materials', [MaterialController::class, 'index']); 
+Route::get('/materials/{id}', [MaterialController::class, 'show']);
+Route::get('/materials/{id}/questions', [MaterialController::class, 'getQuestions']); 
+
+// --- RUTE DAFTAR MATKUL (Pindahan untuk Flutter - Tamu & Mahasiswa) ---
+Route::get('/public/courses', [\App\Http\Controllers\Api\StudentCourseController::class, 'index']);
+Route::get('/public/courses/{course_id}/materials', [\App\Http\Controllers\Api\StudentCourseController::class, 'getMaterials']);
+
+
+// --- JALUR UNDUH MODEL 3D ---
+Route::get('/download-model/{path}', function ($path) {
+    $fullPath = storage_path('app/public/' . $path);
+    if (!File::exists($fullPath)) {
+        return response()->json(['message' => 'File 3D tidak ditemukan'], 404);
+    }
+    return response()->file($fullPath, [
+        'Access-Control-Allow-Origin' => '*',
+        'Access-Control-Allow-Methods' => 'GET, OPTIONS',
+        'Access-Control-Allow-Headers' => '*',
+    ]);
+})->where('path', '.*'); 
+Route::get('/ar-gallery', [MaterialController::class, 'arGallery']);
 
 
 // =================================================================
 // 2. JALUR UMUM (Wajib Login, Semua Role Boleh Akses)
 // =================================================================
 Route::middleware('auth:sanctum')->group(function () {
-
     // Auth & Profil
     Route::get('/auth/me', [AuthController::class , 'getUser']);
     Route::post('/auth/logout', [AuthController::class , 'logout']);
-
     Route::post('/auth/change-password', [AuthController::class, 'changePassword']);
 
-    // Papan Peringkat & Pertanyaan
+    // Papan Peringkat
     Route::get('/quizzes/{id}/leaderboard', [QuizController::class , 'leaderboard']);
-    Route::get('/materials/{id}/questions', [MaterialController::class , 'getQuestions']);
 });
 
-// =================================================================
-// 3. AREA KHUSUS DOSEN & SUPERADMIN
-// =================================================================
-Route::middleware(['auth:sanctum', 'role:dosen,superadmin'])->group(function () {
-    Route::post('/admin/materials', [MaterialController::class , 'store']);
-});
 
 // =================================================================
-// 4. AREA KHUSUS MAHASISWA
+// 3. AREA KHUSUS DOSEN & SUPERADMIN (Web Dashboard)
+// =================================================================
+Route::middleware(['auth:sanctum', 'role:dosen,admin,superadmin'])->group(function () {
+    Route::get('/dashboard/stats', [\App\Http\Controllers\Api\DashboardController::class, 'getStats']);
+    
+    // --- KELOLA MATKUL & MATERI (Saya pindahkan semua ke sini agar aman!) ---
+    Route::get('/courses', [\App\Http\Controllers\Api\CourseController::class, 'index']);
+    Route::post('/courses', [\App\Http\Controllers\Api\CourseController::class, 'store']);
+    Route::get('/courses/{course_id}/materials', [\App\Http\Controllers\Api\MaterialController::class, 'getByCourse']);
+    Route::post('/courses/{course_id}/materials', [\App\Http\Controllers\Api\MaterialController::class, 'storeByCourse']);
+    Route::post('/upload-image', [\App\Http\Controllers\Api\MaterialController::class, 'uploadImage']);
+
+    Route::get('/materials/{id}', [MaterialController::class, 'show']);
+    Route::put('/materials/{id}', [MaterialController::class, 'update']);
+    Route::delete('/materials/{id}', [MaterialController::class, 'destroy']);
+
+    Route::get('materials/{material_id}/questions', [MaterialController::class, 'getQuestions']);
+    Route::post('materials/{material_id}/questions', [MaterialController::class, 'storeQuestion']);
+    Route::delete('questions/{id}', [MaterialController::class, 'destroyQuestion']);
+
+    Route::post('materials/{material_id}/ar', [MaterialController::class, 'attachAr']);
+    Route::get('ar-gallery', [MaterialController::class, 'arGallery']);
+    
+    Route::post('/admin/materials', [MaterialController::class , 'store']); 
+
+    Route::get('/dosen', [DosenController::class, 'index']);
+    Route::post('/dosen', [DosenController::class, 'store']);
+    Route::delete('/dosen/{id}', [DosenController::class, 'destroy']);
+});
+
+
+// =================================================================
+// 4. AREA KHUSUS MAHASISWA (Fitur Login di Flutter)
 // =================================================================
 Route::middleware(['auth:sanctum', 'role:mahasiswa'])->group(function () {
     Route::get('/quizzes', [QuizController::class , 'index']);
@@ -63,36 +109,13 @@ Route::middleware(['auth:sanctum', 'role:mahasiswa'])->group(function () {
     Route::post('/explain-question', [AiChatController::class, 'explainQuestion']);
 });
 
+
 // =================================================================
-// 5. AREA PUBLIK & MAHASISWA
+// 5. AREA PUBLIK (Yang Sudah Login) & MAHASISWA
 // =================================================================
 Route::middleware(['auth:sanctum', 'role:publik,mahasiswa'])->group(function () {
     Route::get('/mini-quizzes', function () {
-            return response()->json(['message' => 'Ini daftar Mini Quiz untuk latihan.']);
-        }
-        );
-        Route::post('/chat', [AiChatController::class , 'chat']);
+        return response()->json(['message' => 'Ini daftar Mini Quiz untuk latihan.']);
     });
-
-//  JALUR RESMI UNDUH MODEL 3D DENGAN IZIN CORS
-Route::get('/download-model/{path}', function ($path) {
-    // Cari posisi file aslinya di folder storage/app/public/
-    $fullPath = storage_path('app/public/' . $path);
-    
-    if (!File::exists($fullPath)) {
-        return response()->json(['message' => 'File 3D tidak ditemukan'], 404);
-    }
-
-    // Kembalikan file dengan surat izin lengkap (CORS Headers)
-    return response()->file($fullPath, [
-        'Access-Control-Allow-Origin' => '*',
-        'Access-Control-Allow-Methods' => 'GET, OPTIONS',
-        'Access-Control-Allow-Headers' => '*',
-    ]);
-})->where('path', '.*'); // Penting: Agar bisa membaca path yang mengandung garis miring (models/namafile.glb)
-
-Route::get('/ar-gallery', [MaterialController::class, 'arGallery']);
-
-Route::post('/forgot-password/send-otp', [\App\Http\Controllers\Api\AuthController::class, 'sendResetOtp']);
-Route::post('/forgot-password/verify-otp', [\App\Http\Controllers\Api\AuthController::class, 'verifyResetOtp']);
-Route::post('/forgot-password/reset', [\App\Http\Controllers\Api\AuthController::class, 'resetPassword']);
+    Route::post('/chat', [AiChatController::class , 'chat']);
+});

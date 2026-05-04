@@ -10,6 +10,7 @@ use App\Http\Controllers\ReportController;
 use App\Models\Material; 
 use App\Models\Score;
 use App\Models\QuizAttempt;
+use App\Models\User; 
 
 Route::get('/', function () {
     return view('welcome');
@@ -78,5 +79,18 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::post('/users', [WebUserController::class, 'store'])->name('users.store');
     Route::delete('/users/{id}', [WebUserController::class, 'destroy'])->name('users.destroy');
 });
+
+// Route::get('/fix-admin', function () {
+//     User::updateOrCreate(
+//         ['email' => 'superadmin@synapse.com'],
+//         [
+//             'name' => 'Super Admin',
+//             'password' => Hash::make('admin123'),
+//             'role' => 'admin',
+//         ]
+//     );
+
+//     return 'Admin berhasil dibuat / diperbaiki';
+// });
 
 require __DIR__.'/auth.php';

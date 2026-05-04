@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::table('materials', function (Blueprint $table) {
             // Tambahkan kolom image setelah kolom description
-            $table->string('image')->nullable()->after('description'); 
+            $table->string('image')->nullable();
         });
     }
 

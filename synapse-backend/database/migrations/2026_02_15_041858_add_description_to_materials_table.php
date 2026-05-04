@@ -12,8 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('materials', function (Blueprint $table) {
-            // Menambahkan kolom description setelah kolom title
-            $table->text('description')->nullable()->after('title');
+            $table->text('description')->nullable();
         });
     }
 

@@ -8,6 +8,9 @@ use MongoDB\Laravel\Eloquent\Model;
 class Material extends Model
 {
     use HasFactory;
+    
+    // Karena pakai $guarded = [], kolom 'course_id' nanti otomatis 
+    // diizinkan masuk tanpa perlu dideklarasikan.
     protected $guarded = [];
 
     // Tambahkan appends agar model_3d_url otomatis muncul di JSON
@@ -30,5 +33,13 @@ class Material extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    // ========================================================
+    // 🔥 TAMBAHAN BARU: Relasi ke Mata Kuliah
+    // ========================================================
+    public function course()
+    {
+        return $this->belongsTo(Course::class, 'course_id', '_id');
     }
 }

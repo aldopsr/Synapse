@@ -142,7 +142,6 @@ class AuthController extends Controller
             return response()->json(['message' => 'User tidak ditemukan'], 404);
         }
 
-        // 👇 PERBAIKAN DI SINI: Jadikan keduanya String murni dan buang spasi gaib
         $dbOtp = (string)$user->otp;
         $inputOtp = trim((string)$request->otp);
 
@@ -150,10 +149,6 @@ class AuthController extends Controller
         if ($dbOtp !== $inputOtp) {
             return response()->json([
                 'message' => 'Kode OTP salah!',
-                // 💡 Buka komentar 2 baris di bawah ini JIKA MASIH ERROR, 
-                // agar kita bisa melihat bentuk asli datanya di terminal Flutter!
-                // 'db_punya_laravel' => $dbOtp,
-                // 'input_dari_flutter' => $inputOtp,
             ], 400);
         }
 

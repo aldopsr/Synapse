@@ -26,6 +26,7 @@ class User extends Authenticatable
         'role',
         'nim',
         'kelas',
+        'course_id', // TAMBAHAN BARU: Wajib agar data matkul tidak ditolak Laravel
     ];
 
     /**
@@ -51,8 +52,21 @@ class User extends Authenticatable
         ];
     }
 
+    // RELASI YANG SUDAH ADA
     public function materials()
     {
         return $this->hasMany(Material::class);
+    }
+
+    // TAMBAHAN BARU: Relasi ke tabel Courses (Mata Kuliah)
+    public function course()
+    {
+        return $this->belongsTo(Course::class, 'course_id');
+    }
+
+    // TAMBAHAN BARU: Relasi ke tabel Quizzes (Agar statistik Quiz di Frontend jalan)
+    public function quizzes()
+    {
+        return $this->hasMany(Quiz::class); // Sesuaikan 'Quiz::class' dengan nama Model Quiz Kapten
     }
 }

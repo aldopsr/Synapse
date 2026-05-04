@@ -21,8 +21,12 @@ return new class extends Migration
             $table->timestamps();
 
             $table->enum('role', ['superadmin', 'dosen', 'mahasiswa', 'publik'])->default('publik');
-            $table->string('nim')->nullable()->unique(); 
+            $table->string('nim')->nullable();
             $table->string('kelas')->nullable();
+            
+            // TAMBAHAN BARU: Kolom untuk menyimpan ID Matkul
+            // Menggunakan string karena MongoDB biasanya memakai ObjectId (string)
+            $table->string('course_id')->nullable(); 
         });
 
         Schema::create('password_reset_tokens', function (Blueprint $table) {
