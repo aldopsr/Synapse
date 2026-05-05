@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use MongoDB\Laravel\Eloquent\Model;
+use App\Models\ArAsset;
 
 class Material extends Model
 {
@@ -27,7 +28,7 @@ class Material extends Model
 
     public function questions()
     {
-        return $this->hasMany(Question::class);
+        return $this->hasMany(\App\Models\Question::class, 'material_id', '_id');
     }
 
     public function user()
@@ -41,5 +42,13 @@ class Material extends Model
     public function course()
     {
         return $this->belongsTo(Course::class, 'course_id', '_id');
+    }
+
+    // ========================================================
+    // 🌟 BARU: Relasi 1 Materi punya banyak AR Asset
+    // ========================================================
+    public function ar_assets()
+    {
+        return $this->hasMany(\App\Models\ArAsset::class, 'material_id', '_id');
     }
 }

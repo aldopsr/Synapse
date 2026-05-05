@@ -11,30 +11,35 @@ class MaterialController extends Controller
 {
     // 1. MELIHAT SEMUA DAFTAR MATERI
     public function index()
-{
-    // 🌟 UPDATE: Tambahkan 'content' di select
-    $materials = Material::select('id', 'title', 'description', 'content', 'image', 'model_3d_path', 'has_ar','has_practice', 'created_at', 'user_id')
-        ->with('user:id,name')
-        ->latest()
-        ->get();
+    {
+        // 🌟 UPDATE: Tambahkan with ar_assets dan questions agar terbaca di Flutter
+        $materials = Material::select('id', 'title', 'description', 'content', 'image', 'model_3d_path', 'has_ar','has_practice', 'created_at', 'user_id')
+            ->with('user:id,name')
+            ->with('ar_assets') // 👈 TAMBAHKAN INI
+            ->with('questions') // 👈 TAMBAHKAN INI
+            ->latest()
+            ->get();
 
-    $materials->transform(function ($item) {
-        if ($item->image) {
-            $item->image = asset('storage/' . $item->image); 
-        }
-        return $item;
-    });
+        $materials->transform(function ($item) {
+            if ($item->image) {
+                $item->image = asset('storage/' . $item->image); 
+            }
+            return $item;
+        });
 
-    return response()->json([
-        'message' => 'Berhasil mengambil daftar materi',
-        'data' => $materials
-    ], 200);
-}
-
+        return response()->json([
+            'message' => 'Berhasil mengambil daftar materi',
+            'data' => $materials
+        ], 200);
+    }
     // 2. MEMBACA SATU MATERI SECARA DETAIL
     public function show($id)
     {
-        $material = Material::with('user:id,name')->find($id);
+        // 🌟 UPDATE: Tambahkan with ar_assets dan questions
+        $material = Material::with('user:id,name')
+            ->with('ar_assets') // 👈 TAMBAHKAN INI
+            ->with('questions') // 👈 TAMBAHKAN INI
+            ->find($id);
 
         if (!$material) {
             return response()->json(['message' => 'Materi tidak ditemukan!'], 404);
@@ -49,7 +54,6 @@ class MaterialController extends Controller
             'data' => $material
         ], 200);
     }
-
     // 2. FUNGSI UNTUK MENYIMPAN HASIL EDIT
     public function update(Request $request, $id)
     {
@@ -229,16 +233,19 @@ class MaterialController extends Controller
 
     // 1. AMBIL MATERI BERDASARKAN ID MATKUL
     public function getByCourse($course_id)
-    {
-        // Cari materi yang course_id-nya sesuai
-        $materials = Material::where('course_id', $course_id)->get();
+{
+    // Menggunakan try-catch agar kita tahu errornya apa
+    try {
+        $materials = Material::where('course_id', $course_id)
+            ->with('ar_assets')
+            ->with('questions')
+            ->get();
         
-        return response()->json([
-            'success' => true,
-            'data' => $materials
-        ]);
+        return response()->json($materials); // Langsung kirim array-nya saja
+    } catch (\Exception $e) {
+        return response()->json(['error' => $e->getMessage()], 500);
     }
-
+}
     // 2. SIMPAN MATERI KE MATKUL TERTENTU
     public function storeByCourse(Request $request, $course_id)
     {

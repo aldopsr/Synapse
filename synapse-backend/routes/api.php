@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\MaterialController;
 use App\Http\Controllers\Api\QuizController;
 use App\Http\Controllers\Api\AiChatController;
+use App\Http\Controllers\Api\ArAssetController; // 🌟 BARU
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\File;
@@ -26,9 +27,9 @@ Route::post('/forgot-password/verify-otp', [\App\Http\Controllers\Api\AuthContro
 Route::post('/forgot-password/reset', [\App\Http\Controllers\Api\AuthController::class, 'resetPassword']);
 
 // --- RUTE BACA MATERI & LATIHAN (Tamu & Mahasiswa) ---
-Route::get('/materials', [MaterialController::class, 'index']); 
+Route::get('/materials', [MaterialController::class, 'index']);
 Route::get('/materials/{id}', [MaterialController::class, 'show']);
-Route::get('/materials/{id}/questions', [MaterialController::class, 'getQuestions']); 
+Route::get('/materials/{id}/questions', [MaterialController::class, 'getQuestions']);
 
 // --- RUTE DAFTAR MATKUL (Pindahan untuk Flutter - Tamu & Mahasiswa) ---
 Route::get('/public/courses', [\App\Http\Controllers\Api\StudentCourseController::class, 'index']);
@@ -46,8 +47,11 @@ Route::get('/download-model/{path}', function ($path) {
         'Access-Control-Allow-Methods' => 'GET, OPTIONS',
         'Access-Control-Allow-Headers' => '*',
     ]);
-})->where('path', '.*'); 
+})->where('path', '.*');
 Route::get('/ar-gallery', [MaterialController::class, 'arGallery']);
+Route::get('/ar-assets', [ArAssetController::class, 'index']); 
+Route::get('/ar-assets/{id}', [ArAssetController::class, 'show']); 
+Route::get('/materials/{materialId}/ar-assets', [ArAssetController::class, 'getByMaterial']); 
 
 
 // =================================================================
@@ -69,8 +73,8 @@ Route::middleware('auth:sanctum')->group(function () {
 // =================================================================
 Route::middleware(['auth:sanctum', 'role:dosen,admin,superadmin'])->group(function () {
     Route::get('/dashboard/stats', [\App\Http\Controllers\Api\DashboardController::class, 'getStats']);
-    
-    // --- KELOLA MATKUL & MATERI (Saya pindahkan semua ke sini agar aman!) ---
+
+    // --- KELOLA MATKUL & MATERI ---
     Route::get('/courses', [\App\Http\Controllers\Api\CourseController::class, 'index']);
     Route::post('/courses', [\App\Http\Controllers\Api\CourseController::class, 'store']);
     Route::get('/courses/{course_id}/materials', [\App\Http\Controllers\Api\MaterialController::class, 'getByCourse']);
@@ -86,12 +90,18 @@ Route::middleware(['auth:sanctum', 'role:dosen,admin,superadmin'])->group(functi
     Route::delete('questions/{id}', [MaterialController::class, 'destroyQuestion']);
 
     Route::post('materials/{material_id}/ar', [MaterialController::class, 'attachAr']);
-    
-    Route::post('/admin/materials', [MaterialController::class , 'store']); 
+
+    Route::post('/admin/materials', [MaterialController::class , 'store']);
 
     Route::get('/dosen', [DosenController::class, 'index']);
     Route::post('/dosen', [DosenController::class, 'store']);
     Route::delete('/dosen/{id}', [DosenController::class, 'destroy']);
+
+    // 🌟 BARU: ENDPOINT KELOLA AR ASSETS (Hanya Dosen/Admin)
+    Route::post('/materials/{materialId}/ar-assets', [ArAssetController::class, 'store']);
+    Route::put('/ar-assets/{id}', [ArAssetController::class, 'update']);
+    Route::post('/ar-assets/{id}', [ArAssetController::class, 'update']); // Untuk multipart + _method=PUT
+    Route::delete('/ar-assets/{id}', [ArAssetController::class, 'destroy']);
 });
 
 
@@ -119,5 +129,4 @@ Route::middleware(['auth:sanctum', 'role:publik,mahasiswa'])->group(function () 
     Route::post('/chat', [AiChatController::class , 'chat']);
 
     Route::get('ar-gallery', [MaterialController::class, 'arGallery']);
-
 });
