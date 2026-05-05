@@ -15,6 +15,7 @@ class ArGalleryScreen extends StatefulWidget {
 class _ArGalleryScreenState extends State<ArGalleryScreen> {
   List _arAssets = [];
   bool _isLoading = true;
+  String? _errorMessage;
 
   @override
   void initState() {
@@ -23,146 +24,290 @@ class _ArGalleryScreenState extends State<ArGalleryScreen> {
   }
 
   Future<void> _fetchArAssets() async {
-  try {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? token = prefs.getString('token');
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
 
-    final response = await http.get(
-      Uri.parse('${getBaseUrl()}/ar-gallery'),
-      headers: {
-        'Accept': 'application/json',
-        if (token != null) 'Authorization': 'Bearer $token',
-      },
-    );
+    try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? token = prefs.getString('token');
 
-    print("===== DEBUG AR GALLERY =====");
-    print("Status: ${response.statusCode}");
-    print("Body mentah: ${response.body}");
-    print("============================");
+      // 🌟 ENDPOINT BARU: /ar-assets (bukan /ar-gallery lagi)
+      final response = await http.get(
+        Uri.parse('${getBaseUrl()}/ar-assets'),
+        headers: {
+          'Accept': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+      );
 
-    if (response.statusCode == 200) {
-      final decoded = jsonDecode(response.body);
-      final List dataList = decoded['data'] ?? [];
+      print("===== DEBUG AR GALLERY =====");
+      print("Status: ${response.statusCode}");
+      print("Body mentah: ${response.body}");
+      print("============================");
 
-      // 🌟 PRINT setelah data di-decode, SEBELUM setState
-      if (dataList.isNotEmpty) {
-        print("Jumlah aset: ${dataList.length}");
-        print("Asset pertama LENGKAP: ${dataList[0]}");
-        print("Field 'image' pertama: '${dataList[0]['image']}'");
-        print("Tipe field image: ${dataList[0]['image'].runtimeType}");
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        final List dataList = decoded['data'] ?? [];
+
+        if (dataList.isNotEmpty) {
+          print("Jumlah aset: ${dataList.length}");
+          print("Asset pertama: ${dataList[0]}");
+          print("image_url: '${dataList[0]['image_url']}'");
+          print("model_3d_url: '${dataList[0]['model_3d_url']}'");
+        } else {
+          print("⚠️ dataList kosong!");
+        }
+
+        setState(() {
+          _arAssets = dataList;
+          _isLoading = false;
+        });
       } else {
-        print("⚠️ dataList kosong!");
+        print("Server error: ${response.statusCode}");
+        print("Pesan: ${response.body}");
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'Server error (${response.statusCode})';
+        });
       }
-
+    } catch (e, stackTrace) {
+      print("Error ambil galeri: $e");
+      print("Stack: $stackTrace");
       setState(() {
-        _arAssets = dataList;
         _isLoading = false;
+        _errorMessage = 'Gagal terhubung ke server';
       });
-    } else {
-      print("Server error: ${response.statusCode}");
-      print("Pesan: ${response.body}");
-      setState(() => _isLoading = false);
     }
-  } catch (e, stackTrace) {
-    print("Error ambil galeri: $e");
-    print("Stack: $stackTrace");
-    setState(() => _isLoading = false);
   }
-}
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("Galeri Hologram AR")),
-      body: _isLoading 
-        ? Center(child: CircularProgressIndicator())
-        : GridView.builder(
-            padding: EdgeInsets.all(10),
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2, // 2 kolom
-              childAspectRatio: 0.8,
-              crossAxisSpacing: 10,
-              mainAxisSpacing: 10,
-            ),
-            itemCount: _arAssets.length,
-            itemBuilder: (context, index) {
-              final asset = _arAssets[index];
-              return GestureDetector(
-                onTap: () {
-  // 1. Ambil path model 3D dari database (misal: "models/DRKr1P6...glb")
-  String modelPath = asset['model_3d_path'] ?? '';
-  
-  if (modelPath.isNotEmpty) {
-    // 2. Rangkai URL menggunakan JALUR RESMI yang baru dibuat
-    // Kita gunakan getBaseUrl() yang mengarah ke '/api'
-    String baseUrl = getBaseUrl(); 
-    
-    String fullModelUrl = modelPath.startsWith('http') 
-        ? modelPath 
-        : '$baseUrl/download-model/$modelPath'; // 🌟 Mengarah ke route Laravel yang baru
+      appBar: AppBar(
+        title: Text("Galeri Hologram AR"),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.refresh),
+            onPressed: _isLoading ? null : _fetchArAssets,
+            tooltip: 'Muat Ulang',
+          ),
+        ],
+      ),
+      body: _buildBody(),
+    );
+  }
 
-    // 3. Luncurkan halaman AR Viewer!
+  Widget _buildBody() {
+    if (_isLoading) {
+      return Center(child: CircularProgressIndicator());
+    }
+
+    if (_errorMessage != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
+            SizedBox(height: 12),
+            Text(_errorMessage!, style: TextStyle(color: Colors.grey[700])),
+            SizedBox(height: 12),
+            ElevatedButton.icon(
+              onPressed: _fetchArAssets,
+              icon: Icon(Icons.refresh),
+              label: Text('Coba Lagi'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_arAssets.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.view_in_ar_outlined, size: 80, color: Colors.grey[400]),
+            SizedBox(height: 16),
+            Text(
+              'Belum ada aset AR tersedia',
+              style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Tunggu dosen menambahkan aset baru ✨',
+              style: TextStyle(fontSize: 13, color: Colors.grey[500]),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _fetchArAssets,
+      child: GridView.builder(
+        padding: EdgeInsets.all(10),
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          childAspectRatio: 0.75,
+          crossAxisSpacing: 10,
+          mainAxisSpacing: 10,
+        ),
+        itemCount: _arAssets.length,
+        itemBuilder: (context, index) {
+          final asset = _arAssets[index];
+          return _buildArCard(asset);
+        },
+      ),
+    );
+  }
+
+  Widget _buildArCard(Map<String, dynamic> asset) {
+    // 🌟 Pakai field BARU dari endpoint /ar-assets
+    final String? imageUrl = asset['image_url'];
+    final String? modelUrl = asset['model_3d_url'];
+    final String title = asset['title'] ?? 'Tanpa Judul';
+    final String? description = asset['description'];
+
+    // Info materi terkait (jika ada)
+    final Map<String, dynamic>? material = asset['material'];
+    final String? materialTitle = material != null ? material['title'] : null;
+
+    return GestureDetector(
+      onTap: () => _openArViewer(modelUrl, title),
+      child: Card(
+        elevation: 4,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // ====== THUMBNAIL ======
+            Expanded(
+              flex: 3,
+              child: _buildThumbnail(imageUrl),
+            ),
+
+            // ====== INFO BAWAH ======
+            Container(
+              padding: EdgeInsets.all(8.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Judul AR
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  // Materi terkait (kalau ada)
+                  if (materialTitle != null) ...[
+                    SizedBox(height: 2),
+                    Row(
+                      children: [
+                        Icon(Icons.book_outlined, size: 11, color: Colors.grey[600]),
+                        SizedBox(width: 3),
+                        Expanded(
+                          child: Text(
+                            materialTitle,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey[600],
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildThumbnail(String? imageUrl) {
+    if (imageUrl == null || imageUrl.isEmpty) {
+      return Container(
+        color: Colors.grey[200],
+        child: Icon(
+          Icons.view_in_ar,
+          size: 50,
+          color: Colors.grey[400],
+        ),
+      );
+    }
+
+    return Image.network(
+      imageUrl,
+      fit: BoxFit.cover,
+      width: double.infinity,
+      // Loading indicator saat gambar dimuat
+      loadingBuilder: (context, child, loadingProgress) {
+        if (loadingProgress == null) return child;
+        return Container(
+          color: Colors.grey[100],
+          child: Center(
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              value: loadingProgress.expectedTotalBytes != null
+                  ? loadingProgress.cumulativeBytesLoaded /
+                      loadingProgress.expectedTotalBytes!
+                  : null,
+            ),
+          ),
+        );
+      },
+      // Error fallback
+      errorBuilder: (context, error, stackTrace) {
+        print('Gagal load thumbnail: $imageUrl -> $error');
+        return Container(
+          color: Colors.grey[300],
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.broken_image, size: 40, color: Colors.grey[500]),
+              SizedBox(height: 4),
+              Text(
+                'Gambar bermasalah',
+                style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _openArViewer(String? modelUrl, String title) {
+    if (modelUrl == null || modelUrl.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('File 3D belum tersedia untuk aset ini.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => ARViewScreen( // Pastikan nama class-nya sesuai dengan punya Kapten
-          title: asset['title'] ?? 'AR Hologram',
-          modelUrl: fullModelUrl,
+        builder: (context) => ARViewScreen(
+          title: title,
+          modelUrl: modelUrl,
         ),
       ),
-    );
-  } else {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('File 3D belum tersedia untuk aset ini.')),
-    );
-  }
-},
-                child: Card(
-  elevation: 4,
-  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-  child: Column(
-    children: [
-      Expanded(
-        child: ClipRRect(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(15)),
-          // 🌟 PERBAIKAN: Cek apakah gambar null atau tidak
-          child: asset['image'] != null
-              ? Image.network(
-                  asset['image'], 
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                  // Tambahan pengaman jika URL salah/gambar gagal dimuat
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      color: Colors.grey[300],
-                      child: Icon(Icons.broken_image, size: 50, color: Colors.grey),
-                    );
-                  },
-                )
-              : Container(
-                  color: Colors.grey[300],
-                  width: double.infinity,
-                  child: Icon(Icons.image_not_supported, size: 50, color: Colors.grey),
-                ),
-        ),
-      ),
-      Padding(
-        padding: EdgeInsets.all(8.0),
-        // 🌟 PERBAIKAN: Beri nilai default jika title null
-        child: Text(
-          asset['title'] ?? 'Tanpa Judul', 
-          style: TextStyle(fontWeight: FontWeight.bold),
-          textAlign: TextAlign.center,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-      ),
-    ],
-  ),
-),
-              );
-            },
-          ),
     );
   }
 }

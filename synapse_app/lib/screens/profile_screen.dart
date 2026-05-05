@@ -21,7 +21,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
 
   // Pastikan baseUrl ini sudah sesuai dengan IP server Kapten!
-  final String baseUrl = 'http://192.168.1.21:8000/api'; 
+  final String baseUrl = 'http://192.168.3.51:8000/api'; 
 
   @override
   void initState() {

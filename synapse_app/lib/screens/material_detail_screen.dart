@@ -10,19 +10,24 @@ class MaterialDetailScreen extends StatelessWidget {
 
   const MaterialDetailScreen({super.key, required this.material});
 
+  
   @override
   Widget build(BuildContext context) {
-    // 🌟 DETEKSI RADAR: Apakah materi ini punya file 3D?
-    String? modelPath = material['model_3d_path'];
-    bool hasAr = modelPath != null && modelPath.toString().isNotEmpty;
+    print("Isi Data Materi: $material");
 
-    // 🌟 DETEKSI RADAR: Apakah materi ini punya Practice/Latihan?
-    // Asumsinya API Kapten mengembalikan array 'practices' jika ada kuis.
-    // Sesuaikan key 'practices' ini dengan response JSON dari backend Kapten.
-    bool hasPractice = material['practices'] != null && (material['practices'] as List).isNotEmpty;
+    // 🌟 DETEKSI RADAR AR (Jalur Ganda)
+    // Cek versi baru (ar_assets) ATAU versi lama (has_ar)
+    bool hasArNew = material['ar_assets'] != null && (material['ar_assets'] as List).isNotEmpty;
+    bool hasArOld = material['has_ar'] == true || (material['model_3d_path'] != null && material['model_3d_path'].toString().isNotEmpty);
+    bool hasAr = hasArNew || hasArOld;
+
+    // 🌟 DETEKSI RADAR PRACTICE (Jalur Ganda)
+    // Cek versi baru (questions) ATAU versi lama (has_practice)
+    bool hasPracticeNew = material['questions'] != null && (material['questions'] as List).isNotEmpty;
+    bool hasPracticeOld = material['has_practice'] == true;
+    bool hasPractice = hasPracticeNew || hasPracticeOld;
 
     return Scaffold(
-      backgroundColor: Colors.white,
       
       body: CustomScrollView(
         physics: const BouncingScrollPhysics(),
@@ -221,11 +226,26 @@ class MaterialDetailScreen extends StatelessWidget {
                   height: 56,
                   child: ElevatedButton(
                     onPressed: () {
-                      String baseUrl = getBaseUrl(); 
-                      String fullModelUrl = modelPath.startsWith('http') 
-                          ? modelPath 
-                          : '$baseUrl/download-model/$modelPath';
+                      String fullModelUrl = '';
+                      String baseUrl = getBaseUrl();
 
+                      // 1. Coba ambil dari data baru (ar_assets)
+                      if (material['ar_assets'] != null && (material['ar_assets'] as List).isNotEmpty) {
+                        final firstAr = (material['ar_assets'] as List).first;
+                        String mPath = firstAr['model_3d_path'] ?? '';
+                        fullModelUrl = mPath.startsWith('http') ? mPath : '$baseUrl/download-model/$mPath';
+                      } 
+                      // 2. Jika tidak ada, ambil dari data lama (model_3d_url / model_3d_path)
+                      else {
+                        if (material['model_3d_url'] != null) {
+                          fullModelUrl = material['model_3d_url'];
+                        } else {
+                          String mPath = material['model_3d_path'] ?? '';
+                          fullModelUrl = mPath.startsWith('http') ? mPath : '$baseUrl/download-model/$mPath';
+                        }
+                      }
+
+                      // Pindah ke layar AR
                       Navigator.push(
                         context,
                         MaterialPageRoute(

@@ -27,7 +27,7 @@ class _QuizReviewScreenState extends State<QuizReviewScreen> {
       final token = prefs.getString('token');
       
       final response = await http.post(
-        Uri.parse('http://192.168.1.21:8000/api/explain-question'), 
+        Uri.parse('http://192.168.3.51:8000/api/explain-question'), 
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',

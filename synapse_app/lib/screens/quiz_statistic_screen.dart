@@ -20,7 +20,7 @@ class _QuizStatisticScreenState extends State<QuizStatisticScreen> {
   int _averageScore = 0;
 
   // Pastikan URL ini sama dengan file Kapten yang lain!
-  final String baseUrl = 'http://192.168.1.21:8000/api';
+  final String baseUrl = 'http://192.168.3.51:8000/api';
 
   @override
   void initState() {

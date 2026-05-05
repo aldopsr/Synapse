@@ -16,7 +16,7 @@ String getBaseUrl() {
 
     return isEmulator
         ? 'http://10.0.2.2:8000/api'
-        : 'http://192.168.1.21:8000/api'; // Pastikan IP ini sesuai dengan WiFi Kapten
+        : 'http://192.168.3.51:8000/api'; // Pastikan IP ini sesuai dengan WiFi Kapten
   }
 
   return 'http://127.0.0.1:8000/api';

@@ -18,6 +18,40 @@ class ARViewScreen extends StatefulWidget {
 class _ARViewScreenState extends State<ARViewScreen> {
   bool isLoading = true;
   bool showHint = true;
+  late String finalModelUrl;
+
+  @override
+  void initState() {
+    super.initState();
+    finalModelUrl = _sanitizeUrl(widget.modelUrl);
+    print("🚀 URL Aset 3D yang dieksekusi: $finalModelUrl");
+  }
+
+  // Fungsi khusus untuk memperbaiki URL dan membelokkan CORS
+  String _sanitizeUrl(String url) {
+    String cleanUrl = url;
+
+    // 🌟 1. BELOKKAN JALUR STORAGE KE JALUR API BEBAS CORS
+    // Backend punya route khusus: /api/download-model/{path}
+    // yang memberikan header Access-Control-Allow-Origin: *
+    //
+    // Contoh:
+    // INPUT  : http://192.168.3.51:8000/storage/ar_models/file.glb
+    // OUTPUT : http://192.168.3.51:8000/api/download-model/ar_models/file.glb
+    if (cleanUrl.contains('/storage/')) {
+      cleanUrl = cleanUrl.replaceFirst('/storage/', '/api/download-model/');
+    }
+
+    // 2. Ubah localhost / 127.0.0.1 menjadi 10.0.2.2 (Khusus Emulator Android)
+    if (cleanUrl.contains('127.0.0.1')) {
+      cleanUrl = cleanUrl.replaceAll('127.0.0.1', '10.0.2.2');
+    } else if (cleanUrl.contains('localhost')) {
+      cleanUrl = cleanUrl.replaceAll('localhost', '10.0.2.2');
+    }
+
+    // 3. Pastikan URL di-encode dengan benar
+    return Uri.encodeFull(cleanUrl);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +64,7 @@ class _ARViewScreenState extends State<ARViewScreen> {
         children: [
           // 🔥 Model Viewer
           ModelViewer(
-            src: widget.modelUrl,
+            src: finalModelUrl,
             backgroundColor: Colors.white,
             ar: true,
             arModes: const ['scene-viewer', 'webxr', 'quick-look'],
@@ -40,7 +74,9 @@ class _ARViewScreenState extends State<ARViewScreen> {
             // simulasi selesai load
             onWebViewCreated: (controller) async {
               await Future.delayed(const Duration(seconds: 2));
-              setState(() => isLoading = false);
+              if (mounted) {
+                setState(() => isLoading = false);
+              }
             },
           ),
 
