@@ -198,13 +198,17 @@
         const materiId = materi._id || materi.id;
         
         // Logika Status Latihan (Practice)
-        const hasPractice = materi.has_practice; 
+        const hasPractice = (materi.questions && materi.questions.length > 0) || materi.has_practice; 
+
         const badge = hasPractice
             ? `<span class="badge badge-yes">Ada Soal</span>`
             : `<span class="badge badge-no">Belum Ada Soal</span>`;
 
-        // 🌟 TAMBAHAN BARU: Logika Status AR
-        const arBadge = materi.has_ar 
+        const hasAr = (materi.ar_assets && materi.ar_assets.length > 0) || 
+                  (materi.ar_assets_count > 0) || 
+                  materi.has_ar; 
+
+        const arBadge = hasAr 
             ? `<span class="badge" style="background:#E1BEE7; color:#4A148C; margin-left:8px; font-size:11px; padding:4px 8px;">✨ AR Ready</span>` 
             : '';
 

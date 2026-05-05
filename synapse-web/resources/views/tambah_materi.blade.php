@@ -42,14 +42,6 @@
                     <input type="text" id="description" placeholder="Akan muncul di ringkasan aplikasi mobile" required>
                 </div>
 
-                <div class="form-group" style="margin-bottom: 15px;">
-    <label style="display: block; font-weight: 600; margin-bottom: 6px;">
-        ✨ Upload Aset AR (3D Model) 
-        <span style="color: #888; font-weight: normal; font-size: 12px;">*Opsional (Format: .glb/.gltf, Max 20MB)</span>
-    </label>
-    <input type="file" id="model_3d" name="model_3d" class="form-control" accept=".glb,.gltf">
-</div>
-
                 <div class="form-group">
                     <label>Isi Materi (E-Modul)</label>
                     <textarea id="editor"></textarea>
@@ -107,13 +99,6 @@
     formData.append('title', document.getElementById('title').value);
     formData.append('description', document.getElementById('description').value);
     formData.append('content', myEditor.getData()); // Mengambil hasil dari CKEditor
-
-    // 2. Cek dan masukkan file AR (jika Kapten menguploadnya)
-    // Pastikan di HTML Kapten ada <input type="file" id="model_3d" ...>
-    const arFileInput = document.getElementById('model_3d');
-    if (arFileInput && arFileInput.files.length > 0) {
-        formData.append('model_3d', arFileInput.files[0]);
-    }
 
     try {
         const response = await fetch(`http://127.0.0.1:8000/api/courses/${courseId}/materials`, {
