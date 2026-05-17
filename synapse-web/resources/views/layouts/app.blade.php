@@ -131,7 +131,7 @@
 
     // Fungsi Logout
     function logout() {
-        fetch(window.apiBaseUrl + '/api/auth/logout', {
+        fetch(window.apiBaseUrl + '/auth/logout', {
             method: 'POST',
             headers: {
                 'Authorization': 'Bearer ' + window.token,

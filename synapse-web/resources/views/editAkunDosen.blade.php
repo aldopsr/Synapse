@@ -69,8 +69,8 @@
             return;
         }
 
-        const apiCoursesUrl = window.apiBaseUrl + '/api/courses';
-        const apiDosenDetailUrl = `${window.apiBaseUrl}/api/dosen/${dosenId}`;
+        const apiCoursesUrl = window.apiBaseUrl + '/courses';
+        const apiDosenDetailUrl = `${window.apiBaseUrl}/dosen/${dosenId}`;
         const selectMatkul = document.getElementById('matkulSelect');
         const inputName = document.getElementById('inputName');
         const inputEmail = document.getElementById('inputEmail');

@@ -44,7 +44,7 @@
 <script>
     async function fetchDashboardStats() {
         try {
-            const response = await fetch(window.apiBaseUrl + '/api/dashboard/stats', {
+            const response = await fetch(window.apiBaseUrl + '/dashboard/stats', {
                 method: 'GET',
                 headers: {
                     'Authorization': 'Bearer ' + token,

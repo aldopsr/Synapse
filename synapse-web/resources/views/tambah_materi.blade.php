@@ -182,7 +182,7 @@
                 return this.loader.file.then(file => new Promise((resolve, reject) => {
                     const data = new FormData();
                     data.append('upload', file);
-                    fetch(window.apiBaseUrl + '/api/upload-image', {
+                    fetch(window.apiBaseUrl + '/upload-image', {
                         method: 'POST',
                         headers: { 'Authorization': 'Bearer ' + token },
                         body: data
@@ -226,7 +226,7 @@
             }
 
             try {
-                const response = await fetch(`${window.apiBaseUrl}/api/courses/${courseId}/materials`, {
+                const response = await fetch(`${window.apiBaseUrl}/courses/${courseId}/materials`, {
                     method: 'POST',
                     headers: {
                         'Authorization': 'Bearer ' + token,

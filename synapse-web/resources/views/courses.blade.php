@@ -74,7 +74,7 @@
     // Catatan: variabel 'token' sudah tidak perlu didefinisikan lagi 
     // karena sudah dideklarasikan secara global di layouts/app.blade.php
 
-    const apiUrl = window.apiBaseUrl + '/api/courses';
+    const apiUrl = window.apiBaseUrl + '/courses';
 
     // FUNGSI 1: AMBIL DATA DARI API
     async function fetchCourses() {

@@ -69,9 +69,11 @@
     </div>
 
     <script>
-        const apiDosenUrl = window.apiBaseUrl + '/api/dosen'; 
+    document.addEventListener('DOMContentLoaded', function() {
+        const token = localStorage.getItem('token');
+        const apiDosenUrl = "{{ config('app.api_url') }}" + '/dosen';
 
-        document.addEventListener('DOMContentLoaded', fetchDosen);
+        fetchDosen();
 
         async function fetchDosen() {
             const tableBody = document.getElementById('tableBody');
@@ -80,25 +82,22 @@
                 const response = await fetch(apiDosenUrl, {
                     headers: {
                         'Accept': 'application/json',
-                        'Authorization': 'Bearer ' + window.token
+                        'Authorization': 'Bearer ' + token
                     }
                 });
 
                 const result = await response.json();
 
                 if (response.ok && result.data) {
-                    tableBody.innerHTML = ''; 
+                    tableBody.innerHTML = '';
 
-                    if(result.data.length === 0) {
+                    if (result.data.length === 0) {
                         tableBody.innerHTML = '<div class="table-text" style="grid-column: span 4; justify-content:center;">Belum ada akun dosen.</div>';
                         return;
                     }
 
                     result.data.forEach((dosen, index) => {
                         const bgClass = index % 2 === 0 ? 'green-background' : '';
-                        
-                        // AMBIL DATA DARI BACKEND (Pastikan nama key/field-nya sesuai dengan response JSON API Kapten)
-                        // Asumsi: dosen.course.title berisi nama matkul, dosen.materis_count, dll
                         const matkulName = dosen.course ? dosen.course.title : 'Belum Ditugaskan';
                         const totalMateri = dosen.materis_count || 0;
                         const totalQuiz = dosen.quizzes_count || 0;
@@ -122,25 +121,28 @@
                         `;
                         tableBody.innerHTML += rowHTML;
                     });
+                } else {
+                    tableBody.innerHTML = '<div class="table-text" style="grid-column: span 4; justify-content:center; color:red;">Gagal memuat data.</div>';
                 }
             } catch (error) {
                 tableBody.innerHTML = '<div class="table-text" style="grid-column: span 4; justify-content:center; color: red;">Koneksi error.</div>';
             }
         }
 
-        async function deleteDosen(id) {
+        window.deleteDosen = async function(id) {
             if (!confirm('Hapus akun dosen ini beserta semua datanya?')) return;
             try {
                 const response = await fetch(`${apiDosenUrl}/${id}`, {
                     method: 'DELETE',
-                    headers: { 'Authorization': 'Bearer ' + window.token }
+                    headers: { 'Authorization': 'Bearer ' + token }
                 });
-                if (response.ok) fetchDosen(); 
+                if (response.ok) fetchDosen();
                 else alert('Gagal menghapus.');
             } catch (error) {
                 alert('Terjadi masalah jaringan.');
             }
         }
-    </script>
+    });
+</script>
 </body>
 </html>
