@@ -150,7 +150,7 @@
 (function() {
     const token = window.token || localStorage.getItem('token');
     const role = window.role || localStorage.getItem('role');
-    const API_BASE = 'http://127.0.0.1:8000/api';
+    const API_BASE = window.apiBaseUrl;
     let user = null;
     try { user = JSON.parse(localStorage.getItem('user')); } catch(e) {}
 

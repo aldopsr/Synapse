@@ -3,9 +3,10 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import '../services/auth_service.dart'; // Untuk ambil getBaseUrl
+import '../services/auth_service.dart'; 
 import 'ar_view_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../utils/constants.dart';
 
 class ArGalleryScreen extends StatefulWidget {
   @override
@@ -33,9 +34,8 @@ class _ArGalleryScreenState extends State<ArGalleryScreen> {
       SharedPreferences prefs = await SharedPreferences.getInstance();
       String? token = prefs.getString('token');
 
-      // 🌟 ENDPOINT BARU: /ar-assets (bukan /ar-gallery lagi)
       final response = await http.get(
-        Uri.parse('${getBaseUrl()}/ar-assets'),
+        Uri.parse('${AppConstants.baseUrl}/ar-assets'),
         headers: {
           'Accept': 'application/json',
           if (token != null) 'Authorization': 'Bearer $token',

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../utils/constants.dart';
 
 class PracticeScreen extends StatefulWidget {
   final String materialId;
@@ -38,7 +39,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
     final token = prefs.getString('token');
     
     // Gunakan getBaseUrl() yang sama dengan Service agar tidak typo
-    final url = 'http://192.168.1.14:8000/api/materials/${widget.materialId}/questions';
+    final url = '${AppConstants.baseUrl}/materials/${widget.materialId}/questions';
 
     final response = await http.get(
       Uri.parse(url),

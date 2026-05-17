@@ -44,7 +44,7 @@
 <script>
     async function fetchDashboardStats() {
         try {
-            const response = await fetch('http://127.0.0.1:8000/api/dashboard/stats', {
+            const response = await fetch(window.apiBaseUrl + '/api/dashboard/stats', {
                 method: 'GET',
                 headers: {
                     'Authorization': 'Bearer ' + token,

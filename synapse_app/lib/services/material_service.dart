@@ -2,25 +2,9 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:io';
+import '../utils/constants.dart';
 
-// 🔥 copy dari AuthService
-String getBaseUrl() {
-  if (kIsWeb) {
-    return 'http://127.0.0.1:8000/api';
-  }
-
-  if (Platform.isAndroid) {
-    const bool isEmulator =
-        bool.fromEnvironment('ANDROID_EMULATOR', defaultValue: false);
-
-    return isEmulator
-        ? 'http://10.0.2.2:8000/api'
-        : 'http://192.168.1.14:8000/api'; // Pastikan IP ini sesuai dengan WiFi Kapten
-  }
-
-  return 'http://127.0.0.1:8000/api';
-}
+String getBaseUrl() => AppConstants.baseUrl;
 
 class MaterialService {
 

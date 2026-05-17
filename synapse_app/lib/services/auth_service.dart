@@ -1,49 +1,36 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-
-String getBaseUrl() {
-  if (kIsWeb) {
-    return 'http://127.0.0.1:8000/api';
-  }
-
-  if (Platform.isAndroid) {
-    const bool isEmulator =
-        bool.fromEnvironment('ANDROID_EMULATOR', defaultValue: false);
-
-    return isEmulator
-        ? 'http://10.0.2.2:8000/api'
-        : 'http://192.168.1.14:8000/api'; 
-  }
-
-  // iOS Simulator / Desktop
-  return 'http://127.0.0.1:8000/api';
-}
+import '../utils/constants.dart';
 
 class AuthService {
+
   // --- 1. LOGIN ---
   Future<bool> login(String email, String password) async {
     try {
       final response = await http.post(
-        Uri.parse('${getBaseUrl()}/auth/login'),
+        Uri.parse(AppConstants.loginUrl),
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
         },
-        body: jsonEncode({
-          'email': email,
-          'password': password,
-        }),
+        body: jsonEncode({'email': email, 'password': password}),
       );
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final token = data['token'];
+        final data     = jsonDecode(response.body);
+        final token    = data['token'];
+        final userData = data['user'];
 
         SharedPreferences prefs = await SharedPreferences.getInstance();
         await prefs.setString('token', token);
+
+        // Simpan data user juga — biar tidak perlu hit API terus
+        if (userData != null) {
+          await prefs.setString('user', jsonEncode(userData));
+        }
+
         return true;
       } else {
         debugPrint('Gagal Login: ${response.body}');
@@ -66,7 +53,7 @@ class AuthService {
   }) async {
     try {
       final response = await http.post(
-        Uri.parse('${getBaseUrl()}/auth/register'),
+        Uri.parse(AppConstants.registerUrl),
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
@@ -93,15 +80,12 @@ class AuthService {
   Future<bool> verifyEmail(String email, String otp) async {
     try {
       final response = await http.post(
-        Uri.parse('${getBaseUrl()}/auth/verify-otp'),
+        Uri.parse(AppConstants.verifyOtpUrl),
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
         },
-        body: jsonEncode({
-          'email': email,
-          'otp': otp,
-        }),
+        body: jsonEncode({'email': email, 'otp': otp}),
       );
 
       return response.statusCode == 200;
@@ -115,7 +99,7 @@ class AuthService {
   Future<bool> resendOTP(String email) async {
     try {
       final response = await http.post(
-        Uri.parse('${getBaseUrl()}/auth/resend-otp'),
+        Uri.parse(AppConstants.resendOtpUrl),
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
@@ -133,13 +117,22 @@ class AuthService {
   // --- 5. GET PROFILE ---
   Future<Map<String, dynamic>?> getUserProfile() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token');
+    final token   = prefs.getString('token');
+    final userStr = prefs.getString('user');
 
     if (token == null) return null;
 
+    // Pakai data yang tersimpan dulu (lebih cepat)
+    if (userStr != null) {
+      try {
+        return jsonDecode(userStr);
+      } catch (_) {}
+    }
+
+    // Kalau tidak ada, baru ambil dari server
     try {
       final response = await http.get(
-        Uri.parse('${getBaseUrl()}/auth/me'),
+        Uri.parse(AppConstants.getMeUrl),
         headers: {
           'Accept': 'application/json',
           'Authorization': 'Bearer $token',
@@ -147,7 +140,9 @@ class AuthService {
       );
 
       if (response.statusCode == 200) {
-        return jsonDecode(response.body);
+        final userData = jsonDecode(response.body);
+        await prefs.setString('user', jsonEncode(userData));
+        return userData;
       }
       return null;
     } catch (e) {
@@ -164,7 +159,7 @@ class AuthService {
     if (token != null) {
       try {
         await http.post(
-          Uri.parse('${getBaseUrl()}/auth/logout'),
+          Uri.parse(AppConstants.logoutUrl),
           headers: {
             'Accept': 'application/json',
             'Authorization': 'Bearer $token',
@@ -173,7 +168,8 @@ class AuthService {
       } catch (_) {}
     }
 
-    await prefs.remove('token');
+    // Hapus semua data lokal
+    await prefs.clear();
     return true;
   }
 }

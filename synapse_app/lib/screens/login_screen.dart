@@ -4,6 +4,7 @@ import 'home_screen.dart';
 import 'register_screen.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import '../utils/constants.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -282,7 +283,7 @@ class _ForgotPasswordSheetState extends State<ForgotPasswordSheet> {
   
   bool _isNewPasswordVisible = false;
   
-  final String baseUrl = 'http://192.168.1.14:8000/api';
+  final String baseUrl = AppConstants.baseUrl;
 
   void _sendOTP() async {
     if (_emailController.text.isEmpty) return;

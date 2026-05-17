@@ -3,6 +3,7 @@ import 'package:flutter_html/flutter_html.dart';
 import 'practice_screen.dart';
 import 'ar_view_screen.dart';
 import '../services/auth_service.dart';
+import '../utils/constants.dart';
 
 class MaterialDetailScreen extends StatefulWidget {
   final Map<String, dynamic> material;
@@ -637,7 +638,7 @@ class _MaterialDetailScreenState extends State<MaterialDetailScreen>
           tagsToExtend: {"img"},
           builder: (extensionContext) {
             String imgUrl = extensionContext.attributes['src'] ?? '';
-            String serverDomain = getBaseUrl().replaceAll('/api', '');
+            String serverDomain = AppConstants.baseUrl.replaceAll('/api', '');
 
             if (imgUrl.isNotEmpty) {
               if (imgUrl.startsWith('/storage')) {
@@ -992,7 +993,7 @@ class _MaterialDetailScreenState extends State<MaterialDetailScreen>
 
   void _openArViewer(Map<String, dynamic> asset) {
     String fullModelUrl = '';
-    String baseUrl = getBaseUrl();
+    String baseUrl = AppConstants.baseUrl;
     String mPath = asset['model_3d_path']?.toString() ?? '';
 
     if (asset['model_3d_url'] != null) {
@@ -1261,7 +1262,7 @@ class _MaterialDetailScreenState extends State<MaterialDetailScreen>
   void _onArPressed() {
     final material = widget.material;
     String fullModelUrl = '';
-    String baseUrl = getBaseUrl();
+    String baseUrl = AppConstants.baseUrl;
 
     if (material['ar_assets'] != null &&
         (material['ar_assets'] as List).isNotEmpty) {

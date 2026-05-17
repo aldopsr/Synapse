@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../utils/constants.dart';
 
 class ChangePasswordScreen extends StatefulWidget {
   const ChangePasswordScreen({super.key});
@@ -22,7 +23,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   bool _obscureConfirm = true;
 
   // SAMAKAN IP INI DENGAN FILE LAINNYA KAPTEN!
-  final String baseUrl = 'http://192.168.1.14:8000/api'; 
+  final String baseUrl = AppConstants.baseUrl;
 
   Future<void> _submitChangePassword() async {
     if (!_formKey.currentState!.validate()) return;

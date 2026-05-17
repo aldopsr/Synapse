@@ -98,51 +98,51 @@
     </div>
 
     <script>
-        // KITA GUNAKAN WINDOW AGAR MENJADI GLOBAL TAPI ANTI-BENTROK
-        window.token = localStorage.getItem('token');
-        window.role = localStorage.getItem('role') || 'dosen'; 
-        window.user = null;
+    // URL Backend — dibaca dari config, bukan hardcode
+    window.apiBaseUrl = "{{ config('app.api_url') }}";
 
-        const userStr = localStorage.getItem('user');
-        if (userStr) {
-            try { window.user = JSON.parse(userStr); } catch (e) { console.error("Gagal parse data user"); }
-        }
+    window.token = localStorage.getItem('token');
+    window.role  = localStorage.getItem('role') || 'dosen';
+    window.user  = null;
 
-        // 1. Proteksi Halaman (Cek Token)
-        if (!window.token) {
-            window.location.href = '/'; 
-        }
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+        try { window.user = JSON.parse(userStr); } catch (e) { console.error("Gagal parse data user"); }
+    }
 
-        // 2. Set Role Badge di Topbar
-        const roleBadge = document.getElementById('roleBadge');
-        if (roleBadge) {
-            roleBadge.innerText = window.role.toUpperCase();
-        }
+    // Proteksi Halaman — kalau tidak ada token, tendang ke login
+    if (!window.token) {
+        window.location.href = '/';
+    }
 
-        // 3. Logika Menu Admin
-        if (window.role === 'admin' || window.role === 'superadmin') {
-            const menuKelolaDosen = document.getElementById('menuKelolaDosen');
-            const menuMatkul = document.getElementById('menumatkul');
-            
-            if (menuKelolaDosen) menuKelolaDosen.style.display = 'flex';
-            if (menuMatkul) menuMatkul.style.display = 'flex';
-        }
+    // Set Role Badge di Topbar
+    const roleBadge = document.getElementById('roleBadge');
+    if (roleBadge) {
+        roleBadge.innerText = window.role.toUpperCase();
+    }
 
-        // 4. Logika Menu Dosen/Pengajar (Hanya muncul jika punya ID Matkul)
-        if (window.user && window.user.course_id) {
-            const menuMateri = document.getElementById('menuMateriSaya');
-            if (menuMateri) {
-                menuMateri.style.display = 'flex';
-                menuMateri.href = `/mata-kuliah/${window.user.course_id}/materi`; 
+    // Tampilkan menu khusus Admin
+    if (window.role === 'admin' || window.role === 'superadmin') {
+        const menuKelolaDosen = document.getElementById('menuKelolaDosen');
+        const menuMatkul      = document.getElementById('menumatkul');
+        if (menuKelolaDosen) menuKelolaDosen.style.display = 'flex';
+        if (menuMatkul)      menuMatkul.style.display      = 'flex';
+    }
+
+    // Fungsi Logout
+    function logout() {
+        fetch(window.apiBaseUrl + '/api/auth/logout', {
+            method: 'POST',
+            headers: {
+                'Authorization': 'Bearer ' + window.token,
+                'Accept': 'application/json',
             }
-        }
-
-        // 5. Fungsi Logout
-        window.logout = function() {
-            localStorage.clear(); // Bersihkan semua token & user
-            window.location.href = '/'; 
-        };
-    </script>
+        }).finally(() => {
+            localStorage.clear();
+            window.location.href = '/';
+        });
+    }
+</script>
     
     @stack('scripts')
 </body>

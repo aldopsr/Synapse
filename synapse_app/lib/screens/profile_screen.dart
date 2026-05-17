@@ -3,7 +3,8 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'login_screen.dart';
-import 'change_password_screen.dart'; // Import halaman ganti password baru
+import 'change_password_screen.dart'; 
+import '../utils/constants.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -20,8 +21,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _isGuest = false;
 
 
-  // Pastikan baseUrl ini sudah sesuai dengan IP server Kapten!
-  final String baseUrl = 'http://192.168.1.14:8000/api'; 
+  final String baseUrl = AppConstants.baseUrl;
 
   @override
   void initState() {

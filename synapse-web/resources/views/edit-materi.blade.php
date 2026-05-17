@@ -69,7 +69,7 @@
                 return this.loader.file.then(file => new Promise((resolve, reject) => {
                     const data = new FormData();
                     data.append('upload', file);
-                    fetch('http://127.0.0.1:8000/api/upload-image', {
+                    fetch(window.apiBaseUrl + '/api/upload-image', {
                         method: 'POST',
                         headers: { 'Authorization': 'Bearer ' + token },
                         body: data
@@ -98,7 +98,7 @@
         // Fungsi Mengambil Data Lama dari Backend
         async function loadDataLama() {
             try {
-                const response = await fetch(`http://127.0.0.1:8000/api/materials/${materiId}`, {
+                const response = await fetch(`${window.apiBaseUrl}/api/materials/${materiId}`, {
                     headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/json' }
                 });
                 const result = await response.json();
@@ -126,7 +126,7 @@
             };
 
             try {
-                const response = await fetch(`http://127.0.0.1:8000/api/materials/${materiId}`, {
+                const response = await fetch(`${window.apiBaseUrl}/api/materials/${materiId}`, {
                     method: 'PUT', // Menggunakan PUT untuk Update
                     headers: {
                         'Authorization': 'Bearer ' + token,

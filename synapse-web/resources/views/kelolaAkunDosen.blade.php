@@ -69,8 +69,7 @@
     </div>
 
     <script>
-        const token = localStorage.getItem('token');
-        const apiDosenUrl = 'http://127.0.0.1:8000/api/dosen'; 
+        const apiDosenUrl = window.apiBaseUrl + '/api/dosen'; 
 
         document.addEventListener('DOMContentLoaded', fetchDosen);
 
@@ -81,7 +80,7 @@
                 const response = await fetch(apiDosenUrl, {
                     headers: {
                         'Accept': 'application/json',
-                        'Authorization': 'Bearer ' + token
+                        'Authorization': 'Bearer ' + window.token
                     }
                 });
 
@@ -134,7 +133,7 @@
             try {
                 const response = await fetch(`${apiDosenUrl}/${id}`, {
                     method: 'DELETE',
-                    headers: { 'Authorization': 'Bearer ' + token }
+                    headers: { 'Authorization': 'Bearer ' + window.token }
                 });
                 if (response.ok) fetchDosen(); 
                 else alert('Gagal menghapus.');

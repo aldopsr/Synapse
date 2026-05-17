@@ -3,6 +3,7 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../utils/constants.dart';
 
 class ChatMessage {
   final String text;
@@ -25,7 +26,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
   final ScrollController _scrollController = ScrollController();
   
   // URL BACKEND KAPTEN
-  final String baseUrl = 'http://192.168.1.14:8000/api'; 
+  final String baseUrl = AppConstants.baseUrl;
 
   // DAFTAR REKOMENDASI PERTANYAAN
   final List<String> _promptStarters = [

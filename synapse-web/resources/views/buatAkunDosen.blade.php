@@ -78,7 +78,7 @@
         const selectMatkul = document.getElementById('matkulSelect');
         
         // Ganti URL ini dengan rute API Backend yang menampilkan daftar matkul/course
-        const apiMatkulUrl = 'http://127.0.0.1:8000/api/courses'; 
+        const apiMatkulUrl = window.apiBaseUrl + '/api/courses';
 
         try {
             const response = await fetch(apiMatkulUrl, {
@@ -120,7 +120,7 @@
         data.role = 'dosen'; 
         
         const token = localStorage.getItem('token');
-        const apiUserUrl = 'http://127.0.0.1:8000/api/dosen'; 
+        const apiUserUrl = window.apiBaseUrl + '/api/dosen';
 
         try {
             const response = await fetch(apiUserUrl, {

@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'quiz_review_screen.dart';
+import '../utils/constants.dart';
 
 class QuizStatisticScreen extends StatefulWidget {
   const QuizStatisticScreen({super.key});
@@ -20,7 +21,7 @@ class _QuizStatisticScreenState extends State<QuizStatisticScreen> {
   int _averageScore = 0;
 
   // Pastikan URL ini sama dengan file Kapten yang lain!
-  final String baseUrl = 'http://192.168.1.14:8000/api';
+  final String baseUrl = AppConstants.baseUrl;
 
   @override
   void initState() {

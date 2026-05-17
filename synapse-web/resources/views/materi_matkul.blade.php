@@ -167,7 +167,7 @@
         } catch (e) {}
     }
 
-    const baseUrl = `http://127.0.0.1:8000/api/courses/${activeCourseId}/materials`;
+    const baseUrl = `${window.apiBaseUrl}/api/courses/${activeCourseId}/materials`;
 
     if (activeCourseId) fetchMaterials();
 
@@ -235,7 +235,7 @@
     window.hapusMateri = async function(materiId) {
         if(confirm("Yakin ingin menghapus materi ini?")) {
             try {
-                const response = await fetch(`http://127.0.0.1:8000/api/materials/${materiId}`, {
+                const response = await fetch(`${window.apiBaseUrl}/api/materials/${materiId}`, {
                     method: 'DELETE',
                     headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/json' }
                 });

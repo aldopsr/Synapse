@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../utils/constants.dart';
 
 class QuizReviewScreen extends StatefulWidget {
   final String quizTitle;
@@ -32,7 +33,7 @@ class _QuizReviewScreenState extends State<QuizReviewScreen> {
       final token = prefs.getString('token');
 
       final response = await http.post(
-        Uri.parse('http://192.168.1.14:8000/api/explain-question'),
+        Uri.parse('${AppConstants.baseUrl}/explain-question'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',

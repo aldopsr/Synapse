@@ -48,7 +48,7 @@ return [
      */
     'personal_access_token_model' => App\Models\PersonalAccessToken::class ,
 
-    'expiration' => null,
+    'expiration' => env('SANCTUM_TOKEN_EXPIRATION', 60 * 24 * 7), // 7 hari
 
     /*
      |--------------------------------------------------------------------------

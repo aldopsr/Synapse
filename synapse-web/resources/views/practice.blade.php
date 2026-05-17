@@ -113,10 +113,10 @@
 if (!materialId) {
     alert("Error: ID Materi gagal dimuat dari PHP ke JavaScript!");
 }
-        const baseUrl = `http://127.0.0.1:8000/api/materials/${materialId}/questions`;
+        const baseUrl = `${window.apiBaseUrl}/api/materials/${materialId}/questions`;
 
         // 1. Ambil Data Detail Materi (Opsional: untuk menampilkan Judul)
-        fetch(`http://127.0.0.1:8000/api/materials/${materialId}`, {
+        fetch(`${window.apiBaseUrl}/api/materials/${materialId}`, {
             headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/json' }
         })
         .then(res => res.json())
@@ -217,7 +217,7 @@ if (!materialId) {
         window.hapusSoal = async function(idSoal) {
             if(confirm("Apakah Anda yakin ingin menghapus soal ini?")) {
                 try {
-                    const deleteUrl = `http://127.0.0.1:8000/api/questions/${idSoal}`;
+                    const deleteUrl = `${window.apiBaseUrl}/api/questions/${idSoal}`;
                     const response = await fetch(deleteUrl, {
                         method: 'DELETE',
                         headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/json' }

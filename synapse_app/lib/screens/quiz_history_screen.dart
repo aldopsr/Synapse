@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+import '../utils/constants.dart';
 
 class QuizHistoryScreen extends StatefulWidget {
   const QuizHistoryScreen({super.key});
@@ -15,7 +16,7 @@ class _QuizHistoryScreenState extends State<QuizHistoryScreen> {
   List<dynamic> _historyList = [];
   bool _isLoading = true;
 
-  final String baseUrl = 'http://192.168.1.14:8000/api';
+  final String baseUrl = AppConstants.baseUrl;
 
   @override
   void initState() {

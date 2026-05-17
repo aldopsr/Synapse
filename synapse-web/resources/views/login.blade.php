@@ -50,73 +50,65 @@
     </div>
 
     <script>
-        document.getElementById('loginForm').addEventListener('submit', async function(e) {
-            e.preventDefault(); 
+    // Baca URL dari config Laravel — tidak hardcode
+    const apiBaseUrl = "{{ config('app.api_url') }}";
 
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            const btn = document.getElementById('loginBtn');
-            const errorDiv = document.getElementById('errorMessage');
+    document.getElementById('loginForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
 
-            btn.innerHTML = 'Loading...';
-            btn.disabled = true;
-            errorDiv.style.display = 'none';
+        const email    = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        const btn      = document.getElementById('loginBtn');
+        const errorDiv = document.getElementById('errorMessage');
 
-            try {
-                const response = await fetch('http://127.0.0.1:8000/api/auth/login', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
-                    },
-                    body: JSON.stringify({ email: email, password: password })
-                });
+        btn.innerHTML = 'Loading...';
+        btn.disabled  = true;
+        errorDiv.style.display = 'none';
 
-                const data = await response.json();
-                
-                console.log("Status Response:", response.ok);
-                console.log("Isi Data dari API:", data);
+        try {
+            const response = await fetch(apiBaseUrl + '/api/auth/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ email, password })
+            });
 
-                if (response.ok) {
-                    // AMBIL DATA SECARA AMAN (Cek apakah ada di data.user ATAU data.data.user)
-                    const token = data.token || (data.data && data.data.token);
-                    const userData = data.user || (data.data && data.data.user); 
-                    const userRole = (userData && userData.role) ? userData.role : 'dosen';
+            const data = await response.json();
 
-                    if (token) {
-                        // Simpan ke LocalStorage
-                        localStorage.setItem('token', token);
-                        localStorage.setItem('role', userRole);
-                        
-                        // Validasi userData sebelum disimpan jadi string
-                        if (userData) {
-                            localStorage.setItem('user', JSON.stringify(userData));
-                            console.log("Data user berhasil di-save:", userData);
-                        } else {
-                            console.warn("PERINGATAN: Objek 'user' tidak ditemukan dari API response!");
-                        }
-                        
-                        window.location.href = '/dashboard';
-                    } else {
-                        errorDiv.style.display = 'block';
-                        errorDiv.innerHTML = 'Login sukses, tapi Token tidak ditemukan di sistem.';
-                        btn.innerHTML = 'LOGIN';
-                        btn.disabled = false;
+            if (response.ok) {
+                const token    = data.token    || (data.data && data.data.token);
+                const userData = data.user     || (data.data && data.data.user);
+                const userRole = (userData && userData.role) ? userData.role : 'dosen';
+
+                if (token) {
+                    localStorage.setItem('token', token);
+                    localStorage.setItem('role',  userRole);
+                    if (userData) {
+                        localStorage.setItem('user', JSON.stringify(userData));
                     }
+                    window.location.href = '/dashboard';
                 } else {
                     errorDiv.style.display = 'block';
-                    errorDiv.innerHTML = data.message || 'Email atau Kata Sandi salah.';
+                    errorDiv.innerHTML     = 'Login sukses, tapi Token tidak ditemukan.';
                     btn.innerHTML = 'LOGIN';
-                    btn.disabled = false;
+                    btn.disabled  = false;
                 }
-            } catch (error) {
+            } else {
                 errorDiv.style.display = 'block';
-                errorDiv.innerHTML = 'Terjadi kesalahan jaringan.';
-                console.error('Error:', error);
+                errorDiv.innerHTML     = data.message || 'Email atau Kata Sandi salah.';
                 btn.innerHTML = 'LOGIN';
-                btn.disabled = false;
+                btn.disabled  = false;
             }
-        });
-    </script>
+        } catch (error) {
+            errorDiv.style.display = 'block';
+            errorDiv.innerHTML     = 'Terjadi kesalahan jaringan.';
+            console.error('Error:', error);
+            btn.innerHTML = 'LOGIN';
+            btn.disabled  = false;
+        }
+    });
+</script>
 </body>
 </html>
