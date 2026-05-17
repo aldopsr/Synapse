@@ -25,7 +25,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
   final ScrollController _scrollController = ScrollController();
   
   // URL BACKEND KAPTEN
-  final String baseUrl = 'http://192.168.3.51:8000/api'; 
+  final String baseUrl = 'http://192.168.1.14:8000/api'; 
 
   // DAFTAR REKOMENDASI PERTANYAAN
   final List<String> _promptStarters = [

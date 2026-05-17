@@ -36,8 +36,8 @@ class _ARViewScreenState extends State<ARViewScreen> {
     // yang memberikan header Access-Control-Allow-Origin: *
     //
     // Contoh:
-    // INPUT  : http://192.168.3.51:8000/storage/ar_models/file.glb
-    // OUTPUT : http://192.168.3.51:8000/api/download-model/ar_models/file.glb
+    // INPUT  : http://192.168.1.14:8000/storage/ar_models/file.glb
+    // OUTPUT : http://192.168.1.14:8000/api/download-model/ar_models/file.glb
     if (cleanUrl.contains('/storage/')) {
       cleanUrl = cleanUrl.replaceFirst('/storage/', '/api/download-model/');
     }

@@ -63,11 +63,18 @@
             </a>
 
             <a href="/kelola-ar" class="menu-item" id="menuKelolaAR">
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style="width:22px; height:22px;">
-        <path fill-rule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25ZM12 4.5a7.5 7.5 0 1 0 0 15 7.5 7.5 0 0 0 0-15Z" clip-rule="evenodd" />
-    </svg>
-    <span>Kelola Aset AR</span>
-</a>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style="width:22px; height:22px;">
+                    <path fill-rule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25ZM12 4.5a7.5 7.5 0 1 0 0 15 7.5 7.5 0 0 0 0-15Z" clip-rule="evenodd" />
+                </svg>
+                <span>Kelola Aset AR</span>
+            </a>
+
+            <a href="/kuis" class="menu-item">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style="width:22px; height:22px;">
+                    <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+                </svg>
+                <span>Kelola Kuis</span>
+            </a>
 
             <a href="#" class="menu-item" onclick="logout()" style="margin-top: auto; color: #FFD6D6;">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style="width:22px; height:22px;">
@@ -75,6 +82,8 @@
                 </svg>
                 <span>Logout</span>
             </a>
+
+
         </div>
     </div>
 

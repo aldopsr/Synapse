@@ -97,11 +97,27 @@ Route::middleware(['auth:sanctum', 'role:dosen,admin,superadmin'])->group(functi
     Route::post('/dosen', [DosenController::class, 'store']);
     Route::delete('/dosen/{id}', [DosenController::class, 'destroy']);
 
-    // 🌟 BARU: ENDPOINT KELOLA AR ASSETS (Hanya Dosen/Admin)
     Route::post('/materials/{materialId}/ar-assets', [ArAssetController::class, 'store']);
     Route::put('/ar-assets/{id}', [ArAssetController::class, 'update']);
     Route::post('/ar-assets/{id}', [ArAssetController::class, 'update']); // Untuk multipart + _method=PUT
     Route::delete('/ar-assets/{id}', [ArAssetController::class, 'destroy']);
+
+    // List & detail quiz untuk admin
+    Route::get('/admin/quizzes', [QuizController::class, 'adminIndex']);
+    Route::get('/admin/quizzes/{id}', [QuizController::class, 'adminShow']);
+ 
+    // CRUD quiz
+    Route::post('/admin/quizzes', [QuizController::class, 'store']);
+    Route::put('/admin/quizzes/{id}', [QuizController::class, 'update']);
+    Route::delete('/admin/quizzes/{id}', [QuizController::class, 'destroy']);
+ 
+    // Toggle aktif/nonaktif (quick action)
+    Route::post('/admin/quizzes/{id}/toggle', [QuizController::class, 'toggleActive']);
+ 
+    // CRUD soal quiz
+    Route::get('/admin/quizzes/{id}/questions', [QuizController::class, 'getQuizQuestions']);
+    Route::post('/admin/quizzes/{id}/questions', [QuizController::class, 'storeQuizQuestion']);
+    Route::delete('/admin/quiz-questions/{id}', [QuizController::class, 'destroyQuizQuestion']);
 });
 
 

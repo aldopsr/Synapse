@@ -15,7 +15,7 @@ String getBaseUrl() {
 
     return isEmulator
         ? 'http://10.0.2.2:8000/api'
-        : 'http://192.168.3.51:8000/api'; 
+        : 'http://192.168.1.14:8000/api'; 
   }
 
   // iOS Simulator / Desktop

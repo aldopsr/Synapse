@@ -55,6 +55,30 @@ Route::get('/kelolaAkunDosen', function () {
     return view('kelolaAkunDosen');
 });
 
+// ============================================
+// 🌟 BARU: HALAMAN KELOLA KUIS
+// ============================================
+ 
+// 1. Halaman list semua quiz
+Route::get('/kuis', function () {
+    return view('kuis.index');
+});
+ 
+// 2. Halaman buat quiz baru
+Route::get('/kuis/buat', function () {
+    return view('kuis.form', ['mode' => 'create', 'quiz_id' => null]);
+});
+ 
+// 3. Halaman edit quiz
+Route::get('/kuis/{quiz_id}/edit', function ($quiz_id) {
+    return view('kuis.form', ['mode' => 'edit', 'quiz_id' => $quiz_id]);
+});
+ 
+// 4. Halaman kelola soal quiz
+Route::get('/kuis/{quiz_id}/soal', function ($quiz_id) {
+    return view('kuis.kelola-soal', ['quiz_id' => $quiz_id]);
+});
+
 Route::get('/login', function () {
     return view('login');
 });

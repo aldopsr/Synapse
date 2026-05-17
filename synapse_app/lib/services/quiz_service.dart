@@ -18,14 +18,13 @@ String getBaseUrl() {
 
     return isEmulator
         ? 'http://10.0.2.2:8000/api'
-        : 'http://192.168.3.51:8000/api';
+        : 'http://192.168.1.14:8000/api';
   }
 
   return 'http://127.0.0.1:8000/api';
 }
 
 class QuizService {
-  // 🔑 ambil token
   Future<String?> _getToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('token');
@@ -34,7 +33,6 @@ class QuizService {
   // 1. GET QUIZ
   Future<List<QuizModel>> getQuizzes() async {
     final token = await _getToken();
-
     if (token == null) return [];
 
     try {
@@ -63,7 +61,6 @@ class QuizService {
   // 2. GET QUESTIONS
   Future<List<QuestionModel>> getQuestions(String quizId) async {
     final token = await _getToken();
-
     if (token == null) return [];
 
     try {
@@ -88,14 +85,13 @@ class QuizService {
     }
   }
 
-  // 3. SUBMIT QUIZ
+  // 3. 🌟 SUBMIT QUIZ — Sekarang return data lengkap (review per soal)
   Future<Map<String, dynamic>?> submitQuiz({
     required String quizId,
     required int timeTakenSeconds,
     required List<Map<String, dynamic>> answers,
   }) async {
     final token = await _getToken();
-
     if (token == null) return null;
 
     try {
@@ -113,6 +109,7 @@ class QuizService {
       );
 
       if (response.statusCode == 200) {
+        // Return full response: score, earned_points, max_points, review[], dll
         return jsonDecode(response.body);
       } else {
         debugPrint('❌ Gagal Submit: ${response.body}');
@@ -127,7 +124,6 @@ class QuizService {
   // 4. LEADERBOARD
   Future<List<dynamic>> getLeaderboard(String quizId) async {
     final token = await _getToken();
-
     if (token == null) return [];
 
     try {

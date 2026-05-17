@@ -38,7 +38,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
     final token = prefs.getString('token');
     
     // Gunakan getBaseUrl() yang sama dengan Service agar tidak typo
-    final url = 'http://192.168.3.51:8000/api/materials/${widget.materialId}/questions';
+    final url = 'http://192.168.1.14:8000/api/materials/${widget.materialId}/questions';
 
     final response = await http.get(
       Uri.parse(url),

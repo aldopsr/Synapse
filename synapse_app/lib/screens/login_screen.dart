@@ -282,7 +282,7 @@ class _ForgotPasswordSheetState extends State<ForgotPasswordSheet> {
   
   bool _isNewPasswordVisible = false;
   
-  final String baseUrl = 'http://192.168.3.51:8000/api';
+  final String baseUrl = 'http://192.168.1.14:8000/api';
 
   void _sendOTP() async {
     if (_emailController.text.isEmpty) return;
