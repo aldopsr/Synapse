@@ -64,4 +64,12 @@ class CourseController extends Controller
             'data' => $course
         ], 201);
     }
+
+    public function update(Request $request, $id)
+    {
+        $course = Course::findOrFail($id);
+        $request->validate(['dosen_id' => 'required|exists:users,id']);
+        $course->update(['dosen_id' => $request->dosen_id]);
+        return response()->json(['success' => true, 'data' => $course]);
+    }
 }

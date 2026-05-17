@@ -14,7 +14,8 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\MaterialController;
 use App\Http\Controllers\Api\QuizController;
 use App\Http\Controllers\Api\AiChatController;
-use App\Http\Controllers\Api\ArAssetController; // 🌟 BARU
+use App\Http\Controllers\Api\ArAssetController;
+use App\Http\Controllers\Api\CourseController;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\File;
@@ -85,10 +86,11 @@ Route::middleware(['auth:sanctum', 'role:dosen,admin,superadmin'])->group(functi
     // --- KELOLA MATKUL & MATERI ---
     Route::get('/courses', [\App\Http\Controllers\Api\CourseController::class, 'index']);
     Route::post('/courses', [\App\Http\Controllers\Api\CourseController::class, 'store']);
+    Route::put('/courses/{id}', [CourseController::class, 'update']);
     Route::get('/courses/{course_id}/materials', [\App\Http\Controllers\Api\MaterialController::class, 'getByCourse']);
     Route::post('/courses/{course_id}/materials', [\App\Http\Controllers\Api\MaterialController::class, 'storeByCourse']);
     Route::post('/upload-image', [\App\Http\Controllers\Api\MaterialController::class, 'uploadImage']);
-
+    
     Route::get('/materials/{id}', [MaterialController::class, 'show']);
     Route::put('/materials/{id}', [MaterialController::class, 'update']);
     Route::delete('/materials/{id}', [MaterialController::class, 'destroy']);
@@ -104,6 +106,7 @@ Route::middleware(['auth:sanctum', 'role:dosen,admin,superadmin'])->group(functi
     Route::get('/dosen', [DosenController::class, 'index']);
     Route::post('/dosen', [DosenController::class, 'store']);
     Route::delete('/dosen/{id}', [DosenController::class, 'destroy']);
+    Route::put('/dosen/{id}', [DosenController::class, 'update']);
 
     Route::post('/materials/{materialId}/ar-assets', [ArAssetController::class, 'store']);
     Route::put('/ar-assets/{id}', [ArAssetController::class, 'update']);

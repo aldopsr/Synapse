@@ -1,4 +1,11 @@
 <?php
+// ============================================================
+// PATCH: synapse-backend/app/Http/Controllers/Api/DashboardController.php
+// Tambahkan data kuis_soal (jumlah soal per kuis) dan kuis_nonaktif
+// untuk melengkapi grafik dosen yang lebih informatif.
+//
+// Ganti SELURUH method getStats() dengan kode di bawah ini.
+// ============================================================
 
 namespace App\Http\Controllers\Api;
 
@@ -6,8 +13,8 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\Material;
-use Illuminate\Support\Facades\DB; // Untuk query ke tabel yang mungkin belum ada Model-nya
-use Carbon\Carbon; // Untuk mainan tanggal dan bulan
+use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 class DashboardController extends Controller
 {
@@ -15,99 +22,141 @@ class DashboardController extends Controller
     {
         $user = $request->user();
 
-        // =======================================================
-        // 👑 JIKA YANG LOGIN ADMIN / SUPERADMIN
-        // =======================================================
+        // ═══════════════════════════════════════════════════════
+        // 👑 ADMIN / SUPERADMIN
+        // ═══════════════════════════════════════════════════════
         if ($user->role === 'admin' || $user->role === 'superadmin') {
-            $totalDosen = User::where('role', 'dosen')->count();
+            $totalDosen     = User::where('role', 'dosen')->count();
             $totalMahasiswa = User::where('role', 'mahasiswa')->count();
-            $totalMateri = Material::count();
-            $totalAR = 0; // Sesuaikan jika ada kolom file_3d
+            $totalMateri    = Material::count();
 
-            // LOGIKA GRAFIK 2: Aktivitas Unggah Materi 5 Bulan Terakhir
+            // Total AR assets
+            try {
+                $totalAR = DB::table('ar_assets')->count();
+            } catch (\Exception $e) {
+                $totalAR = 0;
+            }
+
+            // Grafik 1: Proporsi pengguna (pie)
+            // Grafik 2: Materi baru per 5 bulan terakhir (bar)
             $barLabels = [];
-            $barData = [];
+            $barData   = [];
             for ($i = 4; $i >= 0; $i--) {
                 $month = Carbon::now()->subMonths($i);
-                $barLabels[] = $month->translatedFormat('M'); // Menghasilkan Jan, Feb, dst
-                
-                // Hitung materi yang diunggah di bulan tersebut
-                $countMateri = Material::whereMonth('created_at', $month->month)
-                                       ->whereYear('created_at', $month->year)
+                $barLabels[] = $month->translatedFormat('M Y');
+                $barData[]   = Material::whereMonth('created_at', $month->month)
+                                       ->whereYear('created_at',  $month->year)
                                        ->count();
-                $barData[] = $countMateri;
             }
 
             return response()->json([
                 'success' => true,
-                'role' => 'admin',
-                'cards' => [
-                    'total_dosen' => $totalDosen,
+                'role'    => 'admin',
+                'cards'   => [
+                    'total_dosen'     => $totalDosen,
                     'total_mahasiswa' => $totalMahasiswa,
-                    'total_materi' => $totalMateri,
-                    'total_ar' => $totalAR
+                    'total_materi'    => $totalMateri,
+                    'total_ar'        => $totalAR,
                 ],
                 'charts' => [
                     'pie' => [
                         'labels' => ['Mahasiswa', 'Dosen'],
-                        'data' => [$totalMahasiswa, $totalDosen] // Ini sudah data asli!
+                        'data'   => [$totalMahasiswa, $totalDosen],
                     ],
                     'bar' => [
                         'labels' => $barLabels,
-                        'data' => $barData // Ini sudah data asli per bulan!
-                    ]
-                ]
+                        'data'   => $barData,
+                    ],
+                ],
             ]);
         }
 
-        // =======================================================
-        // 👨‍🏫 JIKA YANG LOGIN DOSEN
-        // =======================================================
+        // ═══════════════════════════════════════════════════════
+        // 👨‍🏫 DOSEN
+        // ═══════════════════════════════════════════════════════
         if ($user->role === 'dosen') {
-            // Asumsi tabel materi ada kolom 'user_id' untuk menandai pembuatnya
-            // Jika tidak ada, ganti jadi Material::count();
-            $materiSaya = Material::where('user_id', $user->id)->count(); 
-            
-            // ⚠️ PERHATIAN KAPTEN: Sesuaikan 'quiz_attempts' dengan nama tabel nilai Kapten!
-            // Jika tabelnya belum ada, ini akan error. Ubah jadi 0 dulu kalau belum ada.
+
+            // Stat cards
+            $materiSaya = Material::where('user_id', $user->id)->count();
+
             try {
-                $kuisAktif = DB::table('quizzes')->where('user_id', $user->id)->count();
-                $rataNilai = DB::table('quiz_attempts')->avg('score') ?? 0; 
-                $mahasiswaHadir = DB::table('quiz_attempts')->distinct('user_id')->count('user_id');
+                // Kuis milik dosen ini (by course_id karena kuis dibuat per matkul)
+                $kuisQuery  = DB::table('quizzes')->where('course_id', $user->course_id);
+                $kuisAktif  = (clone $kuisQuery)->where('is_active', true)->count();
+                $kuisNonaktif = (clone $kuisQuery)->where('is_active', false)->count();
 
-                // LOGIKA GRAFIK 1: Pesebaran Nilai
-                $nilaiA = DB::table('quiz_attempts')->whereBetween('score', [90, 100])->count();
-                $nilaiB = DB::table('quiz_attempts')->whereBetween('score', [80, 89])->count();
-                $nilaiC = DB::table('quiz_attempts')->whereBetween('score', [70, 79])->count();
-                $nilaiD = DB::table('quiz_attempts')->whereBetween('score', [60, 69])->count();
-                $nilaiE = DB::table('quiz_attempts')->where('score', '<', 60)->count();
+                // Nilai dari quiz_attempts untuk kuis-kuis ini
+                $kuisIds    = (clone $kuisQuery)->pluck('_id')->toArray();
+                $rataNilai  = DB::table('quiz_attempts')
+                                ->whereIn('quiz_id', $kuisIds)
+                                ->avg('score') ?? 0;
+                $mahasiswaHadir = DB::table('quiz_attempts')
+                                ->whereIn('quiz_id', $kuisIds)
+                                ->distinct('user_id')
+                                ->count('user_id');
 
-                $gradeData = [$nilaiA, $nilaiB, $nilaiC, $nilaiD, $nilaiE];
+                // Grafik 1: Persebaran nilai grade A–E
+                $gradeData = [
+                    DB::table('quiz_attempts')->whereIn('quiz_id', $kuisIds)->whereBetween('score', [90, 100])->count(),
+                    DB::table('quiz_attempts')->whereIn('quiz_id', $kuisIds)->whereBetween('score', [80, 89])->count(),
+                    DB::table('quiz_attempts')->whereIn('quiz_id', $kuisIds)->whereBetween('score', [70, 79])->count(),
+                    DB::table('quiz_attempts')->whereIn('quiz_id', $kuisIds)->whereBetween('score', [60, 69])->count(),
+                    DB::table('quiz_attempts')->whereIn('quiz_id', $kuisIds)->where('score', '<', 60)->count(),
+                ];
+
+                // Grafik 2: Jumlah soal per kuis (horizontal bar)
+                // Ambil max 8 kuis terakhir supaya chart tidak overflow
+                $kuisList = DB::table('quizzes')
+                    ->where('course_id', $user->course_id)
+                    ->latest()
+                    ->limit(8)
+                    ->get(['_id', 'title']);
+
+                $kuisSoalLabels = [];
+                $kuisSoalData   = [];
+                foreach ($kuisList as $k) {
+                    $judul = strlen($k->title) > 25
+                        ? substr($k->title, 0, 22) . '...'
+                        : $k->title;
+                    $kuisSoalLabels[] = $judul;
+                    $kuisSoalData[]   = DB::table('quiz_questions')
+                                          ->where('quiz_id', $k->_id ?? $k->id)
+                                          ->count();
+                }
+
             } catch (\Exception $e) {
-                // Fallback (Penyelamat) kalau tabel quiz_attempts belum dibuat
-                $kuisAktif = 0; $rataNilai = 0; $mahasiswaHadir = 0;
-                $gradeData = [0, 0, 0, 0, 0];
+                // Fallback aman kalau tabel belum ada
+                $kuisAktif      = 0;
+                $kuisNonaktif   = 0;
+                $rataNilai      = 0;
+                $mahasiswaHadir = 0;
+                $gradeData      = [0, 0, 0, 0, 0];
+                $kuisSoalLabels = [];
+                $kuisSoalData   = [];
             }
 
             return response()->json([
                 'success' => true,
-                'role' => 'dosen',
-                'cards' => [
-                    'materi_saya' => $materiSaya,
-                    'kuis_aktif' => $kuisAktif,
-                    'rata_nilai' => round($rataNilai, 2),
-                    'mahasiswa_hadir' => $mahasiswaHadir
+                'role'    => 'dosen',
+                'cards'   => [
+                    'materi_saya'     => $materiSaya,
+                    'kuis_aktif'      => $kuisAktif,
+                    'kuis_nonaktif'   => $kuisNonaktif,   // ← BARU: untuk fallback doughnut
+                    'rata_nilai'      => round($rataNilai, 2),
+                    'mahasiswa_hadir' => $mahasiswaHadir,
                 ],
                 'charts' => [
+                    // Grafik 1: persebaran nilai (sudah ada sebelumnya)
                     'bar' => [
-                        'labels' => ['A (90-100)', 'B (80-89)', 'C (70-79)', 'D (60-69)', 'E (<60)'],
-                        'data' => $gradeData
+                        'labels' => ['A (90–100)', 'B (80–89)', 'C (70–79)', 'D (60–69)', 'E (<60)'],
+                        'data'   => $gradeData,
                     ],
-                    'line' => [
-                        'labels' => ['Minggu 1', 'Minggu 2', 'Minggu 3', 'Minggu 4'],
-                        'data' => [0, 0, 0, 0] // Ini kita biarkan 0 dulu sampai tabel riwayat kuisnya jelas
-                    ]
-                ]
+                    // Grafik 2: jumlah soal per kuis (BARU — mengganti line partisipasi kosong)
+                    'kuis_soal' => [
+                        'labels' => $kuisSoalLabels,
+                        'data'   => $kuisSoalData,
+                    ],
+                ],
             ]);
         }
 

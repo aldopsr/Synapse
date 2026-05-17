@@ -56,4 +56,15 @@ class DosenController extends Controller
             'message' => 'Akun Dosen berhasil dihapus!'
         ], 200);
     }
+
+    public function update(Request $request, $id)
+    {
+        $user = User::findOrFail($id);
+        $data = $request->only(['name', 'email', 'course_id']);
+        if ($request->filled('password')) {
+            $data['password'] = Hash::make($request->password);
+        }
+        $user->update($data);
+        return response()->json(['success' => true, 'data' => $user]);
+    }
 }
