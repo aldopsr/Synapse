@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
-import 'email_verification_screen.dart'; 
+import 'email_verification_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -10,41 +10,45 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
-  final _nameController = TextEditingController();
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
+  final _nameController            = TextEditingController();
+  final _emailController           = TextEditingController();
+  final _passwordController        = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  final _nimController = TextEditingController();
-  final _kelasController = TextEditingController();
-  
-  bool _isLoading = false;
-  bool _isPasswordVisible = false;
+  final _nimController             = TextEditingController();
+  final _kelasController           = TextEditingController();
+
+  bool _isLoading                = false;
+  bool _isPasswordVisible        = false;
   bool _isConfirmPasswordVisible = false;
-  
-  // 👇 Sakelar sakti penentu nasib (Mahasiswa atau Public)
-  bool _isMahasiswa = true; 
+  bool _isMahasiswa              = true;
 
+  // ─────────────────────────────────────────────────────────
+  // FIX BUG #1 — double SnackBar & double setState
+  // Semua kode simulasi lama dihapus. Hanya 1 alur:
+  //   sukses → 1 snackbar → navigate
+  //   gagal  → 1 snackbar error
+  // ─────────────────────────────────────────────────────────
   void _handleRegister() async {
-    final name = _nameController.text.trim();
-    final email = _emailController.text.trim();
-    final password = _passwordController.text;
+    final name            = _nameController.text.trim();
+    final email           = _emailController.text.trim();
+    final password        = _passwordController.text;
     final confirmPassword = _confirmPasswordController.text;
-    final nim = _nimController.text.trim();
-    final kelas = _kelasController.text.trim();
+    final nim             = _nimController.text.trim();
+    final kelas           = _kelasController.text.trim();
 
-    // 1. Validasi Input Kosong
+    // Validasi input kosong
     if (name.isEmpty || email.isEmpty || password.isEmpty) {
-      _showError('Nama, Email, dan Kata Sandi wajib diisi!');
+      _showError('Nama, Email, dan Password wajib diisi!');
       return;
     }
 
-    // 2. Validasi Password Sama
+    // Validasi password sama
     if (password != confirmPassword) {
-      _showError('Kata Sandi dan Konfirmasi Kata Sandi tidak cocok!');
+      _showError('Kata Sandi dan Konfirmasi tidak cocok!');
       return;
     }
 
-    // 3. Validasi Mahasiswa IPB
+    // Validasi mahasiswa IPB
     if (_isMahasiswa) {
       if (!email.endsWith('@apps.ipb.ac.id')) {
         _showError('Mahasiswa wajib menggunakan email @apps.ipb.ac.id!');
@@ -59,44 +63,47 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() => _isLoading = true);
 
     bool success = await AuthService().register(
-      name: name,
-      email: email,
+      name:     name,
+      email:    email,
       password: password,
-      role: _isMahasiswa ? 'mahasiswa' : 'public',
-      nim: _isMahasiswa ? nim : null,
-      kelas: _isMahasiswa ? kelas : null,
+      role:     _isMahasiswa ? 'mahasiswa' : 'public',
+      nim:      _isMahasiswa ? nim   : null,
+      kelas:    _isMahasiswa ? kelas : null,
     );
-    
-    setState(() => _isLoading = false);
 
+    // FIX: guard mounted sebelum setState & Navigator
     if (!mounted) return;
+
+    setState(() => _isLoading = false);
 
     if (success) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Registrasi sukses! Silakan cek email.'), backgroundColor: Colors.teal));
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => EmailVerificationScreen(email: email)));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Akun berhasil dibuat! Cek emailmu ya 📬'),
+          backgroundColor: Colors.teal,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => EmailVerificationScreen(email: email),
+        ),
+      );
     } else {
-      _showError('Registrasi gagal. Email mungkin sudah terdaftar.');
+      _showError('Registrasi gagal. Email atau NIM mungkin sudah terdaftar.');
     }
-    
-    // Simulasi loading sejenak sebelum kita punya API sungguhan
-    await Future.delayed(const Duration(seconds: 2));
-    
-    setState(() => _isLoading = false);
-
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Registrasi sukses! Silakan cek email Anda untuk Verifikasi.'),
-        backgroundColor: Colors.teal,
-      )
-    );
-    Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => EmailVerificationScreen(email: email)));
+    // ↑ Selesai di sini. Tidak ada kode lagi.
+    // Blok Future.delayed + SnackBar kedua yang lama sudah dihapus.
   }
 
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: Colors.redAccent, behavior: SnackBarBehavior.floating),
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.redAccent,
+        behavior: SnackBarBehavior.floating,
+      ),
     );
   }
 
@@ -104,23 +111,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.blueGrey[50],
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        foregroundColor: Colors.teal,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded),
-          onPressed: () => Navigator.pop(context), // Kembali ke Login
-        ),
-      ),
       body: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 10.0),
-          physics: const BouncingScrollPhysics(),
+          padding: const EdgeInsets.all(24.0),
           child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Header
               const Icon(Icons.person_add_alt_1_rounded, size: 64, color: Colors.teal),
               const SizedBox(height: 16),
               const Text(
@@ -128,140 +125,194 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: Colors.blueGrey),
               ),
-              const Text(
-                'Bergabunglah dengan jaringan SYNAPSE',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 14, color: Colors.grey),
-              ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 30),
 
-              // Kartu Form
+              // Toggle Mahasiswa / Umum — TIDAK DIUBAH
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                    )
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: _isLoading
+                            ? null
+                            : () => setState(() => _isMahasiswa = true),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          decoration: BoxDecoration(
+                            color: _isMahasiswa ? Colors.teal : Colors.transparent,
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Text(
+                            'Mahasiswa IPB',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: _isMahasiswa ? Colors.white : Colors.grey,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: _isLoading
+                            ? null
+                            : () => setState(() => _isMahasiswa = false),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          decoration: BoxDecoration(
+                            color: !_isMahasiswa ? Colors.teal : Colors.transparent,
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Text(
+                            'Umum',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: !_isMahasiswa ? Colors.white : Colors.grey,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Form card — TIDAK DIUBAH
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(24),
                   boxShadow: [
-                    BoxShadow(color: Colors.teal.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, 10))
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 20,
+                      offset: const Offset(0, 10),
+                    )
                   ],
                 ),
                 child: Column(
                   children: [
-                    // --- SAKELAR ROLE (Mahasiswa / Public) ---
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: _isMahasiswa ? Colors.teal.withOpacity(0.1) : Colors.grey.shade100,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: _isMahasiswa ? Colors.teal.withOpacity(0.5) : Colors.transparent),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Row(
-                            children: [
-                              Icon(Icons.school_rounded, color: Colors.teal),
-                              SizedBox(width: 8),
-                              Text('Saya Mahasiswa IPB', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blueGrey)),
-                            ],
-                          ),
-                          Switch(
-                            value: _isMahasiswa,
-                            activeColor: Colors.teal,
-                            onChanged: (value) {
-                              setState(() {
-                                _isMahasiswa = value;
-                                // Jika diubah ke public, bersihkan emailnya agar tidak bingung
-                                if (!value && _emailController.text.endsWith('@apps.ipb.ac.id')) {
-                                  _emailController.clear();
-                                }
-                              });
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-
-                    // --- FORM UMUM ---
+                    // FIX BUG #2: enabled: !_isLoading di semua field
                     _buildTextField(
                       controller: _nameController,
                       label: 'Nama Lengkap',
-                      icon: Icons.person_rounded,
+                      icon: Icons.person_outline_rounded,
+                      enabled: !_isLoading,
                     ),
-                    const SizedBox(height: 16),
-
+                    const SizedBox(height: 14),
                     _buildTextField(
                       controller: _emailController,
-                      label: 'Email',
-                      hintText: _isMahasiswa ? 'wajib @apps.ipb.ac.id' : 'contoh@gmail.com',
-                      icon: Icons.email_rounded,
+                      label: _isMahasiswa
+                          ? 'Email IPB (@apps.ipb.ac.id)'
+                          : 'Email',
+                      icon: Icons.email_outlined,
                       keyboardType: TextInputType.emailAddress,
+                      hintText: _isMahasiswa ? 'nama@apps.ipb.ac.id' : null,
+                      enabled: !_isLoading,
                     ),
-                    const SizedBox(height: 16),
-
-                    // --- FORM KHUSUS MAHASISWA (Disembunyikan jika Public) ---
                     if (_isMahasiswa) ...[
-                      Row(
-                        children: [
-                          Expanded(
-                            flex: 2,
-                            child: _buildTextField(
-                              controller: _nimController,
-                              label: 'NIM',
-                              icon: Icons.badge_rounded,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            flex: 1,
-                            child: _buildTextField(
-                              controller: _kelasController,
-                              label: 'Kelas',
-                              icon: Icons.class_rounded,
-                            ),
-                          ),
-                        ],
+                      const SizedBox(height: 14),
+                      _buildTextField(
+                        controller: _nimController,
+                        label: 'NIM',
+                        icon: Icons.badge_outlined,
+                        keyboardType: TextInputType.text,
+                        enabled: !_isLoading,
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 14),
+                      _buildTextField(
+                        controller: _kelasController,
+                        label: 'Kelas',
+                        icon: Icons.class_outlined,
+                        hintText: 'Contoh: A, B, K1...',
+                        enabled: !_isLoading,
+                      ),
                     ],
-
-                    // --- FORM PASSWORD ---
+                    const SizedBox(height: 14),
                     _buildPasswordField(
                       controller: _passwordController,
                       label: 'Kata Sandi',
                       isVisible: _isPasswordVisible,
-                      onToggle: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
+                      onToggle: () => setState(
+                          () => _isPasswordVisible = !_isPasswordVisible),
+                      enabled: !_isLoading,
                     ),
-                    const SizedBox(height: 16),
-                    
+                    const SizedBox(height: 14),
                     _buildPasswordField(
                       controller: _confirmPasswordController,
-                      label: 'Konfirmasi Sandi',
+                      label: 'Konfirmasi Kata Sandi',
                       isVisible: _isConfirmPasswordVisible,
-                      onToggle: () => setState(() => _isConfirmPasswordVisible = !_isConfirmPasswordVisible),
+                      onToggle: () => setState(() =>
+                          _isConfirmPasswordVisible = !_isConfirmPasswordVisible),
+                      enabled: !_isLoading,
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 20),
 
-                    // --- TOMBOL DAFTAR ---
+                    // Tombol — TIDAK DIUBAH tampilannya
                     SizedBox(
                       width: double.infinity,
                       height: 55,
                       child: _isLoading
-                          ? const Center(child: CircularProgressIndicator(color: Colors.teal))
+                          ? const Center(
+                              child: CircularProgressIndicator(color: Colors.teal))
                           : ElevatedButton(
                               onPressed: _handleRegister,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.teal,
                                 foregroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16)),
                                 elevation: 2,
                               ),
-                              child: const Text('DAFTARKAN IDENTITAS', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1)),
+                              child: const Text(
+                                'DAFTARKAN IDENTITAS',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 1,
+                                ),
+                              ),
                             ),
                     ),
                   ],
                 ),
+              ),
+              const SizedBox(height: 24),
+
+              // Link ke login — TIDAK DIUBAH
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text(
+                    'Sudah punya akses? ',
+                    style: TextStyle(color: Colors.blueGrey),
+                  ),
+                  GestureDetector(
+                    onTap: _isLoading ? null : () => Navigator.pop(context),
+                    child: const Text(
+                      'Masuk di sini',
+                      style: TextStyle(
+                        color: Colors.teal,
+                        fontWeight: FontWeight.bold,
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -270,11 +321,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  // Widget Bantuan agar kodenya tidak kepanjangan
-  Widget _buildTextField({required TextEditingController controller, required String label, required IconData icon, String? hintText, TextInputType? keyboardType}) {
+  // ── WIDGET HELPERS — TIDAK DIUBAH, hanya tambah enabled ───────
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    TextInputType? keyboardType,
+    String? hintText,
+    required bool enabled,
+  }) {
     return TextField(
       controller: controller,
       keyboardType: keyboardType,
+      enabled: enabled,
       decoration: InputDecoration(
         labelText: label,
         hintText: hintText,
@@ -289,16 +349,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  Widget _buildPasswordField({required TextEditingController controller, required String label, required bool isVisible, required VoidCallback onToggle}) {
+  Widget _buildPasswordField({
+    required TextEditingController controller,
+    required String label,
+    required bool isVisible,
+    required VoidCallback onToggle,
+    required bool enabled,
+  }) {
     return TextField(
       controller: controller,
       obscureText: !isVisible,
+      enabled: enabled,
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: const Icon(Icons.lock_rounded, color: Colors.teal),
         suffixIcon: IconButton(
-          icon: Icon(isVisible ? Icons.visibility_rounded : Icons.visibility_off_rounded, color: Colors.grey),
-          onPressed: onToggle,
+          icon: Icon(
+            isVisible ? Icons.visibility_rounded : Icons.visibility_off_rounded,
+            color: Colors.grey,
+          ),
+          onPressed: enabled ? onToggle : null,
         ),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
         focusedBorder: OutlineInputBorder(

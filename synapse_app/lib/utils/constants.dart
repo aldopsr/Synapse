@@ -15,7 +15,7 @@ class AppConstants {
   // static const String baseUrl = 'http://10.0.2.2:8000/api';
 
   // HP Fisik via WiFi (ganti 192.168.1.14 dengan IP WiFi laptop kamu)
-  static const String baseUrl = 'http://192.168.1.22:8000/api';
+  static const String baseUrl = 'http://192.168.1.12:8000/api';
 
   // Production (uncomment ini kalau sudah punya server)
   // static const String baseUrl = 'https://api.synapse.app/api';
