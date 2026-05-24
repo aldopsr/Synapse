@@ -96,6 +96,10 @@ Route::get('/kuis/{quiz_id}/soal', function ($quiz_id) {
     return view('kuis.kelola-soal', ['quiz_id' => $quiz_id]);
 });
 
+Route::get('/kuis/{id}/leaderboard', function ($id) {
+    return view('kuis.leaderboard', ['quiz_id' => $id]);
+});
+
 // ============================================================
 // PENGATURAN AKUN
 // ============================================================

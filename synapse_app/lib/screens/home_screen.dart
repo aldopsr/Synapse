@@ -17,9 +17,12 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int    _selectedIndex = 0;
   bool   _isGuest       = true;
-  bool   _isPublic      = false; // login tapi bukan mahasiswa IPB
+  bool   _isPublic      = false;
   bool   _isLoading     = true;
   String _userRole      = '';
+
+  // FIX: ganti blueAccent ke teal SYNAPSE
+  static const Color _primary = Color(0xFF2A9D8F);
 
   final List<Widget> _pages = [
     const MaterialsScreen(),
@@ -47,7 +50,6 @@ class _HomeScreenState extends State<HomeScreen> {
         } else {
           _userRole = userData['role'] ?? '';
           _isGuest  = false;
-          // Role 'public' = login tapi bukan mahasiswa IPB
           _isPublic = _userRole == 'public';
         }
         _isLoading = false;
@@ -55,10 +57,8 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  // Tamu (belum login) — blokir quiz & chatbot
-  // Public (login, non-IPB) — boleh semua
-  bool get _canAccessQuiz     => !_isGuest;
-  bool get _canAccessChatbot  => !_isGuest;
+  bool get _canAccessQuiz    => !_isGuest;
+  bool get _canAccessChatbot => !_isGuest;
 
   void _showAccessDeniedDialog() {
     showDialog(
@@ -67,7 +67,7 @@ class _HomeScreenState extends State<HomeScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Row(
           children: [
-            Icon(Icons.lock_rounded, color: Colors.blueAccent),
+            Icon(Icons.lock_rounded, color: _primary),
             SizedBox(width: 8),
             Text('Login dulu yuk!',
                 style: TextStyle(fontWeight: FontWeight.bold)),
@@ -80,21 +80,17 @@ class _HomeScreenState extends State<HomeScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child:
-                const Text('Nanti', style: TextStyle(color: Colors.grey)),
+            child: const Text('Nanti', style: TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                    builder: (context) => const LoginScreen()),
+                MaterialPageRoute(builder: (context) => const LoginScreen()),
               );
             },
-            style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blueAccent,
-                foregroundColor: Colors.white),
+            // FIX: pakai theme otomatis (sudah set di main.dart)
             child: const Text('Login / Daftar'),
           ),
         ],
@@ -103,7 +99,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _onItemTapped(int index) {
-    // index 1 = Quiz, index 2 = Chatbot
     if (index == 1 && !_canAccessQuiz) {
       _showAccessDeniedDialog();
       return;
@@ -118,15 +113,14 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return Scaffold(
-        backgroundColor: Colors.grey[100],
-        body: const Center(
-            child: CircularProgressIndicator(color: Colors.blueAccent)),
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(color: _primary),
+        ),
       );
     }
 
     return Scaffold(
-      backgroundColor: Colors.grey[100],
       extendBody: true,
       body: IndexedStack(
         index: _selectedIndex,
@@ -141,7 +135,7 @@ class _HomeScreenState extends State<HomeScreen> {
             borderRadius: BorderRadius.circular(35),
             boxShadow: [
               BoxShadow(
-                color: Colors.blueAccent.withOpacity(0.15),
+                color: _primary.withOpacity(0.15),
                 blurRadius: 20,
                 offset: const Offset(0, 10),
               ),
@@ -150,15 +144,11 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              _buildNavItem(0, Icons.menu_book_rounded, 'Materi',
-                  isLocked: false),
-              _buildNavItem(1, Icons.quiz_rounded, 'Kuis',
-                  isLocked: !_canAccessQuiz),
+              _buildNavItem(0, Icons.menu_book_rounded, 'Materi',   isLocked: false),
+              _buildNavItem(1, Icons.quiz_rounded,      'Kuis',     isLocked: !_canAccessQuiz),
               _buildCenterButton(),
-              _buildNavItem(2, Icons.smart_toy_rounded, 'Tanya AI',
-                  isLocked: !_canAccessChatbot),
-              _buildNavItem(3, Icons.person_rounded, 'Profil',
-                  isLocked: false),
+              _buildNavItem(2, Icons.smart_toy_rounded, 'Tanya AI', isLocked: !_canAccessChatbot),
+              _buildNavItem(3, Icons.person_rounded,    'Profil',   isLocked: false),
             ],
           ),
         ),
@@ -179,8 +169,9 @@ class _HomeScreenState extends State<HomeScreen> {
         padding: EdgeInsets.symmetric(
             horizontal: isSelected ? 12 : 8, vertical: 8),
         decoration: BoxDecoration(
+          // FIX: pakai _primary bukan blueAccent
           color: isSelected
-              ? Colors.blueAccent.withOpacity(0.1)
+              ? _primary.withOpacity(0.1)
               : Colors.transparent,
           borderRadius: BorderRadius.circular(20),
         ),
@@ -193,9 +184,8 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 Icon(
                   icon,
-                  color: isSelected
-                      ? Colors.blueAccent
-                      : Colors.blueGrey[400],
+                  // FIX: pakai _primary bukan blueAccent
+                  color: isSelected ? _primary : Colors.blueGrey[400],
                   size: 22,
                 ),
                 const SizedBox(height: 2),
@@ -203,9 +193,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   Text(
                     label,
                     style: const TextStyle(
-                        color: Colors.blueAccent,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold),
+                      // FIX: pakai _primary bukan blueAccent
+                      color: _primary,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
               ],
             ),
@@ -219,8 +211,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     color: Colors.redAccent,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.lock,
-                      color: Colors.white, size: 8),
+                  child: const Icon(Icons.lock, color: Colors.white, size: 8),
                 ),
               ),
           ],
@@ -231,13 +222,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildCenterButton() {
     return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-              builder: (context) => const ArGalleryScreen()),
-        );
-      },
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const ArGalleryScreen()),
+      ),
       child: Container(
         width: 56,
         height: 56,
@@ -250,14 +238,13 @@ class _HomeScreenState extends State<HomeScreen> {
           shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF2A9D8F).withOpacity(0.4),
+              color: _primary.withOpacity(0.4),
               blurRadius: 12,
               offset: const Offset(0, 6),
             ),
           ],
         ),
-        child: const Icon(Icons.view_in_ar_rounded,
-            color: Colors.white, size: 26),
+        child: const Icon(Icons.view_in_ar_rounded, color: Colors.white, size: 26),
       ),
     );
   }

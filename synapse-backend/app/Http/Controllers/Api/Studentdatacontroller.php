@@ -10,9 +10,6 @@ use App\Models\Quiz;
 
 class StudentDataController extends Controller
 {
-    // ============================================================
-    // DOSEN: Mahasiswa yang sudah mengerjakan quiz di course mereka
-    // ============================================================
     public function quizParticipants(Request $request)
     {
         $user     = $request->user();
@@ -21,54 +18,44 @@ class StudentDataController extends Controller
             : $request->query('course_id');
 
         if (!$courseId) {
-            return response()->json([
-                'message' => 'Kamu belum ditugaskan ke mata kuliah.',
-                'data'    => [],
-            ], 200);
+            return response()->json(['message' => 'Kamu belum ditugaskan ke mata kuliah.', 'data' => []], 200);
         }
 
-        // Ambil semua quiz_id di course ini
-        $quizIds = Quiz::where('course_id', $courseId)->pluck('_id')->toArray();
+        // FIX: pakai ->get()->map() bukan ->pluck('_id')
+        $quizIds = Quiz::where('course_id', $courseId)->get()
+            ->map(fn($q) => (string) $q->id)
+            ->toArray();
 
         if (empty($quizIds)) {
-            return response()->json([
-                'message' => 'Belum ada quiz di mata kuliah ini.',
-                'data'    => [],
-            ], 200);
+            return response()->json(['message' => 'Belum ada quiz di mata kuliah ini.', 'data' => []], 200);
         }
 
-        // Ambil semua attempt untuk quiz-quiz ini
         $attempts = QuizAttempt::whereIn('quiz_id', $quizIds)
             ->orderBy('created_at', 'desc')
             ->get();
 
         if ($attempts->isEmpty()) {
-            return response()->json([
-                'message' => 'Belum ada mahasiswa yang mengerjakan quiz.',
-                'data'    => [],
-            ], 200);
+            return response()->json(['message' => 'Belum ada mahasiswa yang mengerjakan quiz.', 'data' => []], 200);
         }
 
-        // FIX: Manual lookup user — MongoDB tidak support with() cross-collection
-        $userIds  = $attempts->pluck('user_id')->unique()->toArray();
-        $users    = User::whereIn('_id', $userIds)->get()->keyBy(fn($u) => (string) $u->_id);
+        $userIds = $attempts->pluck('user_id')->unique()->toArray();
 
-        // Ambil judul quiz juga
-        $quizMap  = Quiz::whereIn('_id', $quizIds)->get()->keyBy(fn($q) => (string) $q->_id);
+        // FIX: keyBy pakai ->id bukan ->_id
+        $users   = User::whereIn('_id', $userIds)->get()
+            ->keyBy(fn($u) => (string) $u->id);
 
-        // Group attempts by user_id
+        // FIX: keyBy pakai ->id bukan ->_id
+        $quizMap = Quiz::whereIn('_id', $quizIds)->get()
+            ->keyBy(fn($q) => (string) $q->id);
+
         $byUser = $attempts->groupBy('user_id');
 
         $result = $byUser->map(function ($userAttempts, $userId) use ($users, $quizMap) {
             $userData = $users->get((string) $userId);
             if (!$userData) return null;
 
-            $nim        = $userData->nim ?? '';
-            $angkatan   = strlen($nim) >= 8 ? '20' . substr($nim, 5, 2) : '-';
-            $sekolah    = $this->_getSekolah($nim);
-
-            $avgScore   = round($userAttempts->avg('score'), 1);
-            $total      = $userAttempts->count();
+            $nim      = $userData->nim ?? '';
+            $avgScore = round($userAttempts->avg('score'), 1);
 
             return [
                 'user_id'          => (string) $userId,
@@ -77,18 +64,16 @@ class StudentDataController extends Controller
                 'nim'              => $nim,
                 'kelas'            => $userData->kelas ?? '-',
                 'nim_info'         => [
-                    'angkatan' => $angkatan,
-                    'sekolah'  => $sekolah,
+                    'angkatan' => strlen($nim) >= 8 ? '20' . substr($nim, 5, 2) : '-',
+                    'sekolah'  => $this->_getSekolah($nim),
                     'jenjang'  => $this->_getJenjang($nim),
                 ],
                 'avg_score'        => $avgScore,
-                'total_quiz_taken' => $total,
+                'total_quiz_taken' => $userAttempts->count(),
                 'last_activity'    => $userAttempts->sortByDesc('created_at')->first()->created_at,
                 'attempts'         => $userAttempts->map(fn($a) => [
                     'quiz_id'    => $a->quiz_id,
-                    'quiz_title' => isset($quizMap[(string)$a->quiz_id])
-                        ? $quizMap[(string)$a->quiz_id]->title
-                        : 'Quiz Dihapus',
+                    'quiz_title' => $quizMap->get((string) $a->quiz_id)?->title ?? 'Quiz Dihapus',
                     'score'      => $a->score,
                     'is_passed'  => $a->is_passed,
                     'created_at' => $a->created_at,
@@ -96,21 +81,13 @@ class StudentDataController extends Controller
             ];
         })->filter()->values();
 
-        // Group by angkatan
-        $grouped = $result->groupBy(fn($item) => $item['nim_info']['angkatan'] ?? '-')
-            ->map(fn($g) => $g->values());
-
         return response()->json([
-            'message'              => 'Berhasil',
-            'total'                => $result->count(),
-            'grouped_by_angkatan'  => $grouped,
-            'data'                 => $result,
+            'message' => 'Berhasil',
+            'total'   => $result->count(),
+            'data'    => $result,
         ], 200);
     }
 
-    // ============================================================
-    // ADMIN: Semua mahasiswa
-    // ============================================================
     public function allStudents(Request $request)
     {
         $query = User::where('role', 'mahasiswa');
@@ -122,29 +99,18 @@ class StudentDataController extends Controller
                   ->orWhere('email', 'like', "%{$s}%");
             });
         }
-        if ($angkatan = $request->angkatan) {
-            $suffix = substr($angkatan, -2);
-            $query->where('nim', 'like', "_____{$suffix}%");
-        }
-        if ($fak = $request->fakultas) {
-            $query->where('nim', 'like', "{$fak}%");
-        }
 
         $students = $query->orderBy('name')->get();
 
-        // Manual count attempts per user
-        $userIds      = $students->pluck('_id')->toArray();
-        $attemptCounts = QuizAttempt::whereIn('user_id', $userIds)
-            ->get()
-            ->groupBy('user_id');
+        // FIX: pakai ->id bukan ->_id
+        $userIds = $students->map(fn($u) => (string) $u->id)->toArray();
+        $attemptCounts = QuizAttempt::whereIn('user_id', $userIds)->get()->groupBy('user_id');
 
         $result = $students->map(function ($u) use ($attemptCounts) {
-            $uid      = (string) $u->_id;
+            $uid      = (string) $u->id; // FIX
             $nim      = $u->nim ?? '';
             $attempts = $attemptCounts->get($uid, collect());
-            $avgScore = $attempts->count() > 0
-                ? round($attempts->avg('score'), 1)
-                : null;
+            $avgScore = $attempts->count() > 0 ? round($attempts->avg('score'), 1) : null;
 
             return [
                 'user_id'          => $uid,
@@ -169,57 +135,44 @@ class StudentDataController extends Controller
         return response()->json([
             'message'        => 'Berhasil',
             'total'          => $result->count(),
-            'filter_options' => [
-                'angkatan' => $angkatanList,
-                'fakultas' => $sekolahList,
-            ],
+            'filter_options' => ['angkatan' => $angkatanList, 'fakultas' => $sekolahList],
             'data'           => $result,
         ], 200);
     }
 
-    // ============================================================
-    // ADMIN: Detail satu mahasiswa
-    // ============================================================
     public function studentDetail(Request $request, $userId)
     {
         $user = User::find($userId);
-        if (!$user) {
-            return response()->json(['message' => 'User tidak ditemukan.'], 404);
-        }
+        if (!$user) return response()->json(['message' => 'User tidak ditemukan.'], 404);
 
-        $attempts = QuizAttempt::where('user_id', $userId)
-            ->orderBy('created_at', 'desc')
-            ->get();
-
+        $attempts = QuizAttempt::where('user_id', $userId)->orderBy('created_at', 'desc')->get();
         $quizIds  = $attempts->pluck('quiz_id')->toArray();
+
+        // FIX: keyBy pakai ->id
         $quizMap  = Quiz::whereIn('_id', $quizIds)->get()
-            ->keyBy(fn($q) => (string) $q->_id);
+            ->keyBy(fn($q) => (string) $q->id);
 
         $nim = $user->nim ?? '';
 
         $attemptDetail = $attempts->map(fn($a) => [
             'quiz_id'            => $a->quiz_id,
-            'quiz_title'         => isset($quizMap[(string)$a->quiz_id])
-                ? $quizMap[(string)$a->quiz_id]->title
-                : 'Quiz Dihapus',
+            'quiz_title'         => $quizMap->get((string) $a->quiz_id)?->title ?? 'Quiz Dihapus',
             'score'              => $a->score,
-            'earned_points'      => $a->earned_points   ?? 0,
-            'max_points'         => $a->max_points       ?? 0,
-            'correct_count'      => $a->correct_count    ?? 0,
-            'total_questions'    => $a->total_questions  ?? 0,
-            'is_passed'          => $a->is_passed        ?? false,
-            'time_taken_seconds' => $a->time_taken_seconds ?? 0,
+            'earned_points'      => $a->earned_points      ?? 0,
+            'max_points'         => $a->max_points          ?? 0,
+            'correct_count'      => $a->correct_count       ?? 0,
+            'total_questions'    => $a->total_questions     ?? 0,
+            'is_passed'          => $a->is_passed           ?? false,
+            'time_taken_seconds' => $a->time_taken_seconds  ?? 0,
             'created_at'         => $a->created_at,
         ]);
 
-        $avgScore = $attempts->count() > 0
-            ? round($attempts->avg('score'), 1)
-            : null;
+        $avgScore = $attempts->count() > 0 ? round($attempts->avg('score'), 1) : null;
 
         return response()->json([
             'message' => 'Berhasil',
             'student' => [
-                'user_id'       => (string) $user->_id,
+                'user_id'       => (string) $user->id, // FIX
                 'name'          => $user->name,
                 'email'         => $user->email,
                 'nim'           => $nim,
@@ -241,23 +194,15 @@ class StudentDataController extends Controller
         ], 200);
     }
 
-    // ============================================================
-    // Helper NIM parser
-    // ============================================================
     private function _getSekolah(string $nim): string
     {
         if (empty($nim)) return '-';
         $map = [
-            'J' => 'Sekolah Vokasi',
-            'A' => 'Fak. Pertanian',
-            'B' => 'Fak. Kedokteran Hewan',
-            'C' => 'Fak. Perikanan & Ilmu Kelautan',
-            'D' => 'Fak. Peternakan',
-            'E' => 'Fak. Kehutanan & Lingkungan',
-            'F' => 'Fak. Teknologi Pertanian',
-            'G' => 'Fak. MIPA',
-            'H' => 'Fak. Ekonomi & Manajemen',
-            'I' => 'Fak. Ekologi Manusia',
+            'J' => 'Sekolah Vokasi',      'A' => 'Fak. Pertanian',
+            'B' => 'Fak. Kedokteran Hewan','C' => 'Fak. Perikanan & Ilmu Kelautan',
+            'D' => 'Fak. Peternakan',      'E' => 'Fak. Kehutanan & Lingkungan',
+            'F' => 'Fak. Teknologi Pertanian','G' => 'Fak. MIPA',
+            'H' => 'Fak. Ekonomi & Manajemen','I' => 'Fak. Ekologi Manusia',
             'K' => 'Fak. Kedokteran',
         ];
         return $map[strtoupper($nim[0])] ?? "Kode '{$nim[0]}'";
@@ -266,14 +211,8 @@ class StudentDataController extends Controller
     private function _getJenjang(string $nim): string
     {
         if (strlen($nim) < 3) return '-';
-        $map = [
-            '1' => 'S1 Reguler',
-            '2' => 'S1 Alih Jenis',
-            '3' => 'D3 Vokasi',
-            '4' => 'D4 / Sarjana Terapan',
-            '5' => 'S2',
-            '6' => 'S3',
-        ];
+        $map = ['1'=>'S1 Reguler','2'=>'S1 Alih Jenis','3'=>'D3 Vokasi',
+                '4'=>'D4 / Sarjana Terapan','5'=>'S2','6'=>'S3'];
         return $map[$nim[2]] ?? '-';
     }
 }

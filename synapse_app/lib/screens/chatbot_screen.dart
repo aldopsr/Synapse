@@ -491,13 +491,18 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                     style: const TextStyle(color: Colors.white),
                     cursorColor: Colors.white,
                     decoration: InputDecoration(
-                      hintText: (_isPublic && _remaining != null && _remaining! <= 0)
-                          ? 'Kuota habis — reset esok hari...'
-                          : 'Ketik ide anda disini...',
-                      hintStyle: TextStyle(color: Colors.white.withOpacity(0.7)),
-                      border: InputBorder.none,
-                      isDense: true,
-                    ),
+  filled: true,
+  fillColor: Colors.transparent,
+  hintText: (_isPublic && _remaining != null && _remaining! <= 0)
+      ? 'Kuota habis — reset esok hari...'
+      : 'Ketik ide anda disini...',
+  hintStyle: TextStyle(color: Colors.white.withOpacity(0.7)),
+  border: InputBorder.none,
+  enabledBorder: InputBorder.none,    // ← tambah ini
+  focusedBorder: InputBorder.none,    // ← tambah ini
+  disabledBorder: InputBorder.none,   // ← tambah ini
+  isDense: true,
+),
                   ),
                 ),
                 const SizedBox(width: 8),

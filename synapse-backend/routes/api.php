@@ -127,29 +127,18 @@ Route::middleware(['auth:sanctum', 'role:dosen,admin,superadmin'])->group(functi
 
 
 // =================================================================
-// 4. AREA KHUSUS MAHASISWA
+// 4. MAHASISWA & PUBLIC — quiz, history, chat
 // =================================================================
-Route::middleware(['auth:sanctum', 'role:mahasiswa'])->group(function () {
-    Route::get('/quizzes', [QuizController::class , 'index']);
-    Route::get('/quizzes/{id}/questions', [QuizController::class , 'getQuestions']);
-    Route::post('/quizzes/{id}/submit', [QuizController::class , 'submitQuiz']);
-    Route::post('/analyze-score', [AiChatController::class , 'analyzeScore']);
-    Route::get('/quiz-history', [QuizController::class , 'getHistory']);
-    Route::post('/explain-question', [AiChatController::class, 'explainQuestion']);
-});
+Route::middleware(['auth:sanctum', 'role:mahasiswa,public'])->group(function () {
+    Route::get('/quizzes',                  [QuizController::class, 'index']);
+    Route::get('/quizzes/{id}/questions',   [QuizController::class, 'getQuestions']);
+    Route::post('/quizzes/{id}/submit',     [QuizController::class, 'submitQuiz']);
+    Route::get('/quiz-history',             [QuizController::class, 'getHistory']);
+    Route::post('/chat',                    [AiChatController::class, 'chat']);
 
-
-// =================================================================
-// 5. PUBLIC + MAHASISWA (login tapi bukan IPB)
-// =================================================================
-Route::middleware(['auth:sanctum', 'role:public,mahasiswa'])->group(function () {
-    Route::post('/chat', [AiChatController::class , 'chat']);
-});
-
-// Quiz & history untuk public (visibility 'umum')
-Route::middleware(['auth:sanctum', 'role:public'])->group(function () {
-    Route::get('/quizzes', [QuizController::class , 'index']);
-    Route::get('/quizzes/{id}/questions', [QuizController::class , 'getQuestions']);
-    Route::post('/quizzes/{id}/submit', [QuizController::class , 'submitQuiz']);
-    Route::get('/quiz-history', [QuizController::class , 'getHistory']);
+    // Khusus mahasiswa saja
+    Route::middleware('role:mahasiswa')->group(function () {
+        Route::post('/analyze-score',     [AiChatController::class, 'analyzeScore']);
+        Route::post('/explain-question',  [AiChatController::class, 'explainQuestion']);
+    });
 });

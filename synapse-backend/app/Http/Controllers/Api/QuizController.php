@@ -460,37 +460,71 @@ class QuizController extends Controller
     // LEADERBOARD — tab mahasiswa vs umum
     // ============================================================
     public function leaderboard(Request $request, $id)
-    {
-        $quiz = Quiz::find($id);
-        if (!$quiz) return response()->json(['message' => 'Quiz tidak ditemukan'], 404);
+{
+    $quiz = Quiz::find($id);
+    if (!$quiz) return response()->json(['message' => 'Quiz tidak ditemukan'], 404);
 
-        // tab: 'mahasiswa' | 'umum' (default mahasiswa)
-        $tab = $request->query('tab', 'mahasiswa');
+    $tab = $request->query('tab', 'mahasiswa');
 
-        $query = QuizAttempt::where('quiz_id', $id)
-            ->with('user:id,name,kelas,nim,role')
-            ->orderBy('score', 'desc')
-            ->orderBy('time_taken_seconds', 'asc');
+    // Ambil semua attempt untuk quiz ini
+    $attempts = QuizAttempt::where('quiz_id', $id)
+        ->orderBy('score', 'desc')
+        ->orderBy('time_taken_seconds', 'asc')
+        ->get();
 
-        if ($tab === 'mahasiswa') {
-            // Hanya user dengan role mahasiswa
-            $userIds = User::where('role', 'mahasiswa')->pluck('_id')->toArray();
-            $query->whereIn('user_id', $userIds);
-        } elseif ($tab === 'umum') {
-            // Hanya user dengan role public
-            $userIds = User::where('role', 'public')->pluck('_id')->toArray();
-            $query->whereIn('user_id', $userIds);
-        }
-
-        $leaderboard = $query->get();
-
+    if ($attempts->isEmpty()) {
         return response()->json([
             'message'    => 'Berhasil',
             'quiz_title' => $quiz->title,
             'tab'        => $tab,
-            'data'       => $leaderboard,
+            'data'       => [],
         ], 200);
     }
+
+    // Manual lookup user — MongoDB tidak support with() cross-collection
+    $userIds = $attempts->pluck('user_id')->unique()->toArray();
+    $users   = User::whereIn('_id', $userIds)->get()
+                   ->keyBy(fn($u) => (string) $u->_id);
+
+    // Filter berdasarkan tab
+    $filtered = $attempts->filter(function ($attempt) use ($users, $tab) {
+        $user = $users->get((string) $attempt->user_id);
+        if (!$user) return false;
+        if ($tab === 'mahasiswa') return $user->role === 'mahasiswa';
+        if ($tab === 'umum')      return $user->role === 'public';
+        return true;
+    });
+
+    // Gabungkan data user ke attempt
+    $result = $filtered->values()->map(function ($attempt) use ($users) {
+        $user = $users->get((string) $attempt->user_id);
+        return [
+            'user_id'            => $attempt->user_id,
+            'score'              => $attempt->score,
+            'earned_points'      => $attempt->earned_points ?? 0,
+            'max_points'         => $attempt->max_points ?? 0,
+            'correct_count'      => $attempt->correct_count ?? 0,
+            'total_questions'    => $attempt->total_questions ?? 0,
+            'time_taken_seconds' => $attempt->time_taken_seconds ?? 0,
+            'is_passed'          => $attempt->is_passed ?? false,
+            'created_at'         => $attempt->created_at,
+            'user' => $user ? [
+                'id'    => (string) $user->_id,
+                'name'  => $user->name,
+                'nim'   => $user->nim ?? null,
+                'kelas' => $user->kelas ?? null,
+                'role'  => $user->role,
+            ] : null,
+        ];
+    });
+
+    return response()->json([
+        'message'    => 'Berhasil',
+        'quiz_title' => $quiz->title,
+        'tab'        => $tab,
+        'data'       => $result,
+    ], 200);
+}
 
     // ============================================================
     // HISTORY QUIZ USER
