@@ -1,152 +1,499 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Edit Materi E-Modul</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 0; background-color: #F4F7F6; display: flex; }
-        .sidebar { width: 250px; background-color: #279685; color: white; height: 100vh; padding: 20px; box-sizing: border-box; }
-        .sidebar a { color: white; text-decoration: none; display: block; padding: 10px 0; }
-        .main-content { flex: 1; padding: 30px; }
-        .card { background: white; padding: 25px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .form-group { margin-bottom: 15px; }
-        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; color: #333; }
-        .form-group input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
-        .ck-editor__editable_inline { min-height: 300px; }
-        .btn-simpan { background-color: #F39C12; color: white; border: none; padding: 12px 25px; border-radius: 5px; cursor: pointer; font-weight: bold; }
-        .btn-batal { background-color: #ccc; color: black; text-decoration: none; padding: 12px 25px; border-radius: 5px; margin-right: 10px; display: inline-block; }
-    </style>
-</head>
-<body>
+@extends('layouts.app')
 
-    <div class="sidebar">
-        <h2>SYNAPSE</h2>
-        <a href="/dashboard">🏠 Dashboard</a>
-        <a href="/mata-kuliah">📚 Mata Kuliah</a>
-    </div>
+@section('title', 'Edit Materi - Synapse')
+@section('header_title', 'Edit Materi')
 
-    <div class="main-content">
-        <div class="card">
-            <h2 style="margin-top: 0;">✏️ Edit Materi E-Modul</h2>
-            <hr style="margin-bottom: 20px; border: 0; border-top: 1px solid #eee;">
+@section('content')
+<style>
+.back-link {
+    display: inline-flex; align-items: center; gap: 7px;
+    color: #888; font-size: 13px; font-weight: 600;
+    text-decoration: none; margin-bottom: 22px; transition: color .15s;
+}
+.back-link:hover { color: #279685; }
+.back-link svg { transition: transform .15s; }
+.back-link:hover svg { transform: translateX(-3px); }
 
-            <form id="formEditMateri">
-                <div class="form-group">
-                    <label>Judul Materi</label>
-                    <input type="text" id="title" required>
+.form-layout {
+    display: grid; grid-template-columns: 1fr 300px;
+    gap: 20px; align-items: start;
+}
+@media (max-width: 820px) { .form-layout { grid-template-columns: 1fr; } }
+
+.form-card {
+    background: #fff; border-radius: 16px;
+    border: 1px solid #eee; overflow: hidden; margin-bottom: 16px;
+}
+.form-card:last-child { margin-bottom: 0; }
+
+.card-header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 18px 22px 14px; border-bottom: 1px solid #f0f0f0;
+}
+.ch-icon {
+    width: 34px; height: 34px; border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; flex-shrink: 0;
+}
+.ch-icon.teal   { background: #e3faf8; }
+.ch-icon.amber  { background: #fef3c7; }
+.ch-icon.purple { background: #f0eeff; }
+.ch-icon.green  { background: #dcfce7; }
+.card-header h3 { font-size: 14px; font-weight: 700; color: #1a1a1a; margin: 0 0 2px; }
+.card-header p  { font-size: 11px; color: #aaa; margin: 0; }
+.card-body { padding: 18px 22px; }
+
+.fg { margin-bottom: 16px; }
+.fg:last-child { margin-bottom: 0; }
+.fg > label {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 11px; font-weight: 700; color: #555;
+    text-transform: uppercase; letter-spacing: .04em; margin-bottom: 6px;
+}
+.req { color: #ef4444; font-size: 13px; }
+
+.fc {
+    width: 100%; padding: 10px 12px;
+    border: 1px solid #e5e7eb; border-radius: 9px;
+    font-size: 13px; font-family: inherit; color: #1a1a1a;
+    background: #fff; box-sizing: border-box;
+    transition: border-color .15s, box-shadow .15s;
+}
+.fc:focus  { outline: none; border-color: #279685; box-shadow: 0 0 0 3px rgba(39,150,133,.1); }
+.fc::placeholder { color: #ccc; }
+
+/* Thumbnail */
+.thumb-zone {
+    border: 2px dashed #e5e7eb; border-radius: 12px;
+    padding: 20px 16px; text-align: center; cursor: pointer;
+    background: #fafafa; transition: all .2s; position: relative;
+    min-height: 120px; display: flex; align-items: center;
+    justify-content: center; flex-direction: column;
+}
+.thumb-zone:hover     { border-color: #279685; background: #f0fdfb; }
+.thumb-zone.has-image { padding: 0; border-style: solid; border-color: #279685; background: #fff; min-height: auto; }
+.thumb-zone input { display: none; }
+.thumb-zone-icon  { font-size: 30px; margin-bottom: 6px; }
+.thumb-zone-label { font-size: 13px; font-weight: 700; color: #279685; margin-bottom: 3px; }
+.thumb-zone-hint  { font-size: 11px; color: #aaa; }
+.thumb-preview-img { width: 100%; max-height: 220px; object-fit: cover; border-radius: 10px; display: block; }
+.thumb-change-hint { font-size: 11px; color: #aaa; margin: 6px 0 0; text-align: center; }
+.thumb-remove-btn {
+    position: absolute; top: 8px; right: 8px;
+    background: rgba(0,0,0,.6); color: #fff; border: none;
+    padding: 5px 10px; border-radius: 6px; font-size: 11px;
+    font-weight: 700; cursor: pointer; font-family: inherit;
+}
+.thumb-remove-btn:hover { background: rgba(220,38,38,.85); }
+
+/* Visibility */
+.vis-box {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 13px 14px; border: 2px solid #e5e7eb;
+    border-radius: 10px; background: #f9fafb; cursor: pointer;
+    transition: border-color .2s, background .2s; user-select: none;
+}
+.vis-box:hover   { border-color: #9ca3af; }
+.vis-box.is-umum { border-color: #279685; background: #f0fdfb; }
+.vis-box.is-umum .vis-track { background: #279685; }
+.vis-box.is-umum .vis-knob  { left: 22px; }
+.vis-info   { display: flex; align-items: center; gap: 10px; }
+.vis-icon   { font-size: 18px; }
+.vis-main   { font-size: 13px; font-weight: 700; color: #1a1a1a; }
+.vis-sub    { font-size: 11px; color: #888; margin-top: 1px; }
+.vis-track  { width: 44px; height: 24px; background: #e5e7eb;
+    border-radius: 12px; position: relative; transition: background .2s; flex-shrink: 0; }
+.vis-knob   { position: absolute; top: 2px; left: 2px;
+    width: 20px; height: 20px; background: white; border-radius: 50%;
+    transition: left .2s; box-shadow: 0 1px 3px rgba(0,0,0,.25); }
+.vis-hint   { font-size: 11px; color: #aaa; margin: 6px 0 0; }
+
+.ck-editor__editable_inline { min-height: 380px; font-size: 14px; }
+
+.action-bar {
+    display: flex; align-items: center; justify-content: flex-end;
+    gap: 10px; padding: 16px 22px; border-top: 1px solid #f0f0f0;
+}
+.btn-batal {
+    padding: 10px 20px; border-radius: 9px; font-size: 13px; font-weight: 600;
+    border: 1px solid #e5e7eb; background: #fff; color: #555;
+    text-decoration: none; cursor: pointer; transition: background .15s;
+}
+.btn-batal:hover { background: #f9fafb; }
+.btn-update {
+    padding: 10px 24px; border-radius: 9px; font-size: 13px; font-weight: 700;
+    border: none; background: #f59e0b; color: #fff;
+    cursor: pointer; transition: background .15s, opacity .15s;
+}
+.btn-update:hover    { background: #d97706; }
+.btn-update:disabled { opacity: .5; cursor: not-allowed; }
+
+/* Skeleton */
+.skeleton {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 75%);
+    background-size: 200% 100%; animation: shimmer 1.2s infinite; border-radius: 6px;
+}
+@keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+.toast {
+    position: fixed; bottom: 24px; left: 50%;
+    transform: translateX(-50%) translateY(60px);
+    background: #1a1a1a; color: #fff; padding: 10px 20px;
+    border-radius: 10px; font-size: 13px; font-weight: 600;
+    opacity: 0; transition: all .3s; z-index: 999; white-space: nowrap;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.toast.err  { background: #dc2626; }
+
+/* Loading overlay */
+.page-overlay {
+    position: fixed; inset: 0; background: rgba(255,255,255,.8);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 500; font-size: 14px; font-weight: 600; color: #279685;
+    gap: 12px;
+}
+.page-overlay.hidden { display: none; }
+.spin {
+    width: 20px; height: 20px; border: 2.5px solid #e5e7eb;
+    border-top-color: #279685; border-radius: 50%;
+    animation: spin .7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+
+{{-- Loading overlay saat ambil data --}}
+<div class="page-overlay" id="loadingOverlay">
+    <div class="spin"></div> Memuat data materi...
+</div>
+
+<a href="/mata-kuliah/{{ $course_id }}/materi" class="back-link">
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
+    </svg>
+    Kembali ke daftar materi
+</a>
+
+<div class="form-layout">
+
+    {{-- Kolom kiri: Form --}}
+    <div>
+        <div class="form-card">
+            <div class="card-header">
+                <div class="ch-icon teal">📝</div>
+                <div>
+                    <h3>Informasi Materi</h3>
+                    <p>Edit judul dan deskripsi materi</p>
                 </div>
-
-                <div class="form-group">
-                    <label>Deskripsi Singkat</label>
-                    <input type="text" id="description" required>
+            </div>
+            <div class="card-body">
+                <div class="fg">
+                    <label>Judul Materi <span class="req">*</span></label>
+                    <input type="text" id="title" class="fc" placeholder="Judul materi" required>
                 </div>
-
-                <div class="form-group">
-                    <label>Isi Materi (E-Modul)</label>
-                    <textarea id="editor"></textarea>
+                <div class="fg">
+                    <label>Deskripsi Singkat <span class="req">*</span></label>
+                    <input type="text" id="description" class="fc" placeholder="Deskripsi singkat" required>
                 </div>
+            </div>
+        </div>
 
-                <div style="margin-top: 20px; text-align: right;">
-                    <a href="/mata-kuliah/{{ $course_id }}/materi" class="btn-batal">Batal</a>
-                    <button type="submit" class="btn-simpan">🔄 Update Materi</button>
+        <div class="form-card">
+            <div class="card-header">
+                <div class="ch-icon purple">📄</div>
+                <div>
+                    <h3>Isi E-Modul</h3>
+                    <p>Edit konten materi</p>
                 </div>
-            </form>
+            </div>
+            <div class="card-body">
+                <textarea id="editor"></textarea>
+            </div>
         </div>
     </div>
 
-    <script src="https://cdn.ckeditor.com/ckeditor5/39.0.1/classic/ckeditor.js"></script>
-    <script>
-        const token = localStorage.getItem('token');
-        const courseId = "{{ $course_id }}";
-        const materiId = "{{ $materi_id ?? request()->route('materi_id') }}"; // Ambil ID materi dari rute
-        let myEditor;
+    {{-- Kolom kanan --}}
+    <div>
 
-        // Custom Adapter Upload Gambar
-        class MyUploadAdapter {
-            constructor(loader) { this.loader = loader; }
-            upload() {
-                return this.loader.file.then(file => new Promise((resolve, reject) => {
-                    const data = new FormData();
-                    data.append('upload', file);
-                    fetch(window.apiBaseUrl + '/upload-image', {
-                        method: 'POST',
-                        headers: { 'Authorization': 'Bearer ' + token },
-                        body: data
-                    })
-                    .then(res => res.json())
-                    .then(result => resolve({ default: result.url }))
-                    .catch(err => reject(err));
-                }));
+        {{-- Thumbnail --}}
+        <div class="form-card">
+            <div class="card-header">
+                <div class="ch-icon amber">🖼️</div>
+                <div>
+                    <h3>Gambar Cover</h3>
+                    <p>Biarkan kosong untuk tidak mengubah</p>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="thumb-zone" id="thumbZone"
+                    onclick="document.getElementById('imageInput').click()"
+                    ondragover="event.preventDefault()"
+                    ondrop="handleThumbDrop(event)">
+                    <input type="file" id="imageInput" accept="image/jpeg,image/png,image/jpg,image/webp">
+                    <div id="thumbPlaceholder">
+                        <div class="thumb-zone-icon">🖼️</div>
+                        <div class="thumb-zone-label">Klik untuk ganti gambar</div>
+                        <div class="thumb-zone-hint">PNG, JPG, WEBP — maks 2MB</div>
+                    </div>
+                    <img id="thumbPreviewImg" class="thumb-preview-img" style="display:none;" alt="preview">
+                    <button type="button" id="thumbRemoveBtn" class="thumb-remove-btn"
+                        style="display:none;" onclick="event.stopPropagation(); removeThumbnail()">
+                        🗑 Hapus
+                    </button>
+                </div>
+                <p class="thumb-change-hint">Gambar lama tetap digunakan jika tidak diganti</p>
+            </div>
+        </div>
+
+        {{-- Visibility --}}
+        <div class="form-card">
+            <div class="card-header">
+                <div class="ch-icon green">🔐</div>
+                <div>
+                    <h3>Hak Akses</h3>
+                    <p>Siapa yang bisa melihat materi ini</p>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="vis-box" id="visBox" onclick="toggleVisibility()">
+                    <div class="vis-info">
+                        <span class="vis-icon" id="visIcon">🔒</span>
+                        <div>
+                            <div class="vis-main" id="visMain">Hanya Mahasiswa IPB</div>
+                            <div class="vis-sub"  id="visSub">Tersembunyi untuk tamu & umum</div>
+                        </div>
+                    </div>
+                    <div class="vis-track">
+                        <div class="vis-knob" id="visKnob"></div>
+                    </div>
+                </div>
+                <input type="hidden" id="visibility" value="mahasiswa">
+                <p class="vis-hint">Pilih <strong>Umum</strong> agar dapat diakses pengguna non-mahasiswa IPB</p>
+            </div>
+        </div>
+
+        {{-- Action --}}
+        <div class="form-card">
+            <div class="action-bar">
+                <a href="/mata-kuliah/{{ $course_id }}/materi" class="btn-batal">Batal</a>
+                <button class="btn-update" id="btnUpdate" onclick="submitUpdate()">
+                    ✏️ Simpan Perubahan
+                </button>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+@endsection
+
+@push('scripts')
+<script src="https://cdn.ckeditor.com/ckeditor5/39.0.1/classic/ckeditor.js"></script>
+<script>
+(function () {
+    const token    = window.token || localStorage.getItem('token');
+    const courseId = "{{ $course_id }}";
+    const materiId = "{{ $materi_id ?? '' }}";
+    const API      = window.apiBaseUrl;
+    const $        = id => document.getElementById(id);
+    let   myEditor = null;
+
+    // ── Toast ─────────────────────────────────────────────────
+    function toast(msg, type = 'ok') {
+        const el = $('toast');
+        el.textContent = (type === 'ok' ? '✓  ' : '✕  ') + msg;
+        el.className   = 'toast ' + type + ' show';
+        clearTimeout(el._t);
+        el._t = setTimeout(() => el.classList.remove('show'), 3200);
+    }
+
+    // ── Visibility ────────────────────────────────────────────
+    function setVisibility(val) {
+        const input = $('visibility');
+        const box   = $('visBox');
+        const icon  = $('visIcon');
+        const main  = $('visMain');
+        const sub   = $('visSub');
+        input.value = val || 'mahasiswa';
+        if (val === 'umum') {
+            box.classList.add('is-umum');
+            icon.textContent = '🌐';
+            main.textContent = 'Umum — Semua Pengguna';
+            sub.textContent  = 'Dapat diakses semua pengguna yang sudah login';
+        } else {
+            box.classList.remove('is-umum');
+            icon.textContent = '🔒';
+            main.textContent = 'Hanya Mahasiswa IPB';
+            sub.textContent  = 'Tersembunyi untuk tamu & pengguna umum';
+        }
+    }
+
+    window.toggleVisibility = function() {
+        setVisibility($('visibility').value === 'mahasiswa' ? 'umum' : 'mahasiswa');
+    };
+
+    // ── Thumbnail ─────────────────────────────────────────────
+    $('imageInput').addEventListener('change', e => processThumb(e.target.files[0]));
+
+    window.handleThumbDrop = function(e) {
+        e.preventDefault();
+        processThumb(e.dataTransfer.files[0]);
+    };
+
+    function processThumb(file) {
+        if (!file) return;
+        if (file.size > 2 * 1024 * 1024) { toast('Gambar maks 2MB!', 'err'); return; }
+        const reader = new FileReader();
+        reader.onload = ev => {
+            $('thumbPreviewImg').src = ev.target.result;
+            $('thumbPreviewImg').style.display = 'block';
+            $('thumbPlaceholder').style.display = 'none';
+            $('thumbRemoveBtn').style.display   = 'block';
+            $('thumbZone').classList.add('has-image');
+        };
+        reader.readAsDataURL(file);
+    }
+
+    window.removeThumbnail = function() {
+        $('imageInput').value = '';
+        $('thumbPreviewImg').src = '';
+        $('thumbPreviewImg').style.display  = 'none';
+        $('thumbPlaceholder').style.display = 'flex';
+        $('thumbRemoveBtn').style.display   = 'none';
+        $('thumbZone').classList.remove('has-image');
+    };
+
+    // ── CKEditor ──────────────────────────────────────────────
+    class UploadAdapter {
+        constructor(loader) { this.loader = loader; }
+        upload() {
+            return this.loader.file.then(file => new Promise((res, rej) => {
+                const fd = new FormData();
+                fd.append('upload', file);
+                fetch(API + '/upload-image', {
+                    method: 'POST', headers: { 'Authorization': 'Bearer ' + token }, body: fd
+                }).then(r => r.json()).then(d => res({ default: d.url })).catch(rej);
+            }));
+        }
+        abort() {}
+    }
+    function uploadPlugin(editor) {
+        editor.plugins.get('FileRepository').createUploadAdapter = l => new UploadAdapter(l);
+    }
+
+    // ── Load data lama ────────────────────────────────────────
+    async function loadData() {
+        try {
+            const res  = await fetch(`${API}/materials/${materiId}`, {
+                headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/json' }
+            });
+            const data = await res.json();
+            const d    = data.data || data;
+
+            $('title').value       = d.title       || '';
+            $('description').value = d.description || '';
+
+            // Thumbnail dari server
+            if (d.image) {
+                $('thumbPreviewImg').src = d.image;
+                $('thumbPreviewImg').style.display = 'block';
+                $('thumbPlaceholder').style.display = 'none';
+                $('thumbRemoveBtn').style.display   = 'block';
+                $('thumbZone').classList.add('has-image');
             }
-            abort() {}
+
+            // Visibility
+            setVisibility(d.visibility || 'mahasiswa');
+
+            // Inisialisasi CKEditor dengan konten lama
+            ClassicEditor.create($('editor'), { extraPlugins: [uploadPlugin] })
+                .then(editor => {
+                    myEditor = editor;
+                    editor.setData(d.content || '');
+                })
+                .catch(console.error);
+
+        } catch (e) {
+            toast('Gagal memuat data materi: ' + e.message, 'err');
+            ClassicEditor.create($('editor'), { extraPlugins: [uploadPlugin] })
+                .then(editor => { myEditor = editor; })
+                .catch(console.error);
+        } finally {
+            $('loadingOverlay').classList.add('hidden');
+        }
+    }
+
+    // ── Submit update ─────────────────────────────────────────
+    window.submitUpdate = async function() {
+        const title   = $('title').value.trim();
+        const desc    = $('description').value.trim();
+        const content = myEditor ? myEditor.getData() : '';
+
+        if (!title)   { toast('Judul materi wajib diisi!', 'err'); return; }
+        if (!desc)    { toast('Deskripsi singkat wajib diisi!', 'err'); return; }
+        if (!content || content.replace(/<[^>]*>/g,'').trim().length < 5) {
+            toast('Isi e-modul tidak boleh kosong!', 'err'); return;
         }
 
-        function MyCustomUploadAdapterPlugin(editor) {
-            editor.plugins.get('FileRepository').createUploadAdapter = (loader) => new MyUploadAdapter(loader);
+        const btn = $('btnUpdate');
+        btn.disabled   = true;
+        btn.textContent = '⏳ Menyimpan...';
+
+        const imgInput  = $('imageInput');
+        const hasNewImg = imgInput.files.length > 0;
+
+        let res;
+        if (hasNewImg) {
+            // Pakai FormData karena ada file
+            const fd = new FormData();
+            fd.append('title',       title);
+            fd.append('description', desc);
+            fd.append('content',     content);
+            fd.append('visibility',  $('visibility').value);
+            fd.append('image',       imgInput.files[0]);
+            fd.append('_method',     'PUT');
+            res = await fetch(`${API}/materials/${materiId}`, {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/json' },
+                body: fd,
+            });
+        } else {
+            // JSON biasa
+            res = await fetch(`${API}/materials/${materiId}`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': 'Bearer ' + token,
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    title, description: desc, content,
+                    visibility: $('visibility').value,
+                }),
+            });
         }
 
-        // Inisialisasi CKEditor & Ambil Data Lama
-        ClassicEditor
-            .create(document.querySelector('#editor'), { extraPlugins: [MyCustomUploadAdapterPlugin] })
-            .then(editor => { 
-                myEditor = editor; 
-                loadDataLama(); // Panggil data lama setelah editor siap
-            })
-            .catch(err => console.error(err));
-
-        // Fungsi Mengambil Data Lama dari Backend
-        async function loadDataLama() {
-            try {
-                const response = await fetch(`${window.apiBaseUrl}/materials/${materiId}`, {
-                    headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/json' }
-                });
-                const result = await response.json();
-                const data = result.data || result;
-
-                if(response.ok) {
-                    document.getElementById('title').value = data.title || '';
-                    document.getElementById('description').value = data.description || '';
-                    myEditor.setData(data.content || ''); // Masukkan isi modul ke editor
-                } else {
-                    alert("Gagal menarik data lama materi.");
-                }
-            } catch(e) {
-                console.error("Error loading data", e);
-            }
+        if (res.ok) {
+            toast('Materi berhasil diperbarui!');
+            setTimeout(() => { window.location.href = `/mata-kuliah/${courseId}/materi`; }, 800);
+        } else {
+            const err = await res.json().catch(() => ({}));
+            let msg = err.message || 'Gagal menyimpan perubahan.';
+            if (err.errors) msg = Object.values(err.errors).flat()[0] || msg;
+            toast(msg, 'err');
+            btn.disabled   = false;
+            btn.textContent = '✏️ Simpan Perubahan';
         }
+    };
 
-        // Submit Data Update ke API menggunakan PUT
-        document.getElementById('formEditMateri').addEventListener('submit', async function(e) {
-            e.preventDefault();
-            const payload = {
-                title: document.getElementById('title').value,
-                description: document.getElementById('description').value,
-                content: myEditor.getData() 
-            };
-
-            try {
-                const response = await fetch(`${window.apiBaseUrl}/materials/${materiId}`, {
-                    method: 'PUT', // Menggunakan PUT untuk Update
-                    headers: {
-                        'Authorization': 'Bearer ' + token,
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
-                    },
-                    body: JSON.stringify(payload)
-                });
-
-                if (response.ok) {
-                    alert("Materi Berhasil Diupdate!");
-                    window.location.href = `/mata-kuliah/${courseId}/materi`;
-                } else {
-                    const errorData = await response.json();
-                    alert("Gagal update: " + (errorData.message || 'Cek rute PUT di Laravel'));
-                }
-            } catch (error) {
-                alert("Terjadi kesalahan saat mengupdate.");
-            }
-        });
-    </script>
-</body>
-</html>
+    // ── Init ─────────────────────────────────────────────────
+    if (!materiId) {
+        toast('ID materi tidak ditemukan!', 'err');
+        $('loadingOverlay').classList.add('hidden');
+        return;
+    }
+    loadData();
+})();
+</script>
+@endpush

@@ -113,7 +113,7 @@ class _MaterialsScreenState extends State<MaterialsScreen> {
                 ..._courses.map((c) {
                   return _buildCourseChip(
                       title: c['title'] ?? c['name'] ?? 'Matkul',
-                      id: c['id'].toString());
+                      id: (c['_id'] ?? c['id'])?.toString());
                 }),
               ],
             ),
@@ -586,7 +586,7 @@ class _MaterialsScreenState extends State<MaterialsScreen> {
               context,
               MaterialPageRoute(
                 builder: (context) => PracticeScreen(
-                  materialId: item['id'].toString(),
+                  materialId: (item['_id'] ?? item['id'])?.toString() ?? '',
                   materialTitle: item['title'] ?? 'Kuis',
                 ),
               ),
@@ -692,9 +692,11 @@ class _MaterialsScreenState extends State<MaterialsScreen> {
   @override
   Widget build(BuildContext context) {
     // 🌟 Filter materi yang punya kuis (untuk section Mini Kuis)
-    final List<dynamic> materialsWithPractice = _materials
-        .where((m) => m['has_practice'] == true)
-        .toList();
+    final List<dynamic> materialsWithPractice = _materials.where((m) {
+      final hasOldFlag = m['has_practice'] == true;
+      final hasQuestions = (m['questions'] as List?)?.isNotEmpty ?? false;
+      return hasOldFlag || hasQuestions;
+    }).toList();
 
     return Scaffold(
       backgroundColor: Colors.grey[100],

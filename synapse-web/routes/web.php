@@ -72,6 +72,10 @@ Route::get('/buatAkunDosen', function () {
     return view('buatAkunDosen');
 });
 
+Route::get('/data-mahasiswa', function () {
+    return view('data-mahasiswa');
+});
+
 // ============================================================
 // HALAMAN KELOLA KUIS
 // ============================================================

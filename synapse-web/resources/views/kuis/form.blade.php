@@ -196,6 +196,23 @@ select.fc { cursor: pointer; }
 }
 .overlay.show { display: flex; }
 .overlay .spin { width: 26px; height: 26px; border-width: 3px; }
+
+.vis-toggle {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 14px; border: 2px solid #e5e7eb; border-radius: 10px;
+    background: #f9fafb; cursor: pointer; user-select: none;
+    transition: border-color .2s, background .2s;
+}
+.vis-toggle:hover   { border-color: #9ca3af; }
+.vis-toggle.is-umum { border-color: #279685; background: #f0fdfb; }
+.vis-toggle.is-umum .vis-trk { background: #279685; }
+.vis-toggle.is-umum .vis-knb { left: 22px; }
+.vis-info  { display: flex; align-items: center; gap: 9px; }
+.vis-trk   { width: 44px; height: 24px; background: #e5e7eb;
+    border-radius: 12px; position: relative; transition: background .2s; flex-shrink: 0; }
+.vis-knb   { position: absolute; top: 2px; left: 2px; width: 20px; height: 20px;
+    background: #fff; border-radius: 50%; transition: left .2s;
+    box-shadow: 0 1px 3px rgba(0,0,0,.25); }
 </style>
 
 {{-- Loading overlay --}}
@@ -285,12 +302,29 @@ select.fc { cursor: pointer; }
                         <strong>Status Aktif</strong>
                         <small id="activeHint">Kuis aktif — mahasiswa bisa melihat dan mengerjakan.</small>
                     </div>
+                    
                     <label class="tw">
                         <input type="checkbox" id="f-active" checked onchange="refreshActiveHint()">
                         <div class="t-track"></div>
                         <div class="t-thumb"></div>
                     </label>
                 </label>
+
+                <div class="fg" style="margin-top:16px;">
+                        <label>Akses Kuis</label>
+                        <div class="vis-toggle" id="visToggle" onclick="toggleVis()">
+                            <div class="vis-info">
+                                <span id="visIcon" style="font-size:17px;">🔒</span>
+                                <div>
+                                    <div style="font-size:13px;font-weight:700;color:#1a1a1a;" id="visMain">Hanya Mahasiswa IPB</div>
+                                    <div style="font-size:11px;color:#888;" id="visSub">Tersembunyi untuk pengguna umum</div>
+                                </div>
+                            </div>
+                            <div class="vis-trk"><div class="vis-knb"></div></div>
+                        </div>
+                        <input type="hidden" id="f-visibility" value="mahasiswa">
+                        <div class="field-hint" style="margin-top:5px;">Pilih <strong>Umum</strong> agar dapat diakses pengguna non-mahasiswa IPB</div>
+                    </div>
 
                 <div class="schedule-box">
                     <div class="sh">
@@ -427,6 +461,30 @@ select.fc { cursor: pointer; }
             : 'Kuis nonaktif — tersembunyi dari mahasiswa.';
     };
 
+    window.toggleVis = function() {
+        const cur = $('f-visibility').value;
+        setVisVal(cur === 'mahasiswa' ? 'umum' : 'mahasiswa');
+    };
+ 
+    function setVisVal(val) {
+        $('f-visibility').value = val;
+        const tog  = $('visToggle');
+        const icon = $('visIcon');
+        const main = $('visMain');
+        const sub  = $('visSub');
+        if (val === 'umum') {
+            tog.classList.add('is-umum');
+            icon.textContent = '🌐';
+            main.textContent = 'Umum — Semua Pengguna Terdaftar';
+            sub.textContent  = 'Dapat diakses pengguna non-mahasiswa IPB';
+        } else {
+            tog.classList.remove('is-umum');
+            icon.textContent = '🔒';
+            main.textContent = 'Hanya Mahasiswa IPB';
+            sub.textContent  = 'Tersembunyi untuk pengguna umum';
+        }
+    }
+
     /* ── Checklist ───────────────────────────────────────────── */
     function updateChecklist() {
         setDone('ck-title',    $('f-title').value.trim().length > 0);
@@ -558,6 +616,7 @@ select.fc { cursor: pointer; }
             $('f-duration').value = q.duration_minutes ?? 60;
             $('f-passing').value  = q.passing_score    ?? 70;
             $('f-active').checked = q.is_active !== false;
+            setVisVal(q.visibility || 'mahasiswa');
             $('f-start').value    = toLocal(q.start_at_iso || q.start_at);
             $('f-end').value      = toLocal(q.end_at_iso   || q.end_at);
             refreshActiveHint();
@@ -627,6 +686,7 @@ select.fc { cursor: pointer; }
             is_active:        $('f-active').checked,
             start_at:         $('f-start').value || null,
             end_at:           $('f-end').value   || null,
+            visibility:       $('f-visibility').value,
         };
 
         try {

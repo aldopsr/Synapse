@@ -16,10 +16,10 @@ use App\Http\Controllers\Api\QuizController;
 use App\Http\Controllers\Api\AiChatController;
 use App\Http\Controllers\Api\ArAssetController;
 use App\Http\Controllers\Api\CourseController;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Response;
-use Illuminate\Support\Facades\File;
 use App\Http\Controllers\Api\DosenController;
+use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\StudentDataController;
+use Illuminate\Support\Facades\File;
 
 // =================================================================
 // 1. JALUR PUBLIK (Tanpa perlu Login / Token - Tamu Bebas Masuk)
@@ -31,19 +31,18 @@ Route::prefix('auth')->group(function () {
     Route::post('/resend-otp', [AuthController::class , 'resendOtp']);
 });
 
-Route::post('/forgot-password/send-otp', [\App\Http\Controllers\Api\AuthController::class, 'sendResetOtp']);
-Route::post('/forgot-password/verify-otp', [\App\Http\Controllers\Api\AuthController::class, 'verifyResetOtp']);
-Route::post('/forgot-password/reset', [\App\Http\Controllers\Api\AuthController::class, 'resetPassword']);
+Route::post('/forgot-password/send-otp', [AuthController::class, 'sendResetOtp']);
+Route::post('/forgot-password/verify-otp', [AuthController::class, 'verifyResetOtp']);
+Route::post('/forgot-password/reset', [AuthController::class, 'resetPassword']);
 
 // --- RUTE BACA MATERI & LATIHAN (Tamu & Mahasiswa) ---
 Route::get('/materials', [MaterialController::class, 'index']);
 Route::get('/materials/{id}', [MaterialController::class, 'show']);
 Route::get('/materials/{id}/questions', [MaterialController::class, 'getQuestions']);
 
-// --- RUTE DAFTAR MATKUL (Pindahan untuk Flutter - Tamu & Mahasiswa) ---
+// --- RUTE DAFTAR MATKUL (Flutter - Tamu & Mahasiswa) ---
 Route::get('/public/courses', [\App\Http\Controllers\Api\StudentCourseController::class, 'index']);
 Route::get('/public/courses/{course_id}/materials', [\App\Http\Controllers\Api\StudentCourseController::class, 'getMaterials']);
-
 
 // --- JALUR UNDUH MODEL 3D ---
 Route::get('/download-model/{path}', function ($path) {
@@ -57,6 +56,7 @@ Route::get('/download-model/{path}', function ($path) {
         'Access-Control-Allow-Headers' => '*',
     ]);
 })->where('path', '.*');
+
 Route::get('/ar-gallery', [MaterialController::class, 'arGallery']);
 Route::get('/ar-assets', [ArAssetController::class, 'index']); 
 Route::get('/ar-assets/{id}', [ArAssetController::class, 'show']); 
@@ -67,13 +67,12 @@ Route::get('/materials/{materialId}/ar-assets', [ArAssetController::class, 'getB
 // 2. JALUR UMUM (Wajib Login, Semua Role Boleh Akses)
 // =================================================================
 Route::middleware('auth:sanctum')->group(function () {
-    // Auth & Profil
     Route::get('/auth/me', [AuthController::class , 'getUser']);
     Route::post('/auth/logout', [AuthController::class , 'logout']);
     Route::post('/auth/change-password', [AuthController::class, 'changePassword']);
-
-    // Papan Peringkat
     Route::get('/quizzes/{id}/leaderboard', [QuizController::class , 'leaderboard']);
+    // Kuota chatbot untuk public
+    Route::get('/chat/quota', [AiChatController::class, 'chatQuota']);
 });
 
 
@@ -81,15 +80,14 @@ Route::middleware('auth:sanctum')->group(function () {
 // 3. AREA KHUSUS DOSEN & SUPERADMIN (Web Dashboard)
 // =================================================================
 Route::middleware(['auth:sanctum', 'role:dosen,admin,superadmin'])->group(function () {
-    Route::get('/dashboard/stats', [\App\Http\Controllers\Api\DashboardController::class, 'getStats']);
+    Route::get('/dashboard/stats', [DashboardController::class, 'getStats']);
 
-    // --- KELOLA MATKUL & MATERI ---
-    Route::get('/courses', [\App\Http\Controllers\Api\CourseController::class, 'index']);
-    Route::post('/courses', [\App\Http\Controllers\Api\CourseController::class, 'store']);
+    Route::get('/courses', [CourseController::class, 'index']);
+    Route::post('/courses', [CourseController::class, 'store']);
     Route::put('/courses/{id}', [CourseController::class, 'update']);
-    Route::get('/courses/{course_id}/materials', [\App\Http\Controllers\Api\MaterialController::class, 'getByCourse']);
-    Route::post('/courses/{course_id}/materials', [\App\Http\Controllers\Api\MaterialController::class, 'storeByCourse']);
-    Route::post('/upload-image', [\App\Http\Controllers\Api\MaterialController::class, 'uploadImage']);
+    Route::get('/courses/{course_id}/materials', [MaterialController::class, 'getByCourse']);
+    Route::post('/courses/{course_id}/materials', [MaterialController::class, 'storeByCourse']);
+    Route::post('/upload-image', [MaterialController::class, 'uploadImage']);
     
     Route::get('/materials/{id}', [MaterialController::class, 'show']);
     Route::put('/materials/{id}', [MaterialController::class, 'update']);
@@ -98,9 +96,7 @@ Route::middleware(['auth:sanctum', 'role:dosen,admin,superadmin'])->group(functi
     Route::get('materials/{material_id}/questions', [MaterialController::class, 'getQuestions']);
     Route::post('materials/{material_id}/questions', [MaterialController::class, 'storeQuestion']);
     Route::delete('questions/{id}', [MaterialController::class, 'destroyQuestion']);
-
     Route::post('materials/{material_id}/ar', [MaterialController::class, 'attachAr']);
-
     Route::post('/admin/materials', [MaterialController::class , 'store']);
 
     Route::get('/dosen', [DosenController::class, 'index']);
@@ -110,36 +106,33 @@ Route::middleware(['auth:sanctum', 'role:dosen,admin,superadmin'])->group(functi
 
     Route::post('/materials/{materialId}/ar-assets', [ArAssetController::class, 'store']);
     Route::put('/ar-assets/{id}', [ArAssetController::class, 'update']);
-    Route::post('/ar-assets/{id}', [ArAssetController::class, 'update']); // Untuk multipart + _method=PUT
+    Route::post('/ar-assets/{id}', [ArAssetController::class, 'update']);
     Route::delete('/ar-assets/{id}', [ArAssetController::class, 'destroy']);
 
-    // List & detail quiz untuk admin
     Route::get('/admin/quizzes', [QuizController::class, 'adminIndex']);
     Route::get('/admin/quizzes/{id}', [QuizController::class, 'adminShow']);
- 
-    // CRUD quiz
     Route::post('/admin/quizzes', [QuizController::class, 'store']);
     Route::put('/admin/quizzes/{id}', [QuizController::class, 'update']);
     Route::delete('/admin/quizzes/{id}', [QuizController::class, 'destroy']);
- 
-    // Toggle aktif/nonaktif (quick action)
     Route::post('/admin/quizzes/{id}/toggle', [QuizController::class, 'toggleActive']);
- 
-    // CRUD soal quiz
     Route::get('/admin/quizzes/{id}/questions', [QuizController::class, 'getQuizQuestions']);
     Route::post('/admin/quizzes/{id}/questions', [QuizController::class, 'storeQuizQuestion']);
     Route::delete('/admin/quiz-questions/{id}', [QuizController::class, 'destroyQuizQuestion']);
+
+    // Data mahasiswa (baru)
+    Route::get('/student-data/quiz-participants', [StudentDataController::class, 'quizParticipants']);
+    Route::get('/student-data/all', [StudentDataController::class, 'allStudents']);
+    Route::get('/student-data/{userId}/detail', [StudentDataController::class, 'studentDetail']);
 });
 
 
 // =================================================================
-// 4. AREA KHUSUS MAHASISWA (Fitur Login di Flutter)
+// 4. AREA KHUSUS MAHASISWA
 // =================================================================
 Route::middleware(['auth:sanctum', 'role:mahasiswa'])->group(function () {
     Route::get('/quizzes', [QuizController::class , 'index']);
     Route::get('/quizzes/{id}/questions', [QuizController::class , 'getQuestions']);
     Route::post('/quizzes/{id}/submit', [QuizController::class , 'submitQuiz']);
-
     Route::post('/analyze-score', [AiChatController::class , 'analyzeScore']);
     Route::get('/quiz-history', [QuizController::class , 'getHistory']);
     Route::post('/explain-question', [AiChatController::class, 'explainQuestion']);
@@ -147,13 +140,16 @@ Route::middleware(['auth:sanctum', 'role:mahasiswa'])->group(function () {
 
 
 // =================================================================
-// 5. AREA PUBLIK (Yang Sudah Login) & MAHASISWA
+// 5. PUBLIC + MAHASISWA (login tapi bukan IPB)
 // =================================================================
-Route::middleware(['auth:sanctum', 'role:publik,mahasiswa'])->group(function () {
-    Route::get('/mini-quizzes', function () {
-        return response()->json(['message' => 'Ini daftar Mini Quiz untuk latihan.']);
-    });
+Route::middleware(['auth:sanctum', 'role:public,mahasiswa'])->group(function () {
     Route::post('/chat', [AiChatController::class , 'chat']);
+});
 
-    Route::get('ar-gallery', [MaterialController::class, 'arGallery']);
+// Quiz & history untuk public (visibility 'umum')
+Route::middleware(['auth:sanctum', 'role:public'])->group(function () {
+    Route::get('/quizzes', [QuizController::class , 'index']);
+    Route::get('/quizzes/{id}/questions', [QuizController::class , 'getQuestions']);
+    Route::post('/quizzes/{id}/submit', [QuizController::class , 'submitQuiz']);
+    Route::get('/quiz-history', [QuizController::class , 'getHistory']);
 });

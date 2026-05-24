@@ -24,9 +24,14 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
   bool _isLoading = false;
 
   final ScrollController _scrollController = ScrollController();
-  
+
   // URL BACKEND KAPTEN
   final String baseUrl = AppConstants.baseUrl;
+
+  // TAMBAHAN: state rate limit untuk role public
+  bool _isPublic  = false;
+  int? _remaining = null; // null = unlimited (mahasiswa)
+  int  _limit     = 5;
 
   // DAFTAR REKOMENDASI PERTANYAAN
   final List<String> _promptStarters = [
@@ -36,6 +41,45 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     "Cara import dataset CSV ke R",
     "Jelaskan apa itu Tidyverse"
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _checkRoleAndQuota(); // TAMBAHAN
+  }
+
+  // TAMBAHAN: cek role & fetch kuota dari server
+  Future<void> _checkRoleAndQuota() async {
+    final prefs   = await SharedPreferences.getInstance();
+    final userStr = prefs.getString('user');
+    if (userStr == null) return;
+
+    try {
+      final user = jsonDecode(userStr);
+      if ((user['role'] ?? '') != 'public') return;
+
+      setState(() => _isPublic = true);
+
+      final token = prefs.getString('token');
+      if (token == null) return;
+
+      final res = await http.get(
+        Uri.parse('$baseUrl/chat/quota'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Accept': 'application/json',
+        },
+      );
+
+      if (res.statusCode == 200 && mounted) {
+        final data = jsonDecode(res.body);
+        setState(() {
+          _remaining = data['remaining'];
+          _limit     = data['limit'] ?? 5;
+        });
+      }
+    } catch (_) {}
+  }
 
   Future<String?> _getToken() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -50,8 +94,14 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
   void _sendMessage() async {
     if (_controller.text.trim().isEmpty) return;
 
+    // TAMBAHAN: blokir jika kuota habis
+    if (_isPublic && _remaining != null && _remaining! <= 0) {
+      _showQuotaDialog();
+      return;
+    }
+
     String userText = _controller.text;
-    
+
     setState(() {
       _messages.add(ChatMessage(text: userText, isUser: true));
       _isLoading = true;
@@ -62,7 +112,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
 
     try {
       final token = await _getToken();
-      
+
       final response = await http.post(
         Uri.parse('$baseUrl/chat'),
         headers: {
@@ -70,15 +120,27 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
         },
-        body: jsonEncode({
-          'message': userText
-        }),
+        body: jsonEncode({'message': userText}),
       );
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         setState(() {
           _messages.add(ChatMessage(text: data['reply'], isUser: false));
+          // TAMBAHAN: update sisa kuota dari respons
+          if (data['remaining'] != null) {
+            _remaining = data['remaining'];
+          }
+        });
+        _scrollToBottom();
+      } else if (response.statusCode == 429) {
+        // TAMBAHAN: handle limit dari server
+        setState(() {
+          _remaining = 0;
+          _messages.add(ChatMessage(
+            text: 'Kuota chat harianmu sudah habis ($_limit pesan/hari). Reset esok hari ya! 😊',
+            isUser: false,
+          ));
         });
         _scrollToBottom();
       } else {
@@ -97,6 +159,36 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     }
   }
 
+  // TAMBAHAN: dialog kuota habis
+  void _showQuotaDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.hourglass_empty_rounded, color: Colors.orange),
+            SizedBox(width: 8),
+            Text('Kuota Habis'),
+          ],
+        ),
+        content: Text(
+          'Kamu sudah menggunakan $_limit chat hari ini. Kuota akan reset esok hari.',
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF26A69A),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Oke'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _clearChat() {
     showDialog(
       context: context,
@@ -112,16 +204,14 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
         content: const Text('Apakah Kapten yakin ingin menghapus seluruh log percakapan dengan SYNAPSE?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context), 
+            onPressed: () => Navigator.pop(context),
             child: const Text('Batal', style: TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
             onPressed: () {
-              setState(() {
-                _messages.clear(); 
-              });
-              Navigator.pop(context); 
+              setState(() { _messages.clear(); });
+              Navigator.pop(context);
             },
             child: const Text('Hapus Log'),
           ),
@@ -135,7 +225,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
           _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300), 
+          duration: const Duration(milliseconds: 300),
           curve: Curves.easeOut,
         );
       }
@@ -154,7 +244,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
               style: TextStyle(
                 fontSize: 32,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF26A69A), 
+                color: Color(0xFF26A69A),
               ),
             ),
             const SizedBox(height: 8),
@@ -162,6 +252,41 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
               "SYNAPSE siap membantu Kapten belajar hari ini.",
               style: TextStyle(fontSize: 16, color: Colors.blueGrey[400]),
             ),
+            // TAMBAHAN: banner kuota (hanya muncul untuk role public)
+            if (_isPublic && _remaining != null) ...[
+              const SizedBox(height: 14),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: _remaining! <= 1 ? Colors.red[50] : Colors.orange[50],
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: _remaining! <= 1 ? Colors.red.shade200 : Colors.orange.shade200,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      _remaining! <= 0 ? Icons.block_rounded : Icons.timer_outlined,
+                      size: 16,
+                      color: _remaining! <= 1 ? Colors.redAccent : Colors.orange[700],
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      _remaining! <= 0
+                          ? 'Kuota chat hari ini habis. Reset esok hari.'
+                          : 'Sisa kuota: $_remaining/$_limit pesan hari ini',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: _remaining! <= 1 ? Colors.redAccent : Colors.orange[800],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 40),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -179,7 +304,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
             ),
             const SizedBox(height: 16),
             SizedBox(
-              height: 130, 
+              height: 130,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
                 physics: const BouncingScrollPhysics(),
@@ -188,7 +313,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                   return GestureDetector(
                     onTap: () => _sendPrompt(_promptStarters[index]),
                     child: Container(
-                      width: 140, 
+                      width: 140,
                       margin: const EdgeInsets.only(right: 16, bottom: 8),
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
@@ -234,7 +359,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50], 
+      backgroundColor: Colors.grey[50],
       appBar: AppBar(
         title: const Row(
           children: [
@@ -245,74 +370,92 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
         ),
         backgroundColor: Colors.white,
         foregroundColor: Colors.blueGrey[900],
-        elevation: 0, 
+        elevation: 0,
         actions: [
-          if (_messages.isNotEmpty) 
+          if (_messages.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.delete_sweep_rounded, color: Colors.redAccent),
               tooltip: 'Bersihkan Log',
-              onPressed: _clearChat, 
+              onPressed: _clearChat,
             ),
         ],
       ),
       body: Column(
         children: [
-          Expanded(
-            child: _messages.isEmpty 
-              ? _buildEmptyState() 
-              : ListView.builder(
-                  controller: _scrollController,
-                  padding: const EdgeInsets.all(16),
-                  itemCount: _messages.length,
-                  itemBuilder: (context, index) {
-                    final msg = _messages[index];
-                    return Align(
-                      alignment: msg.isUser ? Alignment.centerRight : Alignment.centerLeft,
-                      child: Container(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        constraints: BoxConstraints(
-                          maxWidth: MediaQuery.of(context).size.width * 0.8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: msg.isUser ? const Color(0xFF26A69A) : Colors.white,
-                          border: msg.isUser ? null : Border.all(color: Colors.grey.shade300),
-                          boxShadow: [
-                            if (!msg.isUser) BoxShadow(
-                              color: Colors.black.withOpacity(0.03),
-                              blurRadius: 5,
-                              offset: const Offset(0, 2),
-                            )
-                          ],
-                          borderRadius: BorderRadius.only(
-                            topLeft: const Radius.circular(16),
-                            topRight: const Radius.circular(16),
-                            bottomLeft: Radius.circular(msg.isUser ? 16 : 0),
-                            bottomRight: Radius.circular(msg.isUser ? 0 : 16),
-                          ),
-                        ),
-                        child: MarkdownBody(
-                          data: msg.text,
-                          styleSheet: MarkdownStyleSheet(
-                            p: TextStyle(color: msg.isUser ? Colors.white : Colors.blueGrey[800], fontSize: 15, height: 1.4),
-                            strong: TextStyle(color: msg.isUser ? Colors.white : Colors.black, fontWeight: FontWeight.bold),
-                            code: TextStyle(
-                              backgroundColor: msg.isUser ? Colors.teal[700] : Colors.grey[200],
-                              color: msg.isUser ? Colors.white : Colors.redAccent,
-                              fontFamily: 'monospace',
-                            ),
-                            codeblockDecoration: BoxDecoration(
-                              color: Colors.blueGrey[900],
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
+          // TAMBAHAN: banner kuota tipis di atas chat list (hanya saat ada pesan & role public)
+          if (_isPublic && _remaining != null && _messages.isNotEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              color: _remaining! <= 1 ? Colors.red[50] : Colors.orange[50],
+              child: Text(
+                _remaining! <= 0
+                    ? '⛔ Kuota habis — reset esok hari'
+                    : '⏱ Sisa kuota: $_remaining/$_limit pesan hari ini',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: _remaining! <= 1 ? Colors.redAccent : Colors.orange[800],
                 ),
+              ),
+            ),
+
+          Expanded(
+            child: _messages.isEmpty
+                ? _buildEmptyState()
+                : ListView.builder(
+                    controller: _scrollController,
+                    padding: const EdgeInsets.all(16),
+                    itemCount: _messages.length,
+                    itemBuilder: (context, index) {
+                      final msg = _messages[index];
+                      return Align(
+                        alignment: msg.isUser ? Alignment.centerRight : Alignment.centerLeft,
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          constraints: BoxConstraints(
+                            maxWidth: MediaQuery.of(context).size.width * 0.8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: msg.isUser ? const Color(0xFF26A69A) : Colors.white,
+                            border: msg.isUser ? null : Border.all(color: Colors.grey.shade300),
+                            boxShadow: [
+                              if (!msg.isUser) BoxShadow(
+                                color: Colors.black.withOpacity(0.03),
+                                blurRadius: 5,
+                                offset: const Offset(0, 2),
+                              )
+                            ],
+                            borderRadius: BorderRadius.only(
+                              topLeft: const Radius.circular(16),
+                              topRight: const Radius.circular(16),
+                              bottomLeft: Radius.circular(msg.isUser ? 16 : 0),
+                              bottomRight: Radius.circular(msg.isUser ? 0 : 16),
+                            ),
+                          ),
+                          child: MarkdownBody(
+                            data: msg.text,
+                            styleSheet: MarkdownStyleSheet(
+                              p: TextStyle(color: msg.isUser ? Colors.white : Colors.blueGrey[800], fontSize: 15, height: 1.4),
+                              strong: TextStyle(color: msg.isUser ? Colors.white : Colors.black, fontWeight: FontWeight.bold),
+                              code: TextStyle(
+                                backgroundColor: msg.isUser ? Colors.teal[700] : Colors.grey[200],
+                                color: msg.isUser ? Colors.white : Colors.redAccent,
+                                fontFamily: 'monospace',
+                              ),
+                              codeblockDecoration: BoxDecoration(
+                                color: Colors.blueGrey[900],
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
           ),
-          
+
           if (_isLoading)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -325,20 +468,17 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                 ],
               ),
             ),
-            
-          // AREA INPUT BAWAH (Kembali ke konsep asli Kapten)
+
+          // AREA INPUT BAWAH — TIDAK DIUBAH SAMA SEKALI
           Container(
             decoration: const BoxDecoration(
-              color: Color(0xFF26A69A), // Background Teal
+              color: Color(0xFF26A69A),
               borderRadius: BorderRadius.only(
                 topLeft: Radius.circular(30),
                 topRight: Radius.circular(30),
               ),
             ),
-            // UBAH PADDING BAWAH INI: 
-            // Angka 110 adalah jarak aman agar inputan terdorong ke atas navbar. 
-            // Silakan Kapten tambah/kurangi angka 110 ini jika dirasa masih kurang pas.
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 110), 
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 110),
             child: Row(
               children: [
                 Expanded(
@@ -346,12 +486,16 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                     controller: _controller,
                     minLines: 1,
                     maxLines: 4,
-                    style: const TextStyle(color: Colors.white), 
+                    // TAMBAHAN: disable input jika kuota habis
+                    enabled: !(_isPublic && _remaining != null && _remaining! <= 0),
+                    style: const TextStyle(color: Colors.white),
                     cursorColor: Colors.white,
                     decoration: InputDecoration(
-                      hintText: 'Ketik ide anda disini...',
+                      hintText: (_isPublic && _remaining != null && _remaining! <= 0)
+                          ? 'Kuota habis — reset esok hari...'
+                          : 'Ketik ide anda disini...',
                       hintStyle: TextStyle(color: Colors.white.withOpacity(0.7)),
-                      border: InputBorder.none, // Tanpa garis tepi agar rapi
+                      border: InputBorder.none,
                       isDense: true,
                     ),
                   ),
@@ -359,7 +503,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                 const SizedBox(width: 8),
                 Container(
                   decoration: const BoxDecoration(
-                    color: Colors.white, 
+                    color: Colors.white,
                     shape: BoxShape.circle,
                   ),
                   child: IconButton(

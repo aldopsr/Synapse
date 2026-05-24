@@ -14,7 +14,7 @@ class QuizScreen extends StatefulWidget {
   State<QuizScreen> createState() => _QuizScreenState();
 }
 
-class _QuizScreenState extends State<QuizScreen> {
+class _QuizScreenState extends State<QuizScreen> with WidgetsBindingObserver {
   final QuizService _quizService = QuizService();
   final PageController _pageController = PageController();
 
@@ -29,13 +29,15 @@ class _QuizScreenState extends State<QuizScreen> {
   int _remainingSeconds = 0;
   int _timeTakenSeconds = 0;
 
+  bool _isTimerPaused = false;
   static const Color _primaryColor = Color(0xFF2A9D8F);
 
   @override
   void initState() {
-    super.initState();
-    _remainingSeconds = widget.quiz.durationMinutes * 60;
-    _loadQuestions();
+  super.initState();
+  WidgetsBinding.instance.addObserver(this);
+  _remainingSeconds = widget.quiz.durationMinutes * 60;
+  _loadQuestions();
   }
 
   Future<void> _loadQuestions() async {
@@ -54,6 +56,7 @@ class _QuizScreenState extends State<QuizScreen> {
   }
 
   void _startTimer() {
+    _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_remainingSeconds > 0) {
         setState(() {
@@ -65,6 +68,39 @@ class _QuizScreenState extends State<QuizScreen> {
         _submitQuiz();
       }
     });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (_isLoading || _isSubmitting) return;
+
+    switch (state) {
+      case AppLifecycleState.paused:
+      case AppLifecycleState.hidden:
+      case AppLifecycleState.detached:
+        _pauseTimer();
+        break;
+      case AppLifecycleState.resumed:
+        _resumeTimer();
+        break;
+      case AppLifecycleState.inactive:
+        break;
+    }
+  }
+
+  void _pauseTimer() {
+    if (_timer != null && !_isTimerPaused) {
+      _timer?.cancel();
+      setState(() => _isTimerPaused = true);
+    }
+  }
+
+  void _resumeTimer() {
+    if (_isTimerPaused && !_isSubmitting) {
+      setState(() => _isTimerPaused = false);
+      _startTimer();
+    }
   }
 
   String get _formattedTime {
@@ -147,6 +183,7 @@ class _QuizScreenState extends State<QuizScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this); // ← ini belum ada
     _timer?.cancel();
     _pageController.dispose();
     super.dispose();

@@ -9,21 +9,38 @@ use App\Models\ArAsset;
 class Material extends Model
 {
     use HasFactory;
-    
-    // Karena pakai $guarded = [], kolom 'course_id' nanti otomatis 
-    // diizinkan masuk tanpa perlu dideklarasikan.
+
     protected $guarded = [];
 
-    // Tambahkan appends agar model_3d_url otomatis muncul di JSON
     protected $appends = ['model_3d_url'];
 
-    // Accessor: Mengubah path storage menjadi URL publik yang utuh
+    /**
+     * Default values — visibility default 'mahasiswa'
+     * Nilai: 'mahasiswa' | 'umum'
+     */
+    protected $attributes = [
+        'visibility' => 'mahasiswa',
+    ];
+
     public function getModel3dUrlAttribute()
     {
         if (isset($this->attributes['model_3d_path']) && $this->attributes['model_3d_path']) {
             return asset('storage/' . $this->attributes['model_3d_path']);
         }
         return null;
+    }
+
+    // ── Helper: apakah materi ini bisa diakses role tertentu? ──
+    public function isAccessibleBy(string $role): bool
+    {
+        $visibility = $this->attributes['visibility'] ?? 'mahasiswa';
+
+        return match ($role) {
+            'mahasiswa'  => true,                          // mahasiswa akses semua
+            'public'     => $visibility === 'umum',        // public hanya yang umum
+            'guest'      => $visibility === 'umum',        // tamu hanya yang umum
+            default      => true,                          // admin/dosen akses semua
+        };
     }
 
     public function questions()
@@ -36,17 +53,11 @@ class Material extends Model
         return $this->belongsTo(User::class);
     }
 
-    // ========================================================
-    // 🔥 TAMBAHAN BARU: Relasi ke Mata Kuliah
-    // ========================================================
     public function course()
     {
         return $this->belongsTo(Course::class, 'course_id', '_id');
     }
 
-    // ========================================================
-    // 🌟 BARU: Relasi 1 Materi punya banyak AR Asset
-    // ========================================================
     public function ar_assets()
     {
         return $this->hasMany(\App\Models\ArAsset::class, 'material_id', '_id');

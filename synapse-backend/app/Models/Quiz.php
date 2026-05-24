@@ -11,23 +11,21 @@ class Quiz extends Model
     use HasFactory;
     protected $guarded = [];
 
-    /**
-     * 🌟 PENTING: Untuk MongoDB, JANGAN pakai $casts untuk datetime
-     * karena MongoDB simpan tanggal sebagai UTCDateTime atau Unix
-     * timestamp ms. Kita handle manual via accessor.
-     */
     protected $casts = [
         'is_active' => 'boolean',
     ];
 
     /**
-     * Auto-append di JSON output
+     * Default values
+     * visibility: 'mahasiswa' | 'umum'
      */
+    protected $attributes = [
+        'visibility' => 'mahasiswa',
+    ];
+
     protected $appends = ['status', 'is_accessible', 'start_at_iso', 'end_at_iso'];
 
-    // ============================================================
-    // RELASI
-    // ============================================================
+    // ── Relasi ──────────────────────────────────────────────────
     public function questions()
     {
         return $this->hasMany(QuizQuestion::class);
@@ -48,62 +46,43 @@ class Quiz extends Model
         return $this->belongsTo(User::class, 'created_by', '_id');
     }
 
-    // ============================================================
-    // 🌟 HELPER: Konversi nilai apa pun → Carbon
-    // Handle: UTCDateTime, Carbon, DateTime, timestamp ms, timestamp s, string
-    // ============================================================
+    // ── Helper: apakah quiz bisa diakses role tertentu? ─────────
+    public function isAccessibleBy(string $role): bool
+    {
+        $visibility = $this->attributes['visibility'] ?? 'mahasiswa';
+
+        return match ($role) {
+            'mahasiswa'  => true,
+            'public'     => $visibility === 'umum',
+            default      => true, // admin/dosen
+        };
+    }
+
+    // ── Carbon helper ───────────────────────────────────────────
     private function toCarbon($value)
     {
         if (!$value) return null;
-
         try {
-            // MongoDB UTCDateTime
             if ($value instanceof \MongoDB\BSON\UTCDateTime) {
                 return Carbon::instance($value->toDateTime());
             }
-            // Carbon sudah
-            if ($value instanceof Carbon) {
-                return $value;
-            }
-            // DateTime biasa
-            if ($value instanceof \DateTime) {
-                return Carbon::instance($value);
-            }
-            // Number (timestamp dari MongoDB)
+            if ($value instanceof Carbon) return $value;
+            if ($value instanceof \DateTime) return Carbon::instance($value);
             if (is_numeric($value)) {
                 $val = (int) $value;
-                // Lebih dari 10 digit = milidetik, bukan detik
-                if ($val > 10000000000) {
-                    return Carbon::createFromTimestampMs($val);
-                }
-                return Carbon::createFromTimestamp($val);
+                return $val > 10000000000
+                    ? Carbon::createFromTimestampMs($val)
+                    : Carbon::createFromTimestamp($val);
             }
-            // String biasa
             return Carbon::parse($value);
         } catch (\Exception $e) {
             return null;
         }
     }
 
-    /**
-     * 🌟 Accessor: start_at otomatis jadi Carbon (atau null)
-     */
-    public function getStartAtAttribute($value)
-    {
-        return $this->toCarbon($value);
-    }
+    public function getStartAtAttribute($value) { return $this->toCarbon($value); }
+    public function getEndAtAttribute($value)   { return $this->toCarbon($value); }
 
-    /**
-     * 🌟 Accessor: end_at otomatis jadi Carbon (atau null)
-     */
-    public function getEndAtAttribute($value)
-    {
-        return $this->toCarbon($value);
-    }
-
-    /**
-     * 🌟 ISO format untuk frontend (lebih konsisten daripada Carbon serialize)
-     */
     public function getStartAtIsoAttribute()
     {
         $val = $this->start_at;
@@ -116,35 +95,20 @@ class Quiz extends Model
         return $val ? $val->toIso8601String() : null;
     }
 
-    // ============================================================
-    // 🌟 ACCESSOR: Status Quiz Otomatis Terhitung
-    // 'aktif' | 'nonaktif' | 'belum_mulai' | 'sudah_selesai'
-    // ============================================================
     public function getStatusAttribute()
     {
-        // Kalau dosen matikan manual → langsung nonaktif
         if (isset($this->attributes['is_active']) && !$this->attributes['is_active']) {
             return 'nonaktif';
         }
+        $now     = Carbon::now();
+        $startAt = $this->start_at;
+        $endAt   = $this->end_at;
 
-        $now = Carbon::now();
-        $startAt = $this->start_at; // pakai accessor
-        $endAt = $this->end_at;     // pakai accessor
-
-        if ($startAt && $now->lt($startAt)) {
-            return 'belum_mulai';
-        }
-
-        if ($endAt && $now->gt($endAt)) {
-            return 'sudah_selesai';
-        }
-
+        if ($startAt && $now->lt($startAt)) return 'belum_mulai';
+        if ($endAt   && $now->gt($endAt))   return 'sudah_selesai';
         return 'aktif';
     }
 
-    /**
-     * Apakah mahasiswa boleh akses quiz sekarang?
-     */
     public function getIsAccessibleAttribute()
     {
         return $this->status === 'aktif';

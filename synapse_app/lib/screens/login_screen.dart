@@ -354,6 +354,7 @@ class ForgotPasswordSheet extends StatefulWidget {
 class _ForgotPasswordSheetState extends State<ForgotPasswordSheet> {
   int  _step    = 1; // 1: Email, 2: OTP, 3: New Password
   bool _isLoading = false;
+  String _resetToken = '';
 
   final _emailController       = TextEditingController();
   final _otpController         = TextEditingController();
@@ -414,94 +415,100 @@ class _ForgotPasswordSheetState extends State<ForgotPasswordSheet> {
   }
 
   void _verifyOTP() async {
-    if (_otpController.text.isEmpty) {
-      _showSnackbar('Masukkan kode OTP-nya dulu!', Colors.orange);
-      return;
-    }
-    setState(() => _isLoading = true);
-
-    try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/forgot-password/verify-otp'),
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'email': _emailController.text.trim(),
-          'otp':   _otpController.text.trim(),
-        }),
-      );
-
-      if (!mounted) return;
-      setState(() => _isLoading = false);
-
-      if (response.statusCode == 200) {
-        setState(() => _step = 3);
-      } else {
-        final error = jsonDecode(response.body);
-        _showSnackbar(
-          error['message'] ?? 'Kode OTP salah atau sudah kadaluarsa.',
-          Colors.redAccent,
-        );
-      }
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _isLoading = false);
-      _showSnackbar('Koneksi bermasalah. Cek internet kamu!', Colors.redAccent);
-    }
+  if (_otpController.text.isEmpty) {
+    _showSnackbar('Masukkan kode OTP-nya dulu!', Colors.orange);
+    return;
   }
+  setState(() => _isLoading = true);
 
-  void _resetPassword() async {
-    if (_newPasswordController.text.isEmpty) {
-      _showSnackbar('Kata sandi baru tidak boleh kosong!', Colors.orange);
-      return;
-    }
-    if (_newPasswordController.text.length < 6) {
-      _showSnackbar('Kata sandi minimal 6 karakter ya!', Colors.orange);
-      return;
-    }
-    setState(() => _isLoading = true);
+  try {
+    final response = await http.post(
+      Uri.parse('$baseUrl/forgot-password/verify-otp'),
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'email': _emailController.text.trim(),
+        'otp':   _otpController.text.trim(),
+      }),
+    );
 
-    try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/forgot-password/reset'),
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'email':        _emailController.text.trim(),
-          'otp':          _otpController.text.trim(),
-          'new_password': _newPasswordController.text,
-        }),
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      setState(() {
+        _resetToken = data['reset_token'] ?? '';
+        _step = 3;
+      });
+    } else {
+      final error = jsonDecode(response.body);
+      _showSnackbar(
+        error['message'] ?? 'Kode OTP salah atau sudah kadaluarsa.',
+        Colors.redAccent,
       );
-
-      if (!mounted) return;
-      setState(() => _isLoading = false);
-
-      if (response.statusCode == 200) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Kata sandi berhasil diubah! Silakan login. 🎉'),
-            backgroundColor: Colors.teal,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      } else {
-        final error = jsonDecode(response.body);
-        _showSnackbar(
-          error['message'] ?? 'Gagal mengubah kata sandi. Coba lagi.',
-          Colors.redAccent,
-        );
-      }
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _isLoading = false);
-      _showSnackbar('Koneksi bermasalah. Cek internet kamu!', Colors.redAccent);
     }
+  } catch (e) {
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+    _showSnackbar('Koneksi bermasalah. Cek internet kamu!', Colors.redAccent);
   }
+}
+
+void _resetPassword() async {
+  if (_newPasswordController.text.isEmpty) {
+    _showSnackbar('Kata sandi baru tidak boleh kosong!', Colors.orange);
+    return;
+  }
+  if (_newPasswordController.text.length < 6) {
+    _showSnackbar('Kata sandi minimal 6 karakter ya!', Colors.orange);
+    return;
+  }
+  setState(() => _isLoading = true);
+
+  try {
+
+    final response = await http.post(
+      Uri.parse('$baseUrl/forgot-password/reset'),
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'email':                     _emailController.text.trim(),
+        'reset_token':               _resetToken,
+        'new_password':              _newPasswordController.text,
+        'new_password_confirmation': _newPasswordController.text,
+      }),
+    );
+
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+
+    if (response.statusCode == 200) {
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Kata sandi berhasil diubah! Silakan login. 🎉'),
+          backgroundColor: Colors.teal,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } else {
+      final error = jsonDecode(response.body);
+      _showSnackbar(
+        error['message'] ?? 'Gagal mengubah kata sandi. Coba lagi.',
+        Colors.redAccent,
+      );
+    }
+  } catch (e) {
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+    _showSnackbar('Koneksi bermasalah. Cek internet kamu!', Colors.redAccent);
+  }
+}
 
   void _showSnackbar(String message, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(

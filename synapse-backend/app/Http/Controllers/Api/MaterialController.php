@@ -12,7 +12,6 @@ class MaterialController extends Controller
     // 1. MELIHAT SEMUA DAFTAR MATERI
     public function index()
     {
-        // 🌟 with ar_assets (snake_case sesuai method di Model) + questions
         $materials = Material::select('id', 'title', 'description', 'content', 'image', 'model_3d_path', 'has_ar', 'has_practice', 'created_at', 'user_id', 'course_id')
             ->with('user:id,name')
             ->with('ar_assets')
@@ -55,7 +54,7 @@ class MaterialController extends Controller
         ], 200);
     }
 
-    // 3. UPDATE MATERI (sekarang juga handle replace thumbnail)
+    // 3. UPDATE MATERI
     public function update(Request $request, $id)
     {
         $material = Material::find($id);
@@ -64,11 +63,9 @@ class MaterialController extends Controller
             return response()->json(['message' => 'Materi tidak ditemukan'], 404);
         }
 
-        $updateData = $request->only(['title', 'description', 'content']);
+        $updateData = $request->only(['title', 'description', 'content', 'visibility']);
 
-        // 🌟 BARU: Handle update thumbnail
         if ($request->hasFile('image')) {
-            // Hapus thumbnail lama kalau ada
             if ($material->image && Storage::disk('public')->exists($material->image)) {
                 Storage::disk('public')->delete($material->image);
             }
@@ -83,7 +80,7 @@ class MaterialController extends Controller
         ], 200);
     }
 
-    // 4. HAPUS MATERI (sekaligus hapus file thumbnail)
+    // 4. HAPUS MATERI
     public function destroy($id)
     {
         $material = Material::find($id);
@@ -92,7 +89,6 @@ class MaterialController extends Controller
             return response()->json(['message' => 'Materi tidak ditemukan'], 404);
         }
 
-        // 🌟 BARU: Hapus file thumbnail fisiknya juga
         if ($material->image && Storage::disk('public')->exists($material->image)) {
             Storage::disk('public')->delete($material->image);
         }
@@ -102,7 +98,7 @@ class MaterialController extends Controller
         return response()->json(['message' => 'Materi berhasil dihapus'], 200);
     }
 
-    // 5. MEMBUAT MATERI BARU (Dengan Dukungan Upload AR)
+    // 5. MEMBUAT MATERI BARU
     public function store(Request $request)
     {
         $request->validate([
@@ -116,6 +112,7 @@ class MaterialController extends Controller
         $data = $request->only(['title', 'description', 'content']);
         $data['user_id'] = auth()->id();
         $data['has_ar'] = false;
+        $data['visibility'] = $request->input('visibility', 'mahasiswa');
 
         if ($request->hasFile('image')) {
             $data['image'] = $request->file('image')->store('materials', 'public');
@@ -221,7 +218,7 @@ class MaterialController extends Controller
         return response()->json(['message' => 'Aset AR berhasil ditambahkan ke materi!']);
     }
 
-    // 10. AR GALLERY (LEGACY)
+    // 10. AR GALLERY
     public function arGallery(Request $request)
     {
         $user = $request->user();
@@ -246,7 +243,6 @@ class MaterialController extends Controller
                 ->with('questions')
                 ->get();
 
-            // 🌟 Transform image jadi URL lengkap
             $materials->transform(function ($item) {
                 if ($item->image) {
                     $item->image = asset('storage/' . $item->image);
@@ -260,7 +256,7 @@ class MaterialController extends Controller
         }
     }
 
-    // 12. SIMPAN MATERI KE MATKUL TERTENTU 🌟 UPDATE: Support thumbnail upload
+    // 12. SIMPAN MATERI KE MATKUL TERTENTU
     public function storeByCourse(Request $request, $course_id)
     {
         $request->validate([
@@ -275,12 +271,10 @@ class MaterialController extends Controller
         $model_3d_path = null;
         $imagePath = null;
 
-        // 🌟 Tangkap file thumbnail kalau ada
         if ($request->hasFile('image')) {
             $imagePath = $request->file('image')->store('materials', 'public');
         }
 
-        // Tangkap file AR kalau ada (legacy)
         if ($request->hasFile('model_3d')) {
             $model_3d_path = $request->file('model_3d')->store('models', 'public');
             $has_ar = true;
@@ -296,6 +290,7 @@ class MaterialController extends Controller
             'image' => $imagePath,
             'model_3d_path' => $model_3d_path,
             'has_ar' => $has_ar,
+            'visibility' => $request->input('visibility', 'mahasiswa'),
         ]);
 
         return response()->json([
@@ -305,19 +300,15 @@ class MaterialController extends Controller
         ]);
     }
 
-    // 13. FUNGSI UPLOAD GAMBAR DARI CKEDITOR
+    // 13. UPLOAD GAMBAR DARI CKEDITOR
     public function uploadImage(Request $request)
     {
         if ($request->hasFile('upload')) {
             $file = $request->file('upload');
             $filename = time() . '_' . $file->getClientOriginalName();
             $path = $file->storeAs('ckeditor', $filename, 'public');
-
             $url = asset('storage/' . $path);
-
-            return response()->json([
-                'url' => $url
-            ]);
+            return response()->json(['url' => $url]);
         }
 
         return response()->json(['error' => ['message' => 'Gagal upload gambar']], 400);

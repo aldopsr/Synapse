@@ -47,12 +47,12 @@ class AiChatController extends Controller
                     ?? 'Maaf, otak AI saya sedang nge-blank. Coba tanya lagi!';
 
                 return response()->json([
-                    'message' => 'Berhasil',
-                    'reply'   => $aiText
+                    'message'   => 'Berhasil',
+                    'reply'     => $aiText,
+                    'remaining' => null, // Gemini gratis, tidak ada limit
                 ], 200);
             }
 
-            // Error dicatat di server, TIDAK dikirim ke user
             Log::error('Gemini API error', [
                 'status' => $response->status(),
                 'body'   => $response->body(),
@@ -68,6 +68,17 @@ class AiChatController extends Controller
                 'message' => 'Koneksi ke AI server bermasalah. Coba lagi.'
             ], 500);
         }
+    }
+
+    // TAMBAHAN BARU: endpoint kuota untuk Flutter
+    // Gemini gratis — tidak ada limit, selalu return unlimited
+    public function chatQuota(Request $request)
+    {
+        return response()->json([
+            'limited'   => false,
+            'remaining' => null,
+            'limit'     => null,
+        ], 200);
     }
 
     public function analyzeScore(Request $request)

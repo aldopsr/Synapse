@@ -8,98 +8,92 @@ String getBaseUrl() => AppConstants.baseUrl;
 
 class MaterialService {
 
+  // ── Helper token ────────────────────────────────────────────
+  Future<String?> _getToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('token');
+  }
+
+  // ── Helper headers ───────────────────────────────────────────
+  Future<Map<String, String>> _headers() async {
+    final token = await _getToken();
+    return {
+      'Accept': 'application/json',
+      if (token != null) 'Authorization': 'Bearer $token',
+    };
+  }
+
   // =====================================================================
-  // 1. FUNGSI BARU: AMBIL SEMUA MATA KULIAH (PUBLIC - Tamu bisa akses)
+  // 1. AMBIL SEMUA MATA KULIAH (public — tamu bisa akses)
   // =====================================================================
   Future<List<dynamic>> getCourses() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? token = prefs.getString('token');
-
     try {
       final response = await http.get(
         Uri.parse('${getBaseUrl()}/public/courses'),
-        headers: {
-          'Accept': 'application/json',
-          if (token != null) 'Authorization': 'Bearer $token', 
-        },
+        headers: await _headers(),
       );
 
       if (response.statusCode == 200) {
-        final decodedData = jsonDecode(response.body);
-        if (decodedData is Map && decodedData.containsKey('data')) {
-          return decodedData['data'];
-        }
-        return decodedData as List<dynamic>;
-      } else {
-        debugPrint('Gagal Get Courses Status: ${response.statusCode}');
-        return [];
+        final decoded = jsonDecode(response.body);
+        return (decoded['data'] ?? decoded) as List<dynamic>;
       }
+      debugPrint('getCourses error: ${response.statusCode}');
+      return [];
     } catch (e) {
-      debugPrint('Error Get Courses: $e');
+      debugPrint('getCourses exception: $e');
       return [];
     }
   }
 
   // =====================================================================
-  // 2. FUNGSI BARU: AMBIL MATERI BERDASARKAN MATKUL (PUBLIC)
+  // 2. AMBIL MATERI PER MATKUL
   // =====================================================================
   Future<List<dynamic>> getMaterialsByCourse(String courseId) async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? token = prefs.getString('token');
-
     try {
       final response = await http.get(
         Uri.parse('${getBaseUrl()}/public/courses/$courseId/materials'),
-        headers: {
-          'Accept': 'application/json',
-          if (token != null) 'Authorization': 'Bearer $token',
-        },
+        headers: await _headers(),
       );
 
       if (response.statusCode == 200) {
-        final decodedData = jsonDecode(response.body);
-        if (decodedData is Map && decodedData.containsKey('data')) {
-          return decodedData['data'];
-        }
-        return decodedData as List<dynamic>;
-      } else {
-        debugPrint('Gagal Get Materials By Course Status: ${response.statusCode}');
-        return [];
+        final decoded = jsonDecode(response.body);
+        return (decoded['data'] ?? decoded) as List<dynamic>;
       }
+      debugPrint('getMaterialsByCourse error: ${response.statusCode}');
+      return [];
     } catch (e) {
-      debugPrint('Error Get Materials By Course: $e');
+      debugPrint('getMaterialsByCourse exception: $e');
       return [];
     }
   }
 
   // =====================================================================
-  // 3. FUNGSI LAMA: AMBIL SEMUA MATERI (Biarkan saja untuk jaga-jaga)
+  // 3. AMBIL SEMUA MATERI (tab "Semua") —
+  //    Fetch parallel dari semua course, gabungkan hasilnya
   // =====================================================================
   Future<List<dynamic>> getMaterials() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? token = prefs.getString('token');
-
     try {
-      final response = await http.get(
-        Uri.parse('${getBaseUrl()}/materials'),
-        headers: {
-          'Accept': 'application/json',
-          if (token != null) 'Authorization': 'Bearer $token', 
-        },
+      // Ambil daftar course dulu
+      final courses = await getCourses();
+      if (courses.isEmpty) return [];
+
+      // Fetch materi dari setiap course secara parallel
+      final results = await Future.wait(
+        courses.map((c) {
+          final id = (c['_id'] ?? c['id'])?.toString() ?? '';
+          if (id.isEmpty) return Future.value(<dynamic>[]);
+          return getMaterialsByCourse(id);
+        }),
       );
 
-      if (response.statusCode == 200) {
-        final decodedData = jsonDecode(response.body);
-        if (decodedData is Map && decodedData.containsKey('data')) {
-          return decodedData['data'];
-        }
-        return decodedData as List<dynamic>;
-      } else {
-        debugPrint('Gagal Get Materials Status: ${response.statusCode}');
-        return [];
+      // Gabungkan semua hasil
+      final allMaterials = <dynamic>[];
+      for (final list in results) {
+        allMaterials.addAll(list);
       }
+      return allMaterials;
     } catch (e) {
-      debugPrint('Error Get Materials: $e');
+      debugPrint('getMaterials exception: $e');
       return [];
     }
   }
