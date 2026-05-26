@@ -615,6 +615,7 @@ select.fc { cursor: pointer; }
     const $     = id => document.getElementById(id);
 
     let allDosen  = [];   // raw data dari server
+    let allCourses = [];
     let courseMap = {};   // id → title
     let sortCol   = 'name';
     let sortAsc   = true;
@@ -694,9 +695,9 @@ select.fc { cursor: pointer; }
             });
             const data = await res.json();
             const list = data.data || [];
+            allCourses = list; // ← sudah benar
             list.forEach(c => { courseMap[c._id || c.id] = c.title; });
 
-            /* Fill filter dropdown */
             const filt = $('filterMatkul');
             filt.innerHTML = '<option value="">Semua Matkul</option>';
             list.forEach(c => {
@@ -705,6 +706,10 @@ select.fc { cursor: pointer; }
                 opt.value = id; opt.textContent = c.title;
                 filt.appendChild(opt);
             });
+
+            // Fill course dropdowns di modal tambah & edit
+            fillCourseSelect('addCourse');
+            fillCourseSelect('editCourse');
         } catch (e) { console.warn('[Dosen] Gagal fetch courses:', e.message); }
     }
 
@@ -745,20 +750,29 @@ select.fc { cursor: pointer; }
         $('countBadge').innerHTML = `<span>${data.length}</span> dari ${allDosen.length} dosen`;
 
         tbody.innerHTML = data.map(d => {
-            const id       = d._id || d.id;
-            const name     = d.name  || '—';
-            const email    = d.email || '—';
-            const ini      = initials(name);
-            const courseId = d.course_id;
-            const courseTitle = courseId && courseMap[courseId]
-                ? courseMap[courseId]
-                : (d.course ? (d.course.title || d.course.name) : null);
+        const id      = d._id || d.id;
+        const name    = d.name  || '—';
+        const email   = d.email || '—';
+        const ini     = initials(name);
+        const courseId= d.course_id;
 
-            const matkulHtml = courseTitle
-                ? `<span class="matkul-badge assigned">📚 ${esc(courseTitle)}</span>`
-                : `<span class="matkul-badge unassigned">⚠ Belum ditugaskan</span>`;
+        const dosenId = id;
+        const matkuls = allCourses
+            .filter(c => {
+                const cDosenId = c.dosen_id;
+                return cDosenId == dosenId;
+            })
+            .map(c => c.title || '');
 
-            return `
+        if (matkuls.length === 0 && courseId && courseMap[courseId]) {
+            matkuls.push(courseMap[courseId]);
+        }
+
+        const matkulHtml = matkuls.length > 0
+            ? matkuls.map(t => `<span class="matkul-badge assigned">📚 ${esc(t)}</span>`).join(' ')
+            : `<span class="matkul-badge unassigned">⚠ Belum ditugaskan</span>`;
+
+        return `
             <tr id="row-${id}">
                 <td>
                     <div class="dosen-cell">

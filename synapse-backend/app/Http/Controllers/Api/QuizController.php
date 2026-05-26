@@ -23,9 +23,22 @@ class QuizController extends Controller
             $user  = $request->user();
             $query = Quiz::query();
 
-            if ($user->role === 'dosen' && isset($user->course_id)) {
-                $query->where('course_id', $user->course_id);
+            if ($user->role === 'dosen') {
+            // Ambil semua course_id yang dosen_id-nya match dengan user ini
+            $courseIds = \App\Models\Course::where('dosen_id', (string) $user->id)
+                ->get()
+                ->map(fn($c) => (string) $c->id)
+                ->toArray();
+
+            // Fallback ke course_id di user jika tidak ada di Course collection
+            if (empty($courseIds) && $user->course_id) {
+                $courseIds = [$user->course_id];
             }
+
+            if (!empty($courseIds)) {
+                $query->whereIn('course_id', $courseIds);
+            }
+        }
             if ($request->has('course_id') && $request->course_id) {
                 $query->where('course_id', $request->course_id);
             }
@@ -203,12 +216,12 @@ class QuizController extends Controller
             $request->validate([
                 'question'        => 'required|string',
                 'question_type'   => 'required|in:multiple_choice,true_false,multiple_answer',
-                'option_a'        => 'required|string',
-                'option_b'        => 'required|string',
+                'option_a'        => 'required_unless:question_type,true_false|nullable|string',
+                'option_b'        => 'required_unless:question_type,true_false|nullable|string',
                 'option_c'        => 'nullable|string',
                 'option_d'        => 'nullable|string',
                 'correct_answer'  => 'nullable|string',
-                'correct_answers' => 'nullable|array',
+                'correct_answers' => 'nullable',
                 'explanation'     => 'nullable|string',
                 'points'          => 'nullable|integer|min:1|max:100',
                 'difficulty'      => 'nullable|in:mudah,sedang,sulit',
@@ -231,8 +244,20 @@ class QuizController extends Controller
             ];
 
             if ($request->question_type === 'multiple_answer') {
-                $data['correct_answers'] = $request->correct_answers ?? [];
-                $data['correct_answer']  = ($request->correct_answers[0] ?? 'A');
+                $correctAnswers = $request->correct_answers;
+                if (is_string($correctAnswers)) {
+                    $correctAnswers = json_decode($correctAnswers, true) ?? [];
+                }
+                $data['correct_answers'] = $correctAnswers ?? [];
+                $data['correct_answer']  = $correctAnswers[0] ?? 'A';
+
+            } elseif ($request->question_type === 'true_false') {
+                $data['option_a']       = 'Benar';
+                $data['option_b']       = 'Salah';
+                $data['option_c']       = '';
+                $data['option_d']       = '';
+                $data['correct_answer'] = strtoupper($request->correct_answer ?? 'A');
+
             } else {
                 $data['correct_answer'] = strtoupper($request->correct_answer ?? 'A');
             }

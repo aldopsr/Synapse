@@ -141,4 +141,62 @@ class AiChatController extends Controller
             ], 500);
         }
     }
+    public function explainQuestion(Request $request)
+    {
+        $request->validate([
+            'question'       => 'required|string',
+            'correct_answer' => 'nullable|string',
+        ]);
+
+        $apiKey = env('GEMINI_API_KEY');
+
+        if (!$apiKey) {
+            return response()->json([
+                'message' => 'Fitur AI sedang tidak tersedia.'
+            ], 503);
+        }
+
+        $url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' . $apiKey;
+
+        $prompt = "Jelaskan konsep dari soal berikut dengan bahasa Indonesia yang mudah dipahami mahasiswa:\n\n"
+                . "Soal: {$request->question}\n"
+                . ($request->correct_answer ? "Jawaban benar: {$request->correct_answer}\n\n" : "\n")
+                . "Berikan penjelasan singkat (3-5 kalimat) mengapa jawaban tersebut benar dan konsep apa yang perlu dipahami.";
+
+        try {
+            $response = Http::withHeaders([
+                'Content-Type' => 'application/json',
+            ])->timeout(30)->post($url, [
+                'contents' => [
+                    ['parts' => [['text' => $prompt]]]
+                ]
+            ]);
+
+            if ($response->successful()) {
+                $responseData = $response->json();
+                $aiText = $responseData['candidates'][0]['content']['parts'][0]['text']
+                    ?? 'Penjelasan tidak tersedia saat ini.';
+
+                return response()->json([
+                    'message'     => 'Berhasil',
+                    'explanation' => $aiText
+                ], 200);
+            }
+
+            \Log::error('Gemini explainQuestion error', [
+                'status' => $response->status(),
+                'body'   => $response->body(),
+            ]);
+
+            return response()->json([
+                'message' => 'Penjelasan AI tidak tersedia saat ini.'
+            ], 503);
+
+        } catch (\Exception $e) {
+            \Log::error('Gemini explainQuestion error: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Gagal menghubungi AI.'
+            ], 500);
+        }
+    }
 }

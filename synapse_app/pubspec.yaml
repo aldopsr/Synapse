@@ -39,7 +39,7 @@ dependencies:
   google_generative_ai: ^0.4.7
   flutter_markdown: ^0.7.7+1
   flutter_html: ^3.0.0
-  model_viewer_plus: ^1.10.0
+  model_viewer_plus: 1.7.0
 
 dev_dependencies:
   flutter_test:

@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/constants.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 
 class QuizReviewScreen extends StatefulWidget {
   final String quizTitle;
@@ -19,8 +20,7 @@ class _QuizReviewScreenState extends State<QuizReviewScreen> {
   static const Color _primaryColor = Color(0xFF2A9D8F);
 
   // Fungsi untuk memanggil AI
-  Future<void> _askAIToExplain(
-      String questionText, String correctAnswer) async {
+  Future<void> _askAIToExplain(String questionText, String correctAnswer) async {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -37,10 +37,11 @@ class _QuizReviewScreenState extends State<QuizReviewScreen> {
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
+          'Accept': 'application/json',   // ← tambah ini
         },
         body: jsonEncode({
-          'question_text': questionText,
-          'correct_answer': correctAnswer
+          'question': questionText,        // ← ganti dari question_text
+          'correct_answer': correctAnswer,
         }),
       );
 
@@ -50,8 +51,16 @@ class _QuizReviewScreenState extends State<QuizReviewScreen> {
         final data = jsonDecode(response.body);
         _showExplanationDialog(data['explanation']);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Gagal meminta penjelasan AI')));
+        debugPrint('=== EXPLAIN ERROR: ${response.statusCode}');
+        debugPrint('=== EXPLAIN BODY: ${response.body}');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error ${response.statusCode}'),
+              behavior: SnackBarBehavior.fixed,
+            ),
+          );
+        }
       }
     } catch (e) {
       Navigator.pop(context);
@@ -75,16 +84,32 @@ class _QuizReviewScreenState extends State<QuizReviewScreen> {
           ],
         ),
         content: SingleChildScrollView(
-            child: Text(explanation,
-                style:
-                    const TextStyle(height: 1.5, color: Color(0xFF334155)))),
+          child: MarkdownBody(   // ← ganti Text dengan MarkdownBody
+            data: explanation,
+            styleSheet: MarkdownStyleSheet(
+              p: const TextStyle(
+                height: 1.6,
+                fontSize: 14,
+                color: Color(0xFF334155),
+              ),
+              strong: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF1a1a2e),
+              ),
+              em: const TextStyle(
+                fontStyle: FontStyle.italic,
+                color: Color(0xFF334155),
+              ),
+            ),
+          ),
+        ),
         actions: [
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: _primaryColor,
               foregroundColor: Colors.white,
-              shape:
-                  RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
             ),
             onPressed: () => Navigator.pop(context),
             child: const Text('Paham!'),

@@ -55,7 +55,7 @@ class QuizResultScreen extends StatelessWidget {
                 gradient: LinearGradient(
                   colors: isPassed
                       ? [const Color(0xFF2A9D8F), const Color(0xFF21867A)]
-                      : [Colors.orange[400]!, Colors.orange[700]!],
+                      : [const Color(0xFF1F7A6D), const Color(0xFF155F56)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),

@@ -53,6 +53,11 @@ class _ArGalleryScreenState extends State<ArGalleryScreen> {
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
         final List dataList = decoded['data'] ?? [];
+
+        debugPrint('=== AR FETCH STATUS: ${response.statusCode}');
+        debugPrint('=== AR DATA LENGTH: ${dataList.length}');
+        debugPrint('=== AR RAW BODY: ${response.body}');
+
         setState(() {
           _arAssets = dataList.cast<Map<String, dynamic>>();
           _isLoading = false;
@@ -429,102 +434,99 @@ class _ArGalleryScreenState extends State<ArGalleryScreen> {
     final Map<String, dynamic>? material = asset['material'];
     final String? materialTitle = material?['title'];
 
-    return GestureDetector(
-      onTap: () => _openArViewer(modelUrl, title),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.04),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Thumbnail
-            Expanded(
-              flex: 3,
-              child: ClipRRect(
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(16)),
-                child: _buildThumbnail(imageUrl),
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: () => _openArViewer(modelUrl, title),
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
               ),
-            ),
-
-            // Info
-            Padding(
-              padding: const EdgeInsets.all(10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Thumbnail
+              Expanded(
+                flex: 3,
+                child: ClipRRect(
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(16)),
+                  child: _buildThumbnail(imageUrl),
+                ),
+              ),
+              // Info — sama persis, tidak diubah
+              Padding(
+                padding: const EdgeInsets.all(10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (materialTitle != null) ...[
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(Icons.book_outlined,
-                            size: 11, color: Colors.grey[500]),
-                        const SizedBox(width: 3),
-                        Expanded(
-                          child: Text(
-                            materialTitle,
-                            style: TextStyle(
-                                fontSize: 11, color: Colors.grey[500]),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                    if (materialTitle != null) ...[
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(Icons.book_outlined, size: 11, color: Colors.grey[500]),
+                          const SizedBox(width: 3),
+                          Expanded(
+                            child: Text(
+                              materialTitle,
+                              style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
+                    ],
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: _primaryColor.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            _isGuest ? Icons.lock_outline_rounded : Icons.view_in_ar_rounded,
+                            size: 11,
+                            color: _primaryColor,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            _isGuest ? 'Login' : 'Lihat AR',
+                            style: TextStyle(
+                                fontSize: 10,
+                                color: _primaryColor,
+                                fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
-                  const SizedBox(height: 6),
-                  // Badge AR — tamu lihat lock icon
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: _primaryColor.withOpacity(0.08),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          _isGuest
-                              ? Icons.lock_outline_rounded
-                              : Icons.view_in_ar_rounded,
-                          size: 11,
-                          color: _primaryColor,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          _isGuest ? 'Login' : 'Lihat AR',
-                          style: TextStyle(
-                              fontSize: 10,
-                              color: _primaryColor,
-                              fontWeight: FontWeight.w600),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -590,6 +592,8 @@ class _ArGalleryScreenState extends State<ArGalleryScreen> {
 
   void _openArViewer(String? modelUrl, String title) {
     // Tamu bisa lihat galeri, tapi tidak bisa buka AR viewer
+    debugPrint('=== AR OPEN: title=$title');
+    debugPrint('=== AR MODEL URL: $modelUrl');
     if (_isGuest) {
       showDialog(
         context: context,
@@ -631,6 +635,7 @@ class _ArGalleryScreenState extends State<ArGalleryScreen> {
     }
 
     if (modelUrl == null || modelUrl.isEmpty) {
+      debugPrint('=== AR URL NULL/EMPTY - showing snackbar');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('File 3D belum tersedia untuk aset ini.'),
@@ -641,6 +646,7 @@ class _ArGalleryScreenState extends State<ArGalleryScreen> {
       return;
     }
 
+    debugPrint('=== AR NAVIGATING TO ARViewScreen');
     Navigator.push(
       context,
       MaterialPageRoute(

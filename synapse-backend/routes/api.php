@@ -135,10 +135,11 @@ Route::middleware(['auth:sanctum', 'role:mahasiswa,public'])->group(function () 
     Route::post('/quizzes/{id}/submit',     [QuizController::class, 'submitQuiz']);
     Route::get('/quiz-history',             [QuizController::class, 'getHistory']);
     Route::post('/chat',                    [AiChatController::class, 'chat']);
+    Route::post('/explain-question', [AiChatController::class, 'explainQuestion']);
+
 
     // Khusus mahasiswa saja
     Route::middleware('role:mahasiswa')->group(function () {
         Route::post('/analyze-score',     [AiChatController::class, 'analyzeScore']);
-        Route::post('/explain-question',  [AiChatController::class, 'explainQuestion']);
     });
 });
