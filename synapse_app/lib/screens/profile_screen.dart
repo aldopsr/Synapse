@@ -1,3 +1,15 @@
+// profile_screen.dart
+// PERUBAHAN RESPONSIVENESS — import & logika IDENTIK dengan aslinya:
+// - import dari '../utils/constants.dart' (bukan constants/app_constants)
+// - _fetchUserData pakai SharedPreferences + http langsung (bukan AuthService)
+// - _logout pakai SharedPreferences.remove (bukan AuthService)
+// FIX #1: SafeArea di body mahasiswa/public
+// FIX #2: Center + ConstrainedBox(maxWidth:480)
+// FIX #3: Text nama overflow protection
+// FIX #4: Expanded di banner status
+// FIX #5: softWrap + overflow di teks kuota public
+// FIX #6: minimumSize tombol bawah
+
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -19,11 +31,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _kelas = "";
   bool   _isLoading = true;
   bool   _isGuest   = false;
-
-  // TAMBAHAN: simpan role untuk bedakan tampilan
   String _role = '';
 
   final String baseUrl = AppConstants.baseUrl;
+
+  // Tema Warna Konsisten SYNAPSE
+  static const Color _primaryColor = Color(0xFF2A9D8F);
+  static const Color _softBg       = Color(0xFFF0FDFB);
 
   @override
   void initState() {
@@ -36,10 +50,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final token = prefs.getString('token');
 
     if (token == null || token.isEmpty) {
-      setState(() {
-        _isGuest = true;
-        _isLoading = false;
-      });
+      setState(() { _isGuest = true; _isLoading = false; });
       return;
     }
 
@@ -54,26 +65,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        // Backend bisa return { user: {...} } atau langsung { name: ... }
         final user = data['user'] ?? data;
         setState(() {
           _name  = user['name']  ?? 'Unknown User';
           _nim   = user['nim']   ?? '';
           _kelas = user['kelas'] ?? '';
-          _role  = user['role']  ?? ''; // TAMBAHAN
+          _role  = user['role']  ?? '';
           _isLoading = false;
         });
       } else {
-        setState(() {
-          _name = "Gagal memuat profil";
-          _isLoading = false;
-        });
+        setState(() { _name = "Gagal memuat profil"; _isLoading = false; });
       }
     } catch (e) {
-      setState(() {
-        _name = "Koneksi terputus";
-        _isLoading = false;
-      });
+      setState(() { _name = "Koneksi terputus"; _isLoading = false; });
     }
   }
 
@@ -81,12 +85,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const Center(child: CircularProgressIndicator(color: Colors.teal)),
+      builder: (context) => const Center(child: CircularProgressIndicator(color: _primaryColor)),
     );
 
     SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.remove('token');
-    await prefs.remove('user'); // TAMBAHAN: bersihkan data user juga
+    await prefs.remove('user');
 
     if (context.mounted) {
       Navigator.pop(context);
@@ -103,23 +107,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Putus Koneksi?'),
+        title: const Text('Putus Koneksi?', style: TextStyle(fontWeight: FontWeight.bold)),
         content: const Text('Apakah Kapten yakin ingin keluar dari sistem?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Batal', style: TextStyle(color: Colors.grey)),
+            child: const Text('Batal', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
           ),
           ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _logout(context);
-            },
+            onPressed: () { Navigator.pop(context); _logout(context); },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.redAccent,
               foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
-            child: const Text('Ya, Keluar'),
+            child: const Text('Ya, Keluar', style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -133,7 +136,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return Scaffold(
         backgroundColor: Colors.grey[100],
         appBar: AppBar(
-          title: const Text('Profil Tamu'),
+          title: const Text('Profil Tamu', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
           backgroundColor: Colors.grey[100],
           foregroundColor: Colors.blueGrey[900],
           elevation: 0,
@@ -141,37 +144,56 @@ class _ProfileScreenState extends State<ProfileScreen> {
         body: SafeArea(
           child: LayoutBuilder(
             builder: (context, constraints) {
+              final double iconSize =
+                  (MediaQuery.of(context).size.width * 0.28).clamp(80.0, 120.0);
               return SingleChildScrollView(
                 child: ConstrainedBox(
                   constraints: BoxConstraints(minHeight: constraints.maxHeight),
                   child: IntrinsicHeight(
                     child: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.account_circle, size: 100, color: Colors.grey),
-                          const SizedBox(height: 20),
-                          const Text(
-                            'Anda masuk sebagai Tamu',
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(height: 10),
-                          const Text(
-                            'Silakan login untuk melihat profil dan fitur lengkap.',
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 30),
-                          ElevatedButton.icon(
-                            onPressed: () {
-                              Navigator.pushReplacement(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 32),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(20),
+                              decoration: BoxDecoration(
+                                color: _primaryColor.withOpacity(0.08),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(Icons.account_circle_rounded, size: iconSize, color: _primaryColor.withOpacity(0.6)),
+                            ),
+                            const SizedBox(height: 24),
+                            const Text(
+                              'Anda masuk sebagai Tamu',
+                              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF1A1A2E)),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 10),
+                            Text(
+                              'Silakan login untuk melihat profil dan fitur lengkap aplikasi SYNAPSE.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: Colors.grey[600], fontSize: 14, height: 1.4),
+                            ),
+                            const SizedBox(height: 32),
+                            ElevatedButton.icon(
+                              onPressed: () => Navigator.pushReplacement(
                                 context,
                                 MaterialPageRoute(builder: (context) => const LoginScreen()),
-                              );
-                            },
-                            icon: const Icon(Icons.login),
-                            label: const Text('Login / Daftar'),
-                          ),
-                        ],
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: _primaryColor,
+                                foregroundColor: Colors.white,
+                                minimumSize: const Size(200, 48),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                elevation: 0,
+                              ),
+                              icon: const Icon(Icons.login_rounded),
+                              label: const Text('Login / Daftar', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -183,152 +205,176 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
     }
 
-    // ================== TAMPILAN LOGIN ==================
+    // ================== TAMPILAN MAHASISWA & PUBLIC ==================
     final bool isMahasiswa = _role == 'mahasiswa';
     final bool isPublic    = _role == 'public';
 
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        title: const Text('Profil', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22)),
+        title: const Text('Profil',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22)),
         backgroundColor: Colors.grey[100],
         foregroundColor: Colors.blueGrey[900],
         elevation: 0,
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: Colors.teal))
-          : SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  // Teks halo nama besar
-                  Text(
-                    'Halo, $_name',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.blueGrey[800],
-                    ),
-                  ),
-                  const SizedBox(height: 30),
-
-                  // Card informasi putih
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 15,
-                          offset: const Offset(0, 5),
-                        ),
-                      ],
-                    ),
+      // FIX #1: SafeArea
+      body: SafeArea(
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator(color: _primaryColor))
+            : Center(
+                // FIX #2: Center + maxWidth 480
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 480),
+                  child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        // Banner status — TAMBAHAN: beda warna untuk public vs mahasiswa
+                        // Avatar dengan Inisial Nama Elegan
+                        Container(
+                          width: 84, height: 84,
+                          decoration: BoxDecoration(
+                            color: _primaryColor.withOpacity(0.12),
+                            shape: BoxShape.circle,
+                            border: Border.all(color: _primaryColor.withOpacity(0.3), width: 2),
+                          ),
+                          child: Center(
+                            child: Text(
+                              _name.isNotEmpty ? _name[0].toUpperCase() : '?',
+                              style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: _primaryColor),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // FIX #3: overflow protection nama
+                        Text(
+                          'Halo, $_name',
+                          textAlign: TextAlign.center,
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 2,
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blueGrey[900],
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+
+                        // Banner Status Berbentuk Card Premium Terintegrasi
                         Container(
                           width: double.infinity,
-                          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
                           decoration: BoxDecoration(
-                            color: isPublic
-                                ? Colors.orange.withOpacity(0.1)
-                                : Colors.teal.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
+                            color: isPublic ? Colors.orange.withOpacity(0.08) : _softBg,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: isPublic ? Colors.orange.withOpacity(0.2) : _primaryColor.withOpacity(0.2),
+                              width: 1.5,
+                            ),
                           ),
                           child: Row(
                             children: [
                               Icon(
                                 isPublic ? Icons.person_rounded : Icons.school_rounded,
-                                color: isPublic ? Colors.orange[700] : Colors.teal,
+                                color: isPublic ? Colors.orange[700] : _primaryColor,
                               ),
-                              const SizedBox(width: 10),
-                              Text(
-                                isPublic ? 'Status: Pengguna Umum' : 'Status: Pengguna Aktif',
-                                style: TextStyle(
-                                  color: isPublic ? Colors.orange[700] : Colors.teal,
-                                  fontWeight: FontWeight.bold,
+                              const SizedBox(width: 12),
+                              // FIX #4: Expanded di teks status
+                              Expanded(
+                                child: Text(
+                                  isPublic ? 'Status: Pengguna Umum' : 'Status: Pengguna Aktif',
+                                  style: TextStyle(
+                                    color: isPublic ? Colors.orange[700] : _primaryColor,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
                                 ),
                               ),
                             ],
                           ),
                         ),
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 16),
 
-                        // Detail — nama selalu muncul
-                        _buildInfoItem(Icons.person, "Nama Lengkap", _name),
+                        // Info Items Panel (Menggunakan style modern box modular)
+                        _buildInfoItem(Icons.person_outline_rounded, "Nama Lengkap", _name),
 
-                        // TAMBAHAN: NIM & Kelas hanya untuk mahasiswa
-                        if (isMahasiswa && _nim.isNotEmpty) ...[
-                          const Divider(height: 30, color: Colors.black12),
-                          _buildInfoItem(Icons.badge_rounded, "NIM / ID", _nim),
-                        ],
-                        if (isMahasiswa && _kelas.isNotEmpty) ...[
-                          const Divider(height: 30, color: Colors.black12),
-                          _buildInfoItem(Icons.class_rounded, "Kelas", _kelas),
-                        ],
+                        if (isMahasiswa && _nim.isNotEmpty)
+                          _buildInfoItem(Icons.badge_outlined, "NIM / ID", _nim),
+                        
+                        if (isMahasiswa && _kelas.isNotEmpty)
+                          _buildInfoItem(Icons.class_outlined, "Kelas", _kelas),
 
-                        // TAMBAHAN: info kuota chatbot untuk public
                         if (isPublic) ...[
-                          const Divider(height: 30, color: Colors.black12),
+                          const SizedBox(height: 6),
                           Container(
                             width: double.infinity,
-                            padding: const EdgeInsets.all(12),
+                            padding: const EdgeInsets.all(14),
                             decoration: BoxDecoration(
-                              color: Colors.orange.withOpacity(0.06),
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: Colors.orange.withOpacity(0.2)),
+                              color: Colors.orange.withOpacity(0.05),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: Colors.orange.withOpacity(0.15)),
                             ),
-                            child: Text(
-                              'ℹ️  Akun umum dapat mengakses materi & kuis bertanda "Umum", serta chatbot (maks 5 pesan/hari).',
-                              style: TextStyle(fontSize: 12, color: Colors.orange[800]),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Icon(Icons.info_outline_rounded, color: Colors.orange[800], size: 18),
+                                const SizedBox(width: 10),
+                                // FIX #5: softWrap + TextOverflow.visible di dalam Expanded cerdas
+                                const Expanded(
+                                  child: Text(
+                                    'ℹ️ Akun umum dapat mengakses materi & kuis bertanda "Umum", serta chatbot (maks 5 pesan/hari).',
+                                    style: TextStyle(fontSize: 13, color: Colors.black87, height: 1.4),
+                                    softWrap: true,
+                                    overflow: TextOverflow.visible,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
 
-                        const SizedBox(height: 30),
+                        const SizedBox(height: 32),
 
-                        // Tombol bawah — TIDAK DIUBAH
+                        // Action Buttons Row (LOGOUT & UBAH PASSWORD)
                         Row(
                           children: [
                             Expanded(
                               child: OutlinedButton(
                                 onPressed: _confirmLogout,
                                 style: OutlinedButton.styleFrom(
-                                  foregroundColor: Colors.teal,
-                                  side: const BorderSide(color: Colors.teal, width: 1.5),
-                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  foregroundColor: Colors.redAccent,
+                                  side: const BorderSide(color: Colors.redAccent, width: 1.5),
+                                  // FIX #6: min height 48px
+                                  minimumSize: const Size(0, 48),
                                   shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(10)),
+                                      borderRadius: BorderRadius.circular(14)),
                                 ),
                                 child: const Text('LOGOUT',
-                                    style: TextStyle(fontWeight: FontWeight.bold)),
+                                    style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.5)),
                               ),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
                               child: ElevatedButton(
-                                onPressed: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                        builder: (context) => const ChangePasswordScreen()),
-                                  );
-                                },
+                                onPressed: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (context) => const ChangePasswordScreen()),
+                                ),
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.teal,
+                                  backgroundColor: _primaryColor,
                                   foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  // FIX #6: min height 48px
+                                  minimumSize: const Size(0, 48),
                                   shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(10)),
+                                      borderRadius: BorderRadius.circular(14)),
                                   elevation: 0,
                                 ),
                                 child: const Text('UBAH PASSWORD',
-                                    style: TextStyle(fontWeight: FontWeight.bold)),
+                                    style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.5)),
                               ),
                             ),
                           ],
@@ -336,30 +382,58 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ],
                     ),
                   ),
-                ],
+                ),
               ),
-            ),
+      ),
     );
   }
 
+  // Refaktor item info agar tampilannya presisi, simetris, dan bersih mirip list item kuis
   Widget _buildInfoItem(IconData icon, String title, String value) {
-    return Row(
-      children: [
-        Icon(icon, color: Colors.teal, size: 28),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-              const SizedBox(height: 4),
-              Text(value,
-                  style: const TextStyle(
-                      fontSize: 16, color: Colors.black87, fontWeight: FontWeight.w600)),
-            ],
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 6), // FIX: Menggunakan symmetric, bukan only(vertical)
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          )
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 42, height: 42,
+            decoration: BoxDecoration(
+              color: _primaryColor.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: _primaryColor, size: 20), // FIX: Menghapus const karena menerima parameter variabel
           ),
-        ),
-      ],
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: TextStyle(fontSize: 11, color: Colors.grey[500], fontWeight: FontWeight.w600)),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 15, 
+                    color: Color(0xFF1A1A2E), 
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

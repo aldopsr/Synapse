@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/material_service.dart';
 import 'material_detail_screen.dart';
 import 'practice_screen.dart';
+import 'home_screen.dart';
 
 class MaterialsScreen extends StatefulWidget {
   const MaterialsScreen({super.key});
@@ -464,7 +465,8 @@ class _MaterialsScreenState extends State<MaterialsScreen> {
         slivers: [
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.only(left: 20, top: 60, right: 20, bottom: 10),
+              // FIX: top padding dinamis, aman di semua notch/status bar
+              padding: EdgeInsets.only(left: 20, top: MediaQuery.of(context).padding.top + 16, right: 20, bottom: 10),
               child: RichText(
                 text: const TextSpan(
                   style: TextStyle(fontSize: 28, color: Colors.black87, fontWeight: FontWeight.bold),
@@ -493,7 +495,6 @@ class _MaterialsScreenState extends State<MaterialsScreen> {
             )
           else ...[
 
-            // Section header Rekomendasi Materi
             SliverToBoxAdapter(
               child: _buildSectionHeader(
                 title: 'Rekomendasi Materi',
@@ -503,7 +504,6 @@ class _MaterialsScreenState extends State<MaterialsScreen> {
               ),
             ),
 
-            // Slider horizontal materi
             SliverToBoxAdapter(
               child: SizedBox(
                 height: 200,
@@ -523,7 +523,6 @@ class _MaterialsScreenState extends State<MaterialsScreen> {
               ),
             ),
 
-            // Section Mini Kuis
             if (materialsWithPractice.isNotEmpty) ...[
               SliverToBoxAdapter(
                 child: _buildSectionHeader(
@@ -542,7 +541,8 @@ class _MaterialsScreenState extends State<MaterialsScreen> {
             ],
           ],
 
-          const SliverToBoxAdapter(child: SizedBox(height: 120)),
+          // FIX: padding bawah kompensasi nav bar
+          SliverToBoxAdapter(child: SizedBox(height: HomeScreen.navBarHeight)),
         ],
       ),
     );

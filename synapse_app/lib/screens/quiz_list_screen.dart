@@ -4,6 +4,7 @@ import '../models/quiz_model.dart';
 import 'quiz_screen.dart';
 import 'quiz_review_screen.dart';
 import 'quiz_statistic_screen.dart';
+import 'home_screen.dart';
 
 class QuizListScreen extends StatefulWidget {
   const QuizListScreen({super.key});
@@ -153,8 +154,7 @@ class _QuizListScreenState extends State<QuizListScreen> {
                         final quizzes = snapshot.data!;
                         return ListView.builder(
                           physics: const AlwaysScrollableScrollPhysics(),
-                          padding: const EdgeInsets.only(
-                              top: 24, left: 24, right: 24, bottom: 100),
+                          padding: EdgeInsets.only(top: 24, left: 24, right: 24, bottom: HomeScreen.navBarHeight),
                           itemCount: quizzes.length,
                           itemBuilder: (context, index) {
                             final quiz = quizzes[index];

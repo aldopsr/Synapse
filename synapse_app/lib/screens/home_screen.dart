@@ -1,3 +1,11 @@
+// home_screen.dart
+// PERUBAHAN RESPONSIVENESS:
+// FIX #1 — BottomNav: ganti height: 70 hardcoded → IntrinsicHeight (aman untuk large text)
+// FIX #2 — NavItem: tambah minimum touch target 44×44px via ConstrainedBox
+// FIX #3 — expose static navBarHeight agar pages bisa hitung bottom padding sendiri
+// FIX #4 — CenterButton: ukuran tetap 56px, sudah aman (tidak perlu diubah)
+// Logika navigasi, akses quiz/chatbot, dialog — TIDAK DIUBAH.
+
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import 'login_screen.dart';
@@ -10,6 +18,10 @@ import 'ar_gallery_screen.dart';
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
+  // FIX #3: konstanta tinggi nav bar — dipakai pages untuk bottom padding
+  // total = tinggi nav (64) + margin bawah (20) + sedikit buffer (8) = 92
+  static const double navBarHeight = 92.0;
+
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
@@ -21,7 +33,6 @@ class _HomeScreenState extends State<HomeScreen> {
   bool   _isLoading     = true;
   String _userRole      = '';
 
-  // FIX: ganti blueAccent ke teal SYNAPSE
   static const Color _primary = Color(0xFF2A9D8F);
 
   final List<Widget> _pages = [
@@ -90,7 +101,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 MaterialPageRoute(builder: (context) => const LoginScreen()),
               );
             },
-            // FIX: pakai theme otomatis (sudah set di main.dart)
             child: const Text('Login / Daftar'),
           ),
         ],
@@ -114,9 +124,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(color: _primary),
-        ),
+        body: Center(child: CircularProgressIndicator(color: _primary)),
       );
     }
 
@@ -129,7 +137,6 @@ class _HomeScreenState extends State<HomeScreen> {
       bottomNavigationBar: SafeArea(
         child: Container(
           margin: const EdgeInsets.only(left: 20, right: 20, bottom: 20),
-          height: 70,
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(35),
@@ -141,15 +148,27 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _buildNavItem(0, Icons.menu_book_rounded, 'Materi',   isLocked: false),
-              _buildNavItem(1, Icons.quiz_rounded,      'Kuis',     isLocked: !_canAccessQuiz),
-              _buildCenterButton(),
-              _buildNavItem(2, Icons.smart_toy_rounded, 'Tanya AI', isLocked: !_canAccessChatbot),
-              _buildNavItem(3, Icons.person_rounded,    'Profil',   isLocked: false),
-            ],
+          // FIX #1: IntrinsicHeight — tinggi menyesuaikan konten,
+          // tidak akan terpotong saat font aksesibilitas besar.
+          // Padding vertikal 8px memberi ruang napas minimal.
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: IntrinsicHeight(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _buildNavItem(0, Icons.menu_book_rounded, 'Materi',
+                      isLocked: false),
+                  _buildNavItem(1, Icons.quiz_rounded, 'Kuis',
+                      isLocked: !_canAccessQuiz),
+                  _buildCenterButton(),
+                  _buildNavItem(2, Icons.smart_toy_rounded, 'Tanya AI',
+                      isLocked: !_canAccessChatbot),
+                  _buildNavItem(3, Icons.person_rounded, 'Profil',
+                      isLocked: false),
+                ],
+              ),
+            ),
           ),
         ),
       ),
@@ -166,10 +185,14 @@ class _HomeScreenState extends State<HomeScreen> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
+        // FIX #2: ConstrainedBox memastikan touch target min 44×44px
+        // (Apple HIG & Material guideline)
+        constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
         padding: EdgeInsets.symmetric(
-            horizontal: isSelected ? 12 : 8, vertical: 8),
+          horizontal: isSelected ? 12 : 8,
+          vertical: 8,
+        ),
         decoration: BoxDecoration(
-          // FIX: pakai _primary bukan blueAccent
           color: isSelected
               ? _primary.withOpacity(0.1)
               : Colors.transparent,
@@ -184,7 +207,6 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 Icon(
                   icon,
-                  // FIX: pakai _primary bukan blueAccent
                   color: isSelected ? _primary : Colors.blueGrey[400],
                   size: 22,
                 ),
@@ -193,7 +215,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   Text(
                     label,
                     style: const TextStyle(
-                      // FIX: pakai _primary bukan blueAccent
                       color: _primary,
                       fontSize: 10,
                       fontWeight: FontWeight.bold,
@@ -244,7 +265,8 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ],
         ),
-        child: const Icon(Icons.view_in_ar_rounded, color: Colors.white, size: 26),
+        child: const Icon(Icons.view_in_ar_rounded,
+            color: Colors.white, size: 26),
       ),
     );
   }
