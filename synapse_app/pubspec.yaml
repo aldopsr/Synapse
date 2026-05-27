@@ -40,6 +40,7 @@ dependencies:
   flutter_markdown: ^0.7.7+1
   flutter_html: ^3.0.0
   model_viewer_plus: 1.7.0
+  flutter_tts: ^4.2.5
 
 dev_dependencies:
   flutter_test:

@@ -4,6 +4,8 @@ import 'practice_screen.dart';
 import 'ar_view_screen.dart';
 import '../services/auth_service.dart';
 import '../utils/constants.dart';
+import '../widgets/inline_model_viewer.dart';
+import '../widgets/audio_capsule.dart';
 
 class MaterialDetailScreen extends StatefulWidget {
   final Map<String, dynamic> material;
@@ -113,11 +115,39 @@ class _MaterialDetailScreenState extends State<MaterialDetailScreen>
     });
   }
 
+  String? _resolveModelSource() {
+    final m = widget.material;
+
+    // Format baru: ar_assets[].model_3d_url / model_3d_path
+    final assets = m['ar_assets'];
+    if (assets is List && assets.isNotEmpty) {
+      final first = assets.first;
+      final url = first['model_3d_url']?.toString();
+      if (url != null && url.isNotEmpty) return url;
+      final path = first['model_3d_path']?.toString();
+      if (path != null && path.isNotEmpty) return path;
+    }
+
+    // Format lama: langsung di material
+    final url = m['model_3d_url']?.toString();
+    if (url != null && url.isNotEmpty) return url;
+    final path = m['model_3d_path']?.toString();
+    if (path != null && path.isNotEmpty) return path;
+
+    return null;
+  }
+
   // ============================================================
   // BUILD
   // ============================================================
   @override
   Widget build(BuildContext context) {
+    final String? modelSource = _resolveModelSource();
+    final String rawContent = (widget.material['content'] ??
+            widget.material['body'] ??
+            '')
+        .toString();
+
     return Scaffold(
       backgroundColor: _bgSoft,
       body: Stack(
@@ -128,8 +158,28 @@ class _MaterialDetailScreenState extends State<MaterialDetailScreen>
             slivers: [
               _buildHeroAppBar(),
               SliverToBoxAdapter(child: _buildQuickStats()),
+
+              // 🌟 BARU: 3D Model Viewer inline (pengganti AR). Tampil di atas.
+              if (modelSource != null)
+                SliverToBoxAdapter(
+                  child: InlineModelViewer(
+                    rawModelSource: modelSource,
+                    title: widget.material['title']?.toString() ?? 'Model 3D',
+                  ),
+                ),
+
+              // 🌟 BARU: Tombol Dengarkan Transmisi (TTS).
+              if (rawContent.trim().isNotEmpty)
+                SliverToBoxAdapter(
+                  child: AudioCapsule(rawContent: rawContent),
+                ),
+
               SliverToBoxAdapter(child: _buildContentCard()),
-              if (_hasAr) SliverToBoxAdapter(child: _buildArGallerySection()),
+
+              // Galeri AR LAMA: digantikan viewer inline di atas. Dinonaktifkan
+              // agar tidak ada dua tempat menampilkan model 3D.
+              // if (_hasAr) SliverToBoxAdapter(child: _buildArGallerySection()),
+
               if (_hasPractice)
                 SliverToBoxAdapter(child: _buildPracticeTeaserCard()),
               const SliverToBoxAdapter(child: SizedBox(height: 140)),
@@ -355,7 +405,7 @@ class _MaterialDetailScreenState extends State<MaterialDetailScreen>
             _buildStatDivider(),
             _buildStatChip(
               emoji: '✨',
-              label: _arCount > 0 ? '$_arCount AR' : '—',
+              label: _arCount > 0 ? '$_arCount 3D' : '—',
               subLabel: _arCount > 0 ? 'tersedia' : 'tidak ada',
               color: _accentPurple,
               dimmed: _arCount == 0,
@@ -730,7 +780,7 @@ class _MaterialDetailScreenState extends State<MaterialDetailScreen>
                 Text(
                   _hasPractice
                       ? 'Selesaikan latihan untuk dapat skor!'
-                      : 'Eksplorasi AR untuk pengalaman lebih dalam!',
+                      : 'Eksplorasi model 3D untuk pengalaman lebih dalam!',
                   style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.bold,
@@ -751,273 +801,6 @@ class _MaterialDetailScreenState extends State<MaterialDetailScreen>
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  // ============================================================
-  // 5. AR GALLERY SECTION (Horizontal scroll)
-  // ============================================================
-  Widget _buildArGallerySection() {
-    final material = widget.material;
-    final List<dynamic> arAssets = material['ar_assets'] != null
-        ? (material['ar_assets'] as List)
-        : [];
-
-    // Kalau tidak ada ar_assets list, fallback satu kartu
-    if (arAssets.isEmpty && _hasAr) {
-      // Buatkan satu virtual card dari data lama
-      return _buildSingleArCard();
-    }
-
-    if (arAssets.isEmpty) return const SizedBox.shrink();
-
-    return Container(
-      margin: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            _accentPurple.withOpacity(0.08),
-            _accentPurple.withOpacity(0.02),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: _accentPurple.withOpacity(0.2)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: _accentPurple.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(Icons.view_in_ar_rounded,
-                    color: _accentPurple, size: 22),
-              ),
-              const SizedBox(width: 10),
-              const Expanded(
-                child: Text(
-                  '✨ Aset 3D / AR',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF334155),
-                  ),
-                ),
-              ),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: _accentPurple,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  '${arAssets.length}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Tap untuk lihat objek 3D secara langsung',
-            style: TextStyle(fontSize: 12, color: Colors.grey[700]),
-          ),
-          const SizedBox(height: 14),
-
-          SizedBox(
-            height: 130,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(),
-              itemCount: arAssets.length,
-              itemBuilder: (context, index) {
-                final asset = arAssets[index];
-                return _buildArThumbCard(asset);
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSingleArCard() {
-    // Untuk data lama (has_ar=true tanpa ar_assets array)
-    return Container(
-      margin: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            _accentPurple.withOpacity(0.08),
-            _accentPurple.withOpacity(0.02),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: _accentPurple.withOpacity(0.2)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 60,
-            height: 60,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [_accentPurple, Color(0xFF7C3AED)],
-              ),
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: _accentPurple.withOpacity(0.4),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
-                )
-              ],
-            ),
-            child:
-                const Icon(Icons.view_in_ar_rounded, color: Colors.white, size: 32),
-          ),
-          const SizedBox(width: 14),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '✨ Aset AR Tersedia',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF334155),
-                  ),
-                ),
-                SizedBox(height: 2),
-                Text(
-                  'Tap tombol AR untuk eksplorasi',
-                  style: TextStyle(fontSize: 11, color: Colors.grey),
-                ),
-              ],
-            ),
-          ),
-          const Icon(Icons.arrow_forward_ios_rounded,
-              color: _accentPurple, size: 16),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildArThumbCard(Map<String, dynamic> asset) {
-    final imageUrl = asset['image_url']?.toString();
-    final title = asset['title']?.toString() ?? 'AR Asset';
-
-    return GestureDetector(
-      onTap: () => _openArViewer(asset),
-      child: Container(
-        width: 110,
-        margin: const EdgeInsets.only(right: 12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: _accentPurple.withOpacity(0.15),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            )
-          ],
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Column(
-          children: [
-            Expanded(
-              flex: 3,
-              child: SizedBox(
-                width: double.infinity,
-                child: imageUrl != null && imageUrl.isNotEmpty
-                    ? Image.network(
-                        imageUrl,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) =>
-                            _buildArThumbPlaceholder(),
-                      )
-                    : _buildArThumbPlaceholder(),
-              ),
-            ),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: _accentPurple.withOpacity(0.08),
-              ),
-              child: Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  color: _accentPurple,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildArThumbPlaceholder() {
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [_accentPurple, Color(0xFF7C3AED)],
-        ),
-      ),
-      child: const Center(
-        child: Icon(Icons.view_in_ar_rounded,
-            color: Colors.white70, size: 36),
-      ),
-    );
-  }
-
-  void _openArViewer(Map<String, dynamic> asset) {
-    String fullModelUrl = '';
-    String baseUrl = AppConstants.baseUrl;
-    String mPath = asset['model_3d_path']?.toString() ?? '';
-
-    if (asset['model_3d_url'] != null) {
-      fullModelUrl = asset['model_3d_url'].toString();
-    } else if (mPath.isNotEmpty) {
-      fullModelUrl = mPath.startsWith('http')
-          ? mPath
-          : '$baseUrl/download-model/$mPath';
-    }
-
-    if (fullModelUrl.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('File 3D tidak tersedia')),
-      );
-      return;
-    }
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ARViewScreen(
-          title: asset['title']?.toString() ?? 'AR Hologram',
-          modelUrl: fullModelUrl,
-        ),
       ),
     );
   }
@@ -1103,147 +886,19 @@ class _MaterialDetailScreenState extends State<MaterialDetailScreen>
   }
 
   // ============================================================
-  // 7. SPEED DIAL FAB
+  // 7. FAB — hanya Latihan (AR sudah dihapus, 3D viewer kini inline)
   // ============================================================
   Widget? _buildSpeedDialFab() {
-    if (!_hasAr && !_hasPractice) return null;
+    if (!_hasPractice) return null;
 
-    // Kalau cuma 1 fitur, tampilkan FAB tunggal
-    if (_hasAr && !_hasPractice) {
-      return FloatingActionButton.extended(
-        onPressed: _onArPressed,
-        backgroundColor: _accentPurple,
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.view_in_ar_rounded),
-        label: const Text('Lihat AR',
-            style: TextStyle(fontWeight: FontWeight.bold)),
-        elevation: 8,
-      );
-    }
-
-    if (_hasPractice && !_hasAr) {
-      return FloatingActionButton.extended(
-        onPressed: _onPracticePressed,
-        backgroundColor: _accentGreen,
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.play_circle_fill_rounded),
-        label: const Text('Mulai Latihan',
-            style: TextStyle(fontWeight: FontWeight.bold)),
-        elevation: 8,
-      );
-    }
-
-    // Dua-duanya ada → speed dial
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.end,
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        // Sub-action: AR
-        ScaleTransition(
-          scale: _fabAnimation,
-          child: FadeTransition(
-            opacity: _fabAnimation,
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(8),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 4,
-                        )
-                      ],
-                    ),
-                    child: const Text(
-                      'Lihat AR',
-                      style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: _accentPurple,
-                          fontSize: 12),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  FloatingActionButton(
-                    onPressed: _onArPressed,
-                    backgroundColor: _accentPurple,
-                    heroTag: 'fab_ar',
-                    child: const Icon(Icons.view_in_ar_rounded,
-                        color: Colors.white),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-
-        // Sub-action: Practice
-        ScaleTransition(
-          scale: _fabAnimation,
-          child: FadeTransition(
-            opacity: _fabAnimation,
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(8),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 4,
-                        )
-                      ],
-                    ),
-                    child: const Text(
-                      'Latihan',
-                      style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: _accentGreen,
-                          fontSize: 12),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  FloatingActionButton(
-                    onPressed: _onPracticePressed,
-                    backgroundColor: _accentGreen,
-                    heroTag: 'fab_practice',
-                    child: const Icon(Icons.play_circle_fill_rounded,
-                        color: Colors.white),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-
-        // Main FAB
-        FloatingActionButton(
-          onPressed: _toggleFab,
-          backgroundColor: _isFabExpanded ? Colors.red[400] : _primaryColor,
-          heroTag: 'fab_main',
-          child: AnimatedRotation(
-            turns: _isFabExpanded ? 0.125 : 0,
-            duration: const Duration(milliseconds: 250),
-            child: Icon(
-              _isFabExpanded ? Icons.close : Icons.bolt_rounded,
-              color: Colors.white,
-              size: 28,
-            ),
-          ),
-        ),
-      ],
+    return FloatingActionButton.extended(
+      onPressed: _onPracticePressed,
+      backgroundColor: _accentGreen,
+      foregroundColor: Colors.white,
+      icon: const Icon(Icons.play_circle_fill_rounded),
+      label: const Text('Mulai Latihan',
+          style: TextStyle(fontWeight: FontWeight.bold)),
+      elevation: 8,
     );
   }
 
@@ -1259,45 +914,6 @@ class _MaterialDetailScreenState extends State<MaterialDetailScreen>
   // ============================================================
   // ACTION HANDLERS
   // ============================================================
-  void _onArPressed() {
-    final material = widget.material;
-    String fullModelUrl = '';
-    String baseUrl = AppConstants.baseUrl;
-
-    if (material['ar_assets'] != null &&
-        (material['ar_assets'] as List).isNotEmpty) {
-      final firstAr = (material['ar_assets'] as List).first;
-      _openArViewer(firstAr);
-      return;
-    }
-
-    if (material['model_3d_url'] != null) {
-      fullModelUrl = material['model_3d_url'].toString();
-    } else {
-      String mPath = material['model_3d_path']?.toString() ?? '';
-      fullModelUrl = mPath.startsWith('http')
-          ? mPath
-          : '$baseUrl/download-model/$mPath';
-    }
-
-    if (fullModelUrl.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('File 3D tidak tersedia')),
-      );
-      return;
-    }
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ARViewScreen(
-          title: material['title']?.toString() ?? 'AR Hologram',
-          modelUrl: fullModelUrl,
-        ),
-      ),
-    );
-  }
-
   void _onPracticePressed() {
     final material = widget.material;
     Navigator.push(
