@@ -13,15 +13,27 @@ class StudentCourseController extends Controller
      * GET /api/public/courses
      * Semua matkul — tamu & mahasiswa bisa akses
      */
-    public function index()
-    {
-        $courses = Course::latest()->get();
+    public function index(Request $request)
+{
+    $user = auth('sanctum')->user();
+    $role = $user ? ($user->role ?? 'public') : 'guest';
+    $isLimited = ($user === null || in_array($role, ['guest', 'public']));
 
-        return response()->json([
-            'success' => true,
-            'data'    => $courses,
-        ]);
-    }
+    $courses = Course::latest()->get()->filter(function ($course) use ($isLimited) {
+        $query = Material::where('course_id', $course->_id ?? $course->id);
+
+        if ($isLimited) {
+            $query->where('visibility', 'umum');
+        }
+
+        return $query->exists();
+    })->values();
+
+    return response()->json([
+        'success' => true,
+        'data'    => $courses,
+    ]);
+}
 
     /**
      * GET /api/public/courses/{course_id}/materials
@@ -39,7 +51,7 @@ class StudentCourseController extends Controller
             ->latest();
 
         // Tamu hanya lihat materi 'umum'
-        if (in_array($role, ['guest', null]) || $user === null) {
+        if ($user === null || in_array($role, ['guest', 'public'])) {
             $query->where('visibility', 'umum');
         }
 

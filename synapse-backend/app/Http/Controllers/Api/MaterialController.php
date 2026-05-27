@@ -235,26 +235,35 @@ class MaterialController extends Controller
     }
 
     // 11. AMBIL MATERI BERDASARKAN ID MATKUL
-    public function getByCourse($course_id)
-    {
-        try {
-            $materials = Material::where('course_id', $course_id)
-                ->with('ar_assets')
-                ->with('questions')
-                ->get();
+public function getByCourse(Request $request, $course_id)
+{
+    try {
+        $user = $request->user();
 
-            $materials->transform(function ($item) {
-                if ($item->image) {
-                    $item->image = asset('storage/' . $item->image);
-                }
-                return $item;
-            });
+        $query = Material::where('course_id', $course_id)
+            ->with('ar_assets')
+            ->with('questions');
 
-            return response()->json($materials);
-        } catch (\Exception $e) {
-            return response()->json(['error' => $e->getMessage()], 500);
+        // Tamu (tidak login) atau role public → hanya materi public
+        if (!$user || $user->role === 'public') {
+            $query->where('visibility', 'public');
         }
+        // Mahasiswa & dosen → semua materi (tidak difilter)
+
+        $materials = $query->get();
+
+        $materials->transform(function ($item) {
+            if ($item->image) {
+                $item->image = asset('storage/' . $item->image);
+            }
+            return $item;
+        });
+
+        return response()->json($materials);
+    } catch (\Exception $e) {
+        return response()->json(['error' => $e->getMessage()], 500);
     }
+}
 
     // 12. SIMPAN MATERI KE MATKUL TERTENTU
     public function storeByCourse(Request $request, $course_id)

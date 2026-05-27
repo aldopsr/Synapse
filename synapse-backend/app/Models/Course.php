@@ -25,4 +25,9 @@ class Course extends Model
     {
         return $this->belongsTo(User::class, 'created_by', '_id');
     }
+    
+    public function materials()
+    {
+        return $this->hasMany(Material::class, 'course_id');
+    }
 }
