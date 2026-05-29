@@ -17,6 +17,7 @@ import 'duel_screen.dart';
 import 'duel_waiting_screen.dart';
 import '../services/fcm_service.dart';
 import '../widgets/synapse_fab.dart';
+import 'course_selection_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -39,7 +40,7 @@ class _HomeScreenState extends State<HomeScreen> {
   static const Color _primary = Color(0xFF2A9D8F);
 
   final List<Widget> _pages = [
-    const MaterialsScreen(),
+    const CourseSelectionScreen(),
     const FypScreen(),
     const ChatbotScreen(),
     const ProfileScreen(),
@@ -69,7 +70,8 @@ class _HomeScreenState extends State<HomeScreen> {
         }
         _isLoading = false;
       });
-      
+      // Sync status login ke SynapseFab
+      SynapseFabController.isGuest = _isGuest;
     }
   }
 
@@ -284,17 +286,11 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildCenterButton() {
-  return GestureDetector(
-    onTap: () {
-      if (_isGuest) {
-        _showAccessDeniedDialog();
-        return;
-      }
-      Navigator.push(
+    return GestureDetector(
+      onTap: () => Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => const DuelScreen()),
-      );
-    },
+      ),
       child: Container(
         width: 56,
         height: 56,

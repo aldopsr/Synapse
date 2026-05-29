@@ -11,9 +11,13 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 // ── Controller global ─────────────────────────────────────────
 class SynapseFabController {
   static final ValueNotifier<bool> visible = ValueNotifier(true);
+  static bool isGuest = true;
+  // Dipanggil setiap kali ada pesan baru dari FAB chatbot
+  // ChatbotScreen listen ke notifier ini untuk reload history
+  static final ValueNotifier<int> chatUpdated = ValueNotifier(0);
 }
 
-// ── SynapseFab — bisa dipakai di Stack manapun ───────────────
+// ── SynapseFab ────────────────────────────────────────────────
 class SynapseFab extends StatefulWidget {
   const SynapseFab({super.key});
   @override
@@ -35,7 +39,31 @@ class _SynapseFabState extends State<SynapseFab> {
 
   void _onTap() {
     HapticFeedback.lightImpact();
-    // Dapatkan posisi absolut FAB di screen
+    if (SynapseFabController.isGuest) {
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Row(children: [
+            Icon(Icons.lock_rounded, color: Color(0xFF2A9D8F)),
+            SizedBox(width: 8),
+            Text('Login dulu yuk!',
+                style: TextStyle(fontWeight: FontWeight.bold)),
+          ]),
+          content: const Text(
+              'Fitur ini hanya untuk pengguna terdaftar. '
+              'Daftar gratis untuk akses kuis, AI tutor, dan catatan!'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Nanti', style: TextStyle(color: Colors.grey)),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
     double screenX = _posX;
     double screenY = _posY;
     try {
@@ -46,6 +74,7 @@ class _SynapseFabState extends State<SynapseFab> {
         screenY = pos.dy;
       }
     } catch (_) {}
+
     showDialog(
       context: context,
       barrierColor: Colors.black.withOpacity(0.15),
@@ -112,8 +141,8 @@ class _SynapseFabState extends State<SynapseFab> {
                     'assets/images/logo_synapse.png',
                     width: 26, height: 26, color: Colors.white,
                     errorBuilder: (_, __, ___) => const Icon(
-                      Icons.auto_awesome_rounded,
-                      color: Colors.white, size: 22),
+                        Icons.auto_awesome_rounded,
+                        color: Colors.white, size: 22),
                   ),
                 ),
               ),
@@ -125,7 +154,7 @@ class _SynapseFabState extends State<SynapseFab> {
   }
 }
 
-// ── Menu popup kecil ──────────────────────────────────────────
+// ── Menu popup ────────────────────────────────────────────────
 class _MenuDialog extends StatelessWidget {
   final double anchorX, anchorY;
   final VoidCallback onNotes, onChatbot;
@@ -138,7 +167,6 @@ class _MenuDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
     const w = 172.0;
-    // anchorX/Y = posisi absolut FAB — popup muncul tepat di atas FAB
     double px = (anchorX - w / 2 + 26).clamp(8, size.width - w - 8);
     double py = (anchorY - 118).clamp(8, size.height - 130);
 
@@ -224,18 +252,17 @@ class _StickyNoteDialog extends StatefulWidget {
 
 class _StickyNoteDialogState extends State<_StickyNoteDialog> {
   static const Color _primary    = Color(0xFF2A9D8F);
-  static const Color _noteYellow = Color(0xFFE8F8F6);
+  static const Color _noteBg     = Color(0xFFE8F8F6);
   static const Color _noteBorder = Color(0xFFA7E8E1);
-  static const Color _amber      = Color(0xFF2A9D8F);
 
-  final NoteService _svc   = NoteService();
+  final NoteService _svc = NoteService();
   final TextEditingController _ctrl = TextEditingController();
   final ScrollController _scroll   = ScrollController();
 
   List<NoteModel> _notes = [];
   bool _loading = true, _saving = false;
   String? _editingId;
-  int _tab = 0; // 0=list, 1=tulis
+  int _tab = 0;
 
   @override
   void initState() { super.initState(); _load(); }
@@ -280,16 +307,15 @@ class _StickyNoteDialogState extends State<_StickyNoteDialog> {
         width: double.infinity,
         constraints: const BoxConstraints(maxHeight: 440),
         decoration: BoxDecoration(
-          color: _noteYellow,
+          color: _noteBg,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: _noteBorder, width: 1.5),
           boxShadow: [BoxShadow(
-            color: const Color(0xFF2A9D8F).withOpacity(0.15), blurRadius: 24,
+            color: _primary.withOpacity(0.15), blurRadius: 24,
             offset: const Offset(0, 8),
           )],
         ),
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          // Header
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 14, 12, 0),
             child: Row(children: [
@@ -331,8 +357,8 @@ class _StickyNoteDialogState extends State<_StickyNoteDialog> {
 
   Widget _buildList() {
     if (_loading) return const Center(child: Padding(
-      padding: EdgeInsets.all(24),
-      child: CircularProgressIndicator(color: _primary, strokeWidth: 2)));
+        padding: EdgeInsets.all(24),
+        child: CircularProgressIndicator(color: _primary, strokeWidth: 2)));
     if (_notes.isEmpty) return Padding(
       padding: const EdgeInsets.all(24),
       child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
@@ -371,7 +397,6 @@ class _StickyNoteDialogState extends State<_StickyNoteDialog> {
                     style: TextStyle(fontSize: 11, color: Colors.grey[400])),
               ],
             )),
-            // Tombol aksi lebih besar dan mudah dipencet
             Column(children: [
               GestureDetector(
                 onTap: () => setState(() {
@@ -391,10 +416,7 @@ class _StickyNoteDialogState extends State<_StickyNoteDialog> {
               ),
               const SizedBox(height: 6),
               GestureDetector(
-                onTap: () async {
-                  await _svc.deleteNote(note.id);
-                  _load();
-                },
+                onTap: () async { await _svc.deleteNote(note.id); _load(); },
                 child: Container(
                   width: 36, height: 36,
                   decoration: BoxDecoration(
@@ -421,7 +443,7 @@ class _StickyNoteDialogState extends State<_StickyNoteDialog> {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFF2A9D8F).withOpacity(0.4)),
+            border: Border.all(color: _primary.withOpacity(0.4)),
           ),
           child: TextField(
             controller: _ctrl,
@@ -456,7 +478,7 @@ class _StickyNoteDialogState extends State<_StickyNoteDialog> {
           Expanded(flex: 2, child: ElevatedButton(
             onPressed: _saving ? null : _save,
             style: ElevatedButton.styleFrom(
-              backgroundColor: _amber, foregroundColor: Colors.white,
+              backgroundColor: _primary, foregroundColor: Colors.white,
               elevation: 0,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10)),
@@ -476,7 +498,7 @@ class _StickyNoteDialogState extends State<_StickyNoteDialog> {
   }
 }
 
-// ── Chatbot Dialog — kecil seperti notes ─────────────────────
+// ── Chatbot Dialog ────────────────────────────────────────────
 class _ChatbotDialog extends StatefulWidget {
   const _ChatbotDialog();
   @override
@@ -488,14 +510,15 @@ class _ChatbotDialogState extends State<_ChatbotDialog> {
   static const Color _bgColor    = Color(0xFFF5F7FA);
   static const Color _bubbleUser = Color(0xFF26A69A);
 
-  final TextEditingController _ctrl  = TextEditingController();
-  final ScrollController _scroll    = ScrollController();
+  // Key sama dengan ChatbotScreen agar history tersinkron
+  static const String _historyKey = 'chat_history';
+
+  final TextEditingController _ctrl = TextEditingController();
+  final ScrollController _scroll   = ScrollController();
   final List<Map<String, dynamic>> _msgs = [];
   bool _loading = false;
-  static const String _historyKey = 'fab_chat_history';
 
   String get _baseUrl => AppConstants.baseUrl;
-
 
   @override
   void initState() {
@@ -534,7 +557,11 @@ class _ChatbotDialogState extends State<_ChatbotDialog> {
     if (text.isEmpty || _loading) return;
 
     setState(() {
-      _msgs.add({'text': text, 'isUser': true});
+      _msgs.add({
+        'text': text,
+        'isUser': true,
+        'timestamp': DateTime.now().toIso8601String(),
+      });
       _loading = true;
     });
     _ctrl.clear();
@@ -557,21 +584,26 @@ class _ChatbotDialogState extends State<_ChatbotDialog> {
         setState(() => _msgs.add({
           'text': data['reply'] ?? 'Maaf, tidak ada respons.',
           'isUser': false,
+          'timestamp': DateTime.now().toIso8601String(),
         }));
-        _saveHistory();
       } else {
         setState(() => _msgs.add({
           'text': 'Gagal menghubungi AI. Coba lagi.',
           'isUser': false,
+          'timestamp': DateTime.now().toIso8601String(),
         }));
       }
     } catch (_) {
       setState(() => _msgs.add({
         'text': 'Koneksi bermasalah.',
         'isUser': false,
+        'timestamp': DateTime.now().toIso8601String(),
       }));
     } finally {
       setState(() => _loading = false);
+      _saveHistory();
+      // Notify ChatbotScreen untuk reload
+      SynapseFabController.chatUpdated.value++;
       _scrollToBottom();
     }
   }
@@ -601,7 +633,7 @@ class _ChatbotDialogState extends State<_ChatbotDialog> {
           color: _bgColor,
           borderRadius: BorderRadius.circular(20),
           boxShadow: [BoxShadow(
-            color: const Color(0xFF26A69A).withOpacity(0.15),
+            color: _primary.withOpacity(0.15),
             blurRadius: 20, offset: const Offset(0, 6),
           )],
         ),
@@ -609,16 +641,16 @@ class _ChatbotDialogState extends State<_ChatbotDialog> {
           // Header
           Container(
             padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.05),
-              borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(20)),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+              border: Border(bottom: BorderSide(color: Color(0xFFE5E7EB))),
             ),
             child: Row(children: [
               Container(
                 width: 32, height: 32,
                 decoration: BoxDecoration(
-                  color: _primary.withOpacity(0.2),
+                  color: _primary.withOpacity(0.15),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(Icons.smart_toy_rounded,
@@ -637,10 +669,10 @@ class _ChatbotDialogState extends State<_ChatbotDialog> {
               if (_msgs.isNotEmpty)
                 GestureDetector(
                   onTap: () async {
-                      setState(() => _msgs.clear());
-                      final p = await SharedPreferences.getInstance();
-                      await p.remove(_historyKey);
-                    },
+                    setState(() => _msgs.clear());
+                    final p = await SharedPreferences.getInstance();
+                    await p.remove(_historyKey);
+                  },
                   child: Container(
                     padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
@@ -656,8 +688,8 @@ class _ChatbotDialogState extends State<_ChatbotDialog> {
                 onTap: () => Navigator.pop(context),
                 child: Container(
                   width: 30, height: 30,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF1F5F9),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFF1F5F9),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(Icons.close_rounded,
@@ -674,12 +706,11 @@ class _ChatbotDialogState extends State<_ChatbotDialog> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(Icons.smart_toy_rounded,
-                          color: _primary.withOpacity(0.6), size: 36),
+                          color: _primary.withOpacity(0.5), size: 36),
                       const SizedBox(height: 8),
-                      Text('Tanya apa saja seputar materi!',
+                      const Text('Tanya apa saja seputar materi!',
                           style: TextStyle(
-                              color: const Color(0xFF94A3B8),
-                              fontSize: 12)),
+                              color: Color(0xFF94A3B8), fontSize: 12)),
                     ],
                   ))
                 : ListView.builder(
@@ -694,8 +725,8 @@ class _ChatbotDialogState extends State<_ChatbotDialog> {
                             Container(
                               width: 24, height: 24,
                               decoration: BoxDecoration(
-                                color: _primary.withOpacity(0.2),
-                                shape: BoxShape.circle),
+                                  color: _primary.withOpacity(0.15),
+                                  shape: BoxShape.circle),
                               child: const Icon(Icons.smart_toy_rounded,
                                   color: _primary, size: 13),
                             ),
@@ -704,11 +735,13 @@ class _ChatbotDialogState extends State<_ChatbotDialog> {
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 12, vertical: 8),
                               decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(12)),
-                              child: Text('Sedang mengetik...',
+                                  color: Colors.white,
+                                  border: Border.all(
+                                      color: const Color(0xFFE5E7EB)),
+                                  borderRadius: BorderRadius.circular(12)),
+                              child: const Text('Sedang mengetik...',
                                   style: TextStyle(
-                                      color: const Color(0xFF94A3B8),
+                                      color: Color(0xFF94A3B8),
                                       fontSize: 12,
                                       fontStyle: FontStyle.italic)),
                             ),
@@ -729,48 +762,55 @@ class _ChatbotDialogState extends State<_ChatbotDialog> {
                               Container(
                                 width: 24, height: 24,
                                 decoration: BoxDecoration(
-                                  color: _primary.withOpacity(0.2),
-                                  shape: BoxShape.circle),
+                                    color: _primary.withOpacity(0.15),
+                                    shape: BoxShape.circle),
                                 child: const Icon(Icons.smart_toy_rounded,
                                     color: _primary, size: 13),
                               ),
                               const SizedBox(width: 6),
                             ],
-                            Flexible(child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 8),
-                              decoration: BoxDecoration(
-                                color: isUser ? _bubbleUser : Colors.white,
-                                border: isUser ? null : Border.all(color: const Color(0xFFE5E7EB)),
-                                borderRadius: BorderRadius.only(
-                                  topLeft: const Radius.circular(14),
-                                  topRight: const Radius.circular(14),
-                                  bottomLeft: Radius.circular(isUser ? 14 : 4),
-                                  bottomRight: Radius.circular(isUser ? 4 : 14),
+                            Flexible(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: isUser ? _bubbleUser : Colors.white,
+                                  border: isUser
+                                      ? null
+                                      : Border.all(
+                                          color: const Color(0xFFE5E7EB)),
+                                  borderRadius: BorderRadius.only(
+                                    topLeft: const Radius.circular(14),
+                                    topRight: const Radius.circular(14),
+                                    bottomLeft:
+                                        Radius.circular(isUser ? 14 : 4),
+                                    bottomRight:
+                                        Radius.circular(isUser ? 4 : 14),
+                                  ),
                                 ),
-                              ),
-                              child: isUser
-                                  ? Text(msg['text'] as String,
-                                      style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 13, height: 1.4))
-                                  : MarkdownBody(
-                                      data: msg['text'] as String,
-                                      styleSheet: MarkdownStyleSheet(
-                                        p: const TextStyle(
-                                            color: Color(0xFF1A1A2E),
-                                            fontSize: 13, height: 1.4),
-                                        strong: const TextStyle(
-                                            color: Color(0xFF1A1A2E),
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 13),
-                                        code: TextStyle(
-                                            backgroundColor: Colors.grey[100],
-                                            color: Colors.redAccent,
-                                            fontFamily: 'monospace'),
+                                child: isUser
+                                    ? Text(msg['text'] as String,
+                                        style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 13, height: 1.4))
+                                    : MarkdownBody(
+                                        data: msg['text'] as String,
+                                        styleSheet: MarkdownStyleSheet(
+                                          p: const TextStyle(
+                                              color: Color(0xFF1A1A2E),
+                                              fontSize: 13, height: 1.4),
+                                          strong: const TextStyle(
+                                              color: Color(0xFF1A1A2E),
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 13),
+                                          code: TextStyle(
+                                              backgroundColor: Colors.grey[100],
+                                              color: Colors.redAccent,
+                                              fontFamily: 'monospace'),
+                                        ),
                                       ),
-                                    ),
-                            )),
+                              ),
+                            ),
                             if (isUser) const SizedBox(width: 6),
                           ],
                         ),
@@ -779,31 +819,32 @@ class _ChatbotDialogState extends State<_ChatbotDialog> {
                   ),
           ),
 
-          // Input
+          // Input — teal seperti chatbot screen
           Container(
             padding: const EdgeInsets.fromLTRB(12, 10, 12, 14),
-            decoration: BoxDecoration(
-               color: const Color(0xFF26A69A),
-               borderRadius: const BorderRadius.vertical(
-                   bottom: Radius.circular(20)),
-             ),
+            decoration: const BoxDecoration(
+              color: Color(0xFF26A69A),
+              borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
+            ),
             child: Row(children: [
               Expanded(
                 child: Container(
                   decoration: BoxDecoration(
-                     color: Colors.white.withOpacity(0.25),
+                    color: Colors.white.withOpacity(0.25),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: TextField(
                     controller: _ctrl,
-                     style: const TextStyle(color: Colors.white, fontSize: 13),
+                    style: const TextStyle(color: Colors.white, fontSize: 13),
+                    cursorColor: Colors.white,
                     maxLines: 2, minLines: 1,
                     decoration: InputDecoration(
                       hintText: 'Tanya sesuatu...',
                       hintStyle: TextStyle(
-                          color: Colors.white.withOpacity(0.8),
-                          fontSize: 13),
+                          color: Colors.white.withOpacity(0.7), fontSize: 13),
                       border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
                       contentPadding: const EdgeInsets.symmetric(
                           horizontal: 14, vertical: 8),
                     ),
@@ -816,17 +857,18 @@ class _ChatbotDialogState extends State<_ChatbotDialog> {
                 onTap: _loading ? null : _send,
                 child: Container(
                   width: 38, height: 38,
-                  decoration: BoxDecoration(
-                     color: Colors.white,
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
                     shape: BoxShape.circle,
                   ),
                   child: _loading
-                      ? const Center(child: SizedBox(
-                          width: 14, height: 14,
-                          child: CircularProgressIndicator(
-                               color: const Color(0xFF26A69A), strokeWidth: 2)))
+                      ? const Center(
+                          child: SizedBox(
+                              width: 14, height: 14,
+                              child: CircularProgressIndicator(
+                                  color: Color(0xFF26A69A), strokeWidth: 2)))
                       : const Icon(Icons.send_rounded,
-                           color: const Color(0xFF26A69A), size: 17),
+                          color: Color(0xFF26A69A), size: 17),
                 ),
               ),
             ]),
@@ -842,7 +884,8 @@ class _TabChip extends StatelessWidget {
   final String label;
   final bool active;
   final VoidCallback onTap;
-  const _TabChip({required this.label, required this.active, required this.onTap});
+  const _TabChip(
+      {required this.label, required this.active, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -857,7 +900,9 @@ class _TabChip extends StatelessWidget {
               : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: active ? const Color(0xFF2A9D8F) : Colors.transparent),
+              color: active
+                  ? const Color(0xFF2A9D8F)
+                  : Colors.transparent),
         ),
         child: Text(label, style: const TextStyle(fontSize: 14)),
       ),
