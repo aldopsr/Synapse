@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/constants.dart';
+import '../widgets/synapse_fab.dart';
 
 class PracticeScreen extends StatefulWidget {
   final String materialId;
@@ -184,29 +185,37 @@ class _PracticeScreenState extends State<PracticeScreen> {
         foregroundColor: Colors.white,
         elevation: 0,
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: _primary))
-          : _errorMessage.isNotEmpty
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.error_outline_rounded, size: 60, color: Colors.grey),
-                        const SizedBox(height: 16),
-                        Text(_errorMessage,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(color: Colors.grey)),
-                      ],
-                    ),
-                  ),
-                )
-              : _questions.isEmpty
-                  ? const Center(
-                      child: Text('Belum ada soal untuk materi ini.',
-                          style: TextStyle(color: Colors.grey)))
-                  : _buildQuizArena(),
+      // Wrap body dengan Stack agar SynapseFab bisa di-overlay
+      body: Stack(
+        children: [
+          _isLoading
+              ? const Center(child: CircularProgressIndicator(color: _primary))
+              : _errorMessage.isNotEmpty
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.error_outline_rounded,
+                                size: 60, color: Colors.grey),
+                            const SizedBox(height: 16),
+                            Text(_errorMessage,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(color: Colors.grey)),
+                          ],
+                        ),
+                      ),
+                    )
+                  : _questions.isEmpty
+                      ? const Center(
+                          child: Text('Belum ada soal untuk materi ini.',
+                              style: TextStyle(color: Colors.grey)))
+                      : _buildQuizArena(),
+          // Assistive Touch FAB
+          const SynapseFab(),
+        ],
+      ),
     );
   }
 
@@ -235,11 +244,14 @@ class _PracticeScreenState extends State<PracticeScreen> {
                   Text(
                     'Soal ${_currentIndex + 1} dari ${_questions.length}',
                     style: const TextStyle(
-                        color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w500),
+                        color: Colors.white70,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500),
                   ),
                   Text(
                     '${(_currentIndex + 1)}/${_questions.length}',
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.bold),
                   ),
                 ],
               ),
@@ -249,7 +261,8 @@ class _PracticeScreenState extends State<PracticeScreen> {
                 child: LinearProgressIndicator(
                   value: progress,
                   backgroundColor: Colors.white.withOpacity(0.3),
-                  valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                  valueColor:
+                      const AlwaysStoppedAnimation<Color>(Colors.white),
                   minHeight: 6,
                 ),
               ),
@@ -281,7 +294,9 @@ class _PracticeScreenState extends State<PracticeScreen> {
                   child: Text(
                     currentQuestion['question_text'] ?? 'Soal tidak ditemukan',
                     style: const TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.w600, height: 1.5),
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        height: 1.5),
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -290,7 +305,8 @@ class _PracticeScreenState extends State<PracticeScreen> {
                 ...options.map((option) {
                   final isSelected = _selectedAnswer == option['key'];
                   return GestureDetector(
-                    onTap: () => setState(() => _selectedAnswer = option['key']),
+                    onTap: () =>
+                        setState(() => _selectedAnswer = option['key']),
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
                       margin: const EdgeInsets.only(bottom: 12),
@@ -298,7 +314,8 @@ class _PracticeScreenState extends State<PracticeScreen> {
                       decoration: BoxDecoration(
                         color: isSelected ? _primaryLight : Colors.white,
                         border: Border.all(
-                          color: isSelected ? _primary : Colors.grey.shade200,
+                          color:
+                              isSelected ? _primary : Colors.grey.shade200,
                           width: isSelected ? 2 : 1,
                         ),
                         borderRadius: BorderRadius.circular(14),
@@ -316,7 +333,9 @@ class _PracticeScreenState extends State<PracticeScreen> {
                             duration: const Duration(milliseconds: 200),
                             width: 36, height: 36,
                             decoration: BoxDecoration(
-                              color: isSelected ? _primary : Colors.grey.shade100,
+                              color: isSelected
+                                  ? _primary
+                                  : Colors.grey.shade100,
                               shape: BoxShape.circle,
                             ),
                             child: Center(
@@ -324,7 +343,9 @@ class _PracticeScreenState extends State<PracticeScreen> {
                                 option['key']!,
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
-                                  color: isSelected ? Colors.white : Colors.grey[600],
+                                  color: isSelected
+                                      ? Colors.white
+                                      : Colors.grey[600],
                                 ),
                               ),
                             ),
@@ -335,13 +356,17 @@ class _PracticeScreenState extends State<PracticeScreen> {
                               option['text']!,
                               style: TextStyle(
                                 fontSize: 15,
-                                color: isSelected ? _primary : Colors.black87,
-                                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                                color:
+                                    isSelected ? _primary : Colors.black87,
+                                fontWeight: isSelected
+                                    ? FontWeight.w600
+                                    : FontWeight.normal,
                               ),
                             ),
                           ),
                           if (isSelected)
-                            const Icon(Icons.check_circle_rounded, color: _primary, size: 20),
+                            const Icon(Icons.check_circle_rounded,
+                                color: _primary, size: 20),
                         ],
                       ),
                     ),
@@ -366,13 +391,15 @@ class _PracticeScreenState extends State<PracticeScreen> {
                 backgroundColor: _primary,
                 foregroundColor: Colors.white,
                 elevation: 0,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16)),
               ),
               child: Text(
                 _currentIndex == _questions.length - 1
                     ? 'Selesai & Lihat Nilai'
                     : 'Soal Selanjutnya',
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                    fontSize: 16, fontWeight: FontWeight.bold),
               ),
             ),
           ),

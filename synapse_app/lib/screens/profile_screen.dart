@@ -7,6 +7,7 @@ import 'login_screen.dart';
 import 'change_password_screen.dart';
 import '../utils/constants.dart';
 import 'quiz_statistic_screen.dart';
+import 'notes_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -309,6 +310,59 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                         ],
                         const SizedBox(height: 32),
+
+                        // ── Catatan Saya → NotesScreen ───────────────────
+                        GestureDetector(
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => const NotesScreen()),
+                          ),
+                          child: Container(
+                            margin: const EdgeInsets.only(bottom: 16),
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: const Color(0xFFE2E8F0)),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 44, height: 44,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFFFF9E6),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: const Icon(Icons.sticky_note_2_rounded,
+                                      color: Color(0xFFFF9800), size: 22),
+                                ),
+                                const SizedBox(width: 14),
+                                const Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text('Catatan Saya',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 14,
+                                            color: Color(0xFF0F172A),
+                                          )),
+                                      SizedBox(height: 2),
+                                      Text('Lihat & kelola semua catatanmu',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Color(0xFF94A3B8),
+                                          )),
+                                    ],
+                                  ),
+                                ),
+                                const Icon(Icons.arrow_forward_ios_rounded,
+                                    size: 14, color: Color(0xFF94A3B8)),
+                              ],
+                            ),
+                          ),
+                        ),
 
                         // ── Riwayat Kuis → QuizStatisticScreen ───────────
                         GestureDetector(

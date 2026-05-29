@@ -24,6 +24,7 @@ use Illuminate\Support\Facades\File;
 use App\Http\Controllers\Api\FcmController;
 use App\Http\Controllers\Api\DuelController;
 use App\Http\Controllers\Api\GeminiController;
+use App\Http\Controllers\Api\NoteController;
 
 
 // =================================================================
@@ -80,6 +81,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/chat/quota', [AiChatController::class, 'chatQuota']);
     Route::post('/fcm-token',   [FcmController::class, 'store']);
     Route::delete('/fcm-token', [FcmController::class, 'destroy']);
+
+    Route::get('/notes',        [NoteController::class, 'index']);
+    Route::post('/notes',       [NoteController::class, 'store']);
+    Route::put('/notes/{id}',   [NoteController::class, 'update']);
+    Route::delete('/notes/{id}',[NoteController::class, 'destroy']);
 });
 
 

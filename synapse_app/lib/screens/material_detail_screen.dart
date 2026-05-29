@@ -7,6 +7,7 @@ import '../utils/constants.dart';
 import '../widgets/inline_model_viewer.dart';
 import '../widgets/audio_capsule.dart';
 import 'practice_screen.dart';
+import '../widgets/synapse_fab.dart';
 
 class MaterialDetailScreen extends StatefulWidget {
   final Map<String, dynamic> material;
@@ -188,6 +189,8 @@ class _MaterialDetailScreenState extends State<MaterialDetailScreen>
           ),
           // 🌟 Top progress bar
           _buildTopProgressBar(),
+          // Assistive Touch FAB
+          const SynapseFab(),
         ],
       ),
       floatingActionButton: _buildSpeedDialFab(),

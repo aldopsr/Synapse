@@ -220,11 +220,11 @@
         { href:'/mata-kuliah',     cls:'qa-teal',   icon:'📚', label:'Mata Kuliah',  sub:'Kelola & assign dosen' },
         { href:'/kelolaAkunDosen', cls:'qa-blue',   icon:'👤', label:'Kelola Dosen', sub:'Tambah / hapus akun' },
         { href:'/kuis',            cls:'qa-purple', icon:'📝', label:'Kelola Kuis',  sub:'Buat & atur soal' },
-        { href:'/kelola-ar',       cls:'qa-amber',  icon:'🌐', label:'Aset AR',      sub:'Upload model 3D' },
+        { href:'/kelola-ar',       cls:'qa-amber',  icon:'🌐', label:'Aset 3D',      sub:'Upload model 3D' },
     ] : [
         { href:'/mata-kuliah', cls:'qa-teal',   icon:'📚', label:'Materi Saya',  sub:'Kelola e-modul' },
         { href:'/kuis',        cls:'qa-purple', icon:'📝', label:'Kelola Kuis',  sub:'Buat & atur soal' },
-        { href:'/kelola-ar',   cls:'qa-amber',  icon:'🌐', label:'Aset AR',      sub:'Upload model 3D' },
+        { href:'/kelola-ar',   cls:'qa-amber',  icon:'🌐', label:'Aset 3D',      sub:'Upload model 3D' },
     ];
     $('quickActions').innerHTML = actions.map(a => `
         <a href="${a.href}" class="qa-btn ${a.cls}">

@@ -1404,6 +1404,7 @@ textarea.fc { resize: vertical; min-height: 72px; }
             btn.textContent = '✓ Tersimpan';
             aiQuestions[i]._saved = true;
             toast('Soal disimpan!');
+            await fetchSoal();
         } else {
             btn.disabled    = false;
             btn.textContent = '✓ Simpan';
@@ -1436,7 +1437,7 @@ textarea.fc { resize: vertical; min-height: 72px; }
         allBtn.disabled    = false;
         allBtn.textContent = '✓ Simpan Semua';
         toast(`${saved} soal berhasil disimpan!`);
-        if (saved > 0) await fetchQuestions();
+        if (saved > 0) await fetchSoal();
     };
 
     async function simpanSatuSoalAI(q) {

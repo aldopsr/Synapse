@@ -5,6 +5,7 @@ import '../services/duel_service.dart';
 import 'duel_battle_screen.dart';
 import 'duel_challenge_screen.dart';
 import 'duel_waiting_screen.dart';
+import '../widgets/synapse_fab.dart';
 
 class DuelScreen extends StatefulWidget {
   const DuelScreen({super.key});

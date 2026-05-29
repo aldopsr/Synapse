@@ -587,15 +587,10 @@
                 toast(data.message || 'Gagal generate deskripsi.', 'err'); return;
             }
 
-            const d = data.descriptions;
-            aiDescriptions = [
-                { label: 'Singkat (1 kalimat)',  text: d.short  || '' },
-                { label: 'Menengah (2-3 kalimat)', text: d.medium || '' },
-                { label: 'Panjang (4-5 kalimat)', text: d.long   || '' },
-            ].filter(x => x.text);
-
-            renderDescOptions();
-            $('aiDescPanel').classList.add('open');
+            // Langsung isi field deskripsi
+            $('description').value = data.description || '';
+            $('description').dispatchEvent(new Event('input')); // trigger checklist update
+            toast('Deskripsi berhasil di-generate! Kamu bisa edit manual.');
 
         } catch (e) {
             toast('Koneksi bermasalah.', 'err');
@@ -633,9 +628,13 @@
         toast('Deskripsi diterapkan! Kamu bisa edit manual.');
     };
 
-    // Helper esc kalau belum ada
-    if (typeof esc === 'undefined') {
-        window.esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    // Helper escape HTML
+    function esc(s) {
+        return String(s||'')
+            .replace(/&/g,'&amp;')
+            .replace(/</g,'&lt;')
+            .replace(/>/g,'&gt;')
+            .replace(/"/g,'&quot;');
     }
 
     // ── Init ─────────────────────────────────────────────────

@@ -16,7 +16,7 @@ class GeminiController extends Controller
 
     public function __construct()
     {
-        $this->apiKey = config('services.gemini.key_ai', env('GEMINI_API_KEY_AI', ''));
+        $this->apiKey = config('services.gemini.key', env('GEMINI_API_KEY', ''));
     }
 
     // ============================================================
@@ -266,24 +266,18 @@ PROMPT;
             : "Belum ada isi materi.";
 
         $prompt = <<<PROMPT
-Kamu adalah asisten akademik untuk platform e-learning perguruan tinggi.
+Kamu adalah asisten akademik platform e-learning perguruan tinggi Indonesia.
+Tugas: buat satu deskripsi singkat untuk materi kuliah berikut.
 
-Buatkan deskripsi singkat untuk materi kuliah berikut dalam bahasa Indonesia yang formal, informatif, dan menarik.
-
-Judul materi: {$title}
+Judul: {$title}
 {$contentPart}
 
-Buat 3 versi deskripsi dengan panjang berbeda:
-1. Sangat singkat (1 kalimat, maks 100 karakter)
-2. Singkat (2-3 kalimat, maks 250 karakter)
-3. Menengah (4-5 kalimat, maks 500 karakter)
+Aturan:
+- 2-3 kalimat (maks 250 karakter)
+- Bahasa Indonesia formal dan informatif
+- Sebutkan topik utama yang dipelajari
 
-Format respons (JSON only, tanpa markdown):
-{
-  "short": "Deskripsi 1 kalimat",
-  "medium": "Deskripsi 2-3 kalimat",
-  "long": "Deskripsi 4-5 kalimat"
-}
+Balas HANYA dengan teks deskripsinya saja, tanpa JSON, tanpa tanda kutip, tanpa penjelasan tambahan.
 PROMPT;
 
         try {
@@ -294,8 +288,8 @@ PROMPT;
                         'parts' => [['text' => $prompt]]
                     ]],
                     'generationConfig' => [
-                        'temperature'     => 0.8,
-                        'maxOutputTokens' => 512,
+                        'temperature'     => 0.7,
+                        'maxOutputTokens' => 1024,
                     ],
                 ]
             );
@@ -307,31 +301,18 @@ PROMPT;
             }
 
             $text = $response->json('candidates.0.content.parts.0.text', '');
-            $text = preg_replace('/```json\s*/i', '', $text);
-            $text = preg_replace('/```\s*/i', '', $text);
-            $text = trim($text);
 
-            $result = json_decode($text, true);
+            // Bersihkan markdown
+            $text = preg_replace('/```[a-zA-Z]*/', '', $text);
+            $text = trim($text, " \n\r\t\"'");
 
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                // Fallback: return raw text sebagai short description
-                return response()->json([
-                    'message' => 'Berhasil',
-                    'descriptions' => [
-                        'short'  => mb_substr($text, 0, 100),
-                        'medium' => mb_substr($text, 0, 250),
-                        'long'   => mb_substr($text, 0, 500),
-                    ],
-                ]);
+            if (empty($text)) {
+                return response()->json(['message' => 'AI tidak menghasilkan deskripsi.'], 422);
             }
 
             return response()->json([
-                'message'      => 'Deskripsi berhasil di-generate!',
-                'descriptions' => [
-                    'short'  => $result['short']  ?? '',
-                    'medium' => $result['medium'] ?? '',
-                    'long'   => $result['long']   ?? '',
-                ],
+                'message'     => 'Deskripsi berhasil di-generate!',
+                'description' => $text,
             ]);
 
         } catch (\Exception $e) {

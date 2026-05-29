@@ -4,20 +4,19 @@
 // FIX #2 — NavItem: tambah minimum touch target 44×44px via ConstrainedBox
 // FIX #3 — expose static navBarHeight agar pages bisa hitung bottom padding sendiri
 // FIX #4 — CenterButton: ukuran tetap 56px, sudah aman (tidak perlu diubah)
-// Logika navigasi, akses quiz/chatbot, dialog — TIDAK DIUBAH.
+// FAB — SynapseFab assistive touch ditambahkan di Stack body
 
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import 'login_screen.dart';
 import 'materials_screen.dart';
-// import 'quiz_list_screen.dart';
 import 'chatbot_screen.dart';
 import 'profile_screen.dart';
-// import 'ar_gallery_screen.dart';
 import 'fyp_screen.dart';
 import 'duel_screen.dart';
 import 'duel_waiting_screen.dart';
 import '../services/fcm_service.dart';
+import '../widgets/synapse_fab.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -70,6 +69,7 @@ class _HomeScreenState extends State<HomeScreen> {
         }
         _isLoading = false;
       });
+      SynapseFabController.isGuest = _isGuest;
     }
   }
 
@@ -132,19 +132,16 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!mounted || duelId.isEmpty) return;
 
       if (type == 'duel_challenge') {
-        // Saya ditantang → buka WaitingScreen sebagai opponent
         Navigator.push(context, MaterialPageRoute(
           builder: (_) => DuelWaitingScreen(
             duelId: duelId, role: 'opponent'),
         ));
       } else if (type == 'duel_accepted') {
-        // Tantangan saya diterima → buka WaitingScreen sebagai challenger
         Navigator.push(context, MaterialPageRoute(
           builder: (_) => DuelWaitingScreen(
             duelId: duelId, role: 'challenger'),
         ));
       } else if (type == 'duel_completed') {
-        // Duel selesai → buka DuelScreen tab riwayat
         Navigator.push(context, MaterialPageRoute(
           builder: (_) => const DuelScreen(),
         ));
@@ -166,11 +163,20 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
+    // Sembunyikan FAB di tab Chatbot (index 2)
+    final bool showFab = _selectedIndex != 2;
+
     return Scaffold(
       extendBody: true,
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: _pages,
+      body: Stack(
+        children: [
+          IndexedStack(
+            index: _selectedIndex,
+            children: _pages,
+          ),
+          // Assistive Touch FAB — muncul di semua tab kecuali Chatbot
+          if (showFab) SynapseFab(),
+        ],
       ),
       bottomNavigationBar: SafeArea(
         child: Container(
@@ -188,7 +194,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           // FIX #1: IntrinsicHeight — tinggi menyesuaikan konten,
           // tidak akan terpotong saat font aksesibilitas besar.
-          // Padding vertikal 8px memberi ruang napas minimal.
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
             child: IntrinsicHeight(
@@ -224,7 +229,6 @@ class _HomeScreenState extends State<HomeScreen> {
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
         // FIX #2: ConstrainedBox memastikan touch target min 44×44px
-        // (Apple HIG & Material guideline)
         constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
         padding: EdgeInsets.symmetric(
           horizontal: isSelected ? 12 : 8,
@@ -280,11 +284,17 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildCenterButton() {
-    return GestureDetector(
-      onTap: () => Navigator.push(
+  return GestureDetector(
+    onTap: () {
+      if (_isGuest) {
+        _showAccessDeniedDialog();
+        return;
+      }
+      Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => const DuelScreen()),
-      ),
+      );
+    },
       child: Container(
         width: 56,
         height: 56,
@@ -303,7 +313,6 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ],
         ),
-        // Icon pedang/duel
         child: const Icon(Icons.sports_martial_arts_rounded,
             color: Colors.white, size: 26),
       ),
