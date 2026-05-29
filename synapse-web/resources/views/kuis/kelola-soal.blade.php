@@ -347,6 +347,138 @@ textarea.fc { resize: vertical; min-height: 72px; }
 .toast.show { transform: translateY(0); opacity: 1; }
 .toast.ok  { background: #279685; }
 .toast.err { background: #ef4444; }
+
+/* ── AI Generate Panel ─────────────────────────────── */
+.ai-panel {
+    background: linear-gradient(135deg, #e6f4f2 0%, #f0fdfb 100%);
+    border: 1.5px solid #a7f3d0;
+    border-radius: 16px;
+    padding: 20px 24px;
+    margin-bottom: 24px;
+}
+.ai-panel-header {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 16px;
+}
+.ai-panel-header h3 {
+    font-size: 15px; font-weight: 700; color: #065f46; margin: 0;
+}
+.ai-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: #279685; color: #fff; padding: 2px 10px;
+    border-radius: 99px; font-size: 11px; font-weight: 700;
+}
+.ai-mode-tabs {
+    display: flex; gap: 0; margin-bottom: 16px;
+    border: 1px solid #a7f3d0; border-radius: 10px; overflow: hidden;
+}
+.ai-mode-tab {
+    flex: 1; padding: 8px 12px; text-align: center;
+    font-size: 12px; font-weight: 600; cursor: pointer; border: none;
+    background: transparent; color: #0f6e56;
+    transition: background .15s;
+    font-family: inherit;
+}
+.ai-mode-tab.active { background: #279685; color: #fff; }
+.ai-input-row {
+    display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px;
+}
+.ai-input-row input, .ai-input-row select {
+    flex: 1; min-width: 160px; padding: 8px 12px;
+    border: 1px solid #a7f3d0; border-radius: 8px;
+    font-size: 13px; font-family: inherit; background: #fff;
+    outline: none;
+}
+.ai-input-row input:focus, .ai-input-row select:focus {
+    border-color: #279685;
+}
+.ai-counts-row {
+    display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px;
+}
+.ai-count-box {
+    flex: 1; min-width: 120px; background: #fff;
+    border: 1px solid #a7f3d0; border-radius: 10px; padding: 10px 12px;
+}
+.ai-count-box label {
+    display: block; font-size: 10px; font-weight: 700;
+    color: #0f6e56; margin-bottom: 6px; text-transform: uppercase;
+}
+.ai-count-box input {
+    width: 100%; padding: 6px 8px; border: 1px solid #e5e7eb;
+    border-radius: 6px; font-size: 16px; font-weight: 700;
+    text-align: center; font-family: inherit; box-sizing: border-box;
+    outline: none;
+}
+.btn-generate {
+    width: 100%; padding: 11px; border: none; border-radius: 10px;
+    background: linear-gradient(135deg, #279685, #1a6b5e);
+    color: #fff; font-size: 14px; font-weight: 700;
+    cursor: pointer; transition: opacity .15s;
+    font-family: inherit;
+}
+.btn-generate:hover { opacity: .9; }
+.btn-generate:disabled { opacity: .6; cursor: not-allowed; }
+
+/* Preview soal yang di-generate */
+.ai-preview { margin-top: 16px; }
+.ai-preview-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 10px;
+}
+.ai-preview-header h4 { font-size: 13px; font-weight: 700; color: #065f46; margin: 0; }
+.btn-accept-all {
+    padding: 7px 16px; border: none; border-radius: 8px;
+    background: #279685; color: #fff; font-size: 12px;
+    font-weight: 700; cursor: pointer; font-family: inherit;
+}
+.ai-q-card {
+    background: #fff; border: 1px solid #d1fae5;
+    border-radius: 10px; padding: 14px 16px; margin-bottom: 10px;
+    position: relative;
+}
+.ai-q-card.accepted { border-color: #279685; background: #f0fdfb; }
+.ai-q-type-badge {
+    display: inline-block; padding: 1px 8px; border-radius: 4px;
+    font-size: 10px; font-weight: 700; margin-bottom: 8px;
+}
+.badge-mc  { background: #dbeafe; color: #1e40af; }
+.badge-tf  { background: #fef3c7; color: #92400e; }
+.badge-ma  { background: #ede9fe; color: #4c1d95; }
+.ai-q-text { font-size: 13px; font-weight: 600; color: #1a1a1a; margin-bottom: 8px; }
+.ai-q-opts { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-bottom: 8px; }
+.ai-q-opt  { font-size: 12px; color: #555; padding: 3px 6px; border-radius: 4px; }
+.ai-q-opt.correct { background: #d1fae5; color: #065f46; font-weight: 700; }
+.ai-q-explanation {
+    font-size: 11px; color: #6b7280; font-style: italic;
+    padding: 6px 8px; background: #f9fafb; border-radius: 6px;
+    margin-bottom: 8px;
+}
+.ai-q-actions { display: flex; gap: 8px; }
+.btn-edit-q {
+    flex: 1; padding: 5px; border: 1px solid #e5e7eb;
+    border-radius: 6px; background: #fff; font-size: 11px;
+    font-weight: 600; cursor: pointer; font-family: inherit;
+}
+.btn-accept-q {
+    flex: 1; padding: 5px; border: none; border-radius: 6px;
+    background: #279685; color: #fff; font-size: 11px;
+    font-weight: 700; cursor: pointer; font-family: inherit;
+}
+.btn-reject-q {
+    padding: 5px 10px; border: 1px solid #fee2e2; border-radius: 6px;
+    background: #fff; color: #ef4444; font-size: 11px;
+    font-weight: 600; cursor: pointer; font-family: inherit;
+}
+.ai-edit-area {
+    margin-bottom: 8px;
+    display: none;
+}
+.ai-edit-area.open { display: block; }
+.ai-edit-area textarea, .ai-edit-area input {
+    width: 100%; padding: 6px 8px; border: 1px solid #e5e7eb;
+    border-radius: 6px; font-size: 12px; font-family: inherit;
+    box-sizing: border-box; margin-bottom: 4px; outline: none;
+}
+.ai-edit-area textarea { resize: vertical; min-height: 60px; }
 </style>
 
 {{-- Back link --}}
@@ -366,6 +498,79 @@ textarea.fc { resize: vertical; min-height: 72px; }
     <div class="qb-right">
         <div class="qb-count" id="soalCount">—</div>
         <div class="qb-count-label">soal</div>
+    </div>
+</div>
+
+{{-- ── AI Generate Panel ── --}}
+<div class="ai-panel" id="aiPanel">
+    <div class="ai-panel-header">
+        <span style="font-size:20px;">✨</span>
+        <h3>Generate Soal dengan AI</h3>
+        <span class="ai-badge">⚡ Gemini AI</span>
+        <button onclick="toggleAiPanel()"
+            style="margin-left:auto;background:none;border:none;cursor:pointer;font-size:18px;color:#0f6e56;">
+            ▲
+        </button>
+    </div>
+
+    <div id="aiPanelBody">
+        {{-- Mode tabs --}}
+        <div class="ai-mode-tabs">
+            <button class="ai-mode-tab active" onclick="setAiMode('topic')" id="tab-topic">✏️ Dari Topik</button>
+            <button class="ai-mode-tab" onclick="setAiMode('material')" id="tab-material">📄 Dari Materi</button>
+            <button class="ai-mode-tab" onclick="setAiMode('quiz')" id="tab-quiz">📝 Dari Deskripsi Kuis</button>
+        </div>
+
+        {{-- Input konteks --}}
+        <div class="ai-input-row" id="aiInputTopic">
+            <input type="text" id="aiTopic"
+                placeholder="Contoh: Jaringan komputer - protokol TCP/IP">
+        </div>
+        <div class="ai-input-row" id="aiInputMaterial" style="display:none;">
+            <select id="aiMaterialId">
+                <option value="">— Pilih materi —</option>
+            </select>
+        </div>
+
+        {{-- Jumlah soal per tipe --}}
+        <div class="ai-counts-row">
+            <div class="ai-count-box">
+                <label>🔵 Pilihan Ganda</label>
+                <input type="number" id="cntMC" value="3" min="0" max="15">
+            </div>
+            <div class="ai-count-box">
+                <label>🟡 Benar/Salah</label>
+                <input type="number" id="cntTF" value="2" min="0" max="15">
+            </div>
+            <div class="ai-count-box">
+                <label>🟣 Multi Jawaban</label>
+                <input type="number" id="cntMA" value="1" min="0" max="15">
+            </div>
+            <div class="ai-count-box">
+                <label>📊 Kesulitan</label>
+                <select id="aiDifficulty"
+                    style="width:100%;padding:6px 8px;border:1px solid #e5e7eb;border-radius:6px;font-size:13px;font-family:inherit;">
+                    <option value="mudah">🟢 Mudah</option>
+                    <option value="sedang" selected>🟡 Sedang</option>
+                    <option value="sulit">🔴 Sulit</option>
+                </select>
+            </div>
+        </div>
+
+        <button class="btn-generate" id="btnGenerate" onclick="generateSoal()">
+            ✨ Generate Soal Sekarang
+        </button>
+
+        {{-- Preview hasil --}}
+        <div class="ai-preview" id="aiPreview" style="display:none;">
+            <div class="ai-preview-header">
+                <h4 id="aiPreviewTitle">— soal berhasil di-generate</h4>
+                <button class="btn-accept-all" onclick="acceptAllSoal()">
+                    ✓ Simpan Semua
+                </button>
+            </div>
+            <div id="aiPreviewList"></div>
+        </div>
     </div>
 </div>
 
@@ -990,6 +1195,278 @@ textarea.fc { resize: vertical; min-height: 72px; }
         /* Reset image */
         removeImg();
         /* Tetap di tipe dan difficulty yang sama */
+    }
+
+    /* ═══════════════════════════════════════════════════════
+    AI GENERATE SOAL
+    ═══════════════════════════════════════════════════════ */
+    let aiMode        = 'topic';
+    let aiQuestions   = [];   // soal hasil generate
+    let acceptedCount = 0;
+
+    // Toggle panel
+    window.toggleAiPanel = function() {
+        const body = $('aiPanelBody');
+        const btn  = document.querySelector('#aiPanel button[onclick="toggleAiPanel()"]');
+        const isOpen = body.style.display !== 'none';
+        body.style.display = isOpen ? 'none' : '';
+        btn.textContent = isOpen ? '▼' : '▲';
+    };
+
+    // Set mode konteks
+    window.setAiMode = function(mode) {
+        aiMode = mode;
+        document.querySelectorAll('.ai-mode-tab').forEach(t => t.classList.remove('active'));
+        $('tab-' + mode).classList.add('active');
+        $('aiInputTopic').style.display    = mode === 'topic'    ? '' : 'none';
+        $('aiInputMaterial').style.display = mode === 'material' ? '' : 'none';
+        // mode 'quiz' tidak perlu input tambahan — pakai QUIZ id yang sudah ada di halaman
+    };
+
+    // Load daftar materi untuk dropdown
+    async function loadMaterials() {
+        try {
+            // Ambil dari course yang sama dengan quiz ini
+            const quizRes  = await fetch(`${API}/admin/quizzes/${QUIZ}`, {
+                headers: { Authorization: 'Bearer ' + token, Accept: 'application/json' }
+            });
+            const quizData = await quizRes.json();
+            const courseId = quizData.data?.course_id ?? quizData.data?.course?.id;
+            if (!courseId) return;
+
+            const res  = await fetch(`${API}/courses/${courseId}/materials`, {
+                headers: { Authorization: 'Bearer ' + token, Accept: 'application/json' }
+            });
+            const data = await res.json();
+            const list = data.data || data;
+            const sel  = $('aiMaterialId');
+            list.forEach(m => {
+                const opt = document.createElement('option');
+                opt.value = m._id || m.id;
+                opt.textContent = m.title;
+                sel.appendChild(opt);
+            });
+        } catch (e) { console.warn('loadMaterials:', e); }
+    }
+    loadMaterials();
+
+    // Generate soal
+    window.generateSoal = async function() {
+        const mcCount = parseInt($('cntMC').value) || 0;
+        const tfCount = parseInt($('cntTF').value) || 0;
+        const maCount = parseInt($('cntMA').value) || 0;
+        const total   = mcCount + tfCount + maCount;
+
+        if (total === 0) { toast('Jumlah soal minimal 1.', 'err'); return; }
+        if (total > 20)  { toast('Maksimal 20 soal per generate.', 'err'); return; }
+
+        const body = {
+            counts: {
+                multiple_choice: mcCount,
+                true_false:      tfCount,
+                multiple_answer: maCount,
+            },
+            difficulty: $('aiDifficulty').value,
+        };
+
+        if (aiMode === 'topic') {
+            const topic = $('aiTopic').value.trim();
+            if (!topic) { toast('Masukkan topik terlebih dahulu.', 'err'); return; }
+            body.topic = topic;
+        } else if (aiMode === 'material') {
+            const matId = $('aiMaterialId').value;
+            if (!matId) { toast('Pilih materi terlebih dahulu.', 'err'); return; }
+            body.material_id = matId;
+        } else {
+            body.quiz_id = QUIZ;
+        }
+
+        const btn = $('btnGenerate');
+        btn.disabled = true;
+        btn.textContent = '⏳ Generating...';
+
+        try {
+            const res  = await fetch(`${API}/ai/generate-questions`, {
+                method: 'POST',
+                headers: {
+                    Authorization: 'Bearer ' + token,
+                    Accept:        'application/json',
+                    'Content-Type':'application/json',
+                },
+                body: JSON.stringify(body),
+            });
+            const data = await res.json();
+
+            if (!res.ok) {
+                toast(data.message || 'Gagal generate soal.', 'err'); return;
+            }
+
+            aiQuestions = data.questions || [];
+            renderAiPreview();
+            toast(`${aiQuestions.length} soal berhasil di-generate! Review sebelum disimpan.`);
+
+        } catch (e) {
+            toast('Koneksi bermasalah.', 'err');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = '✨ Generate Soal Sekarang';
+        }
+    };
+
+    function typeLabel(t) {
+        return { multiple_choice:'Pilihan Ganda', true_false:'Benar/Salah', multiple_answer:'Multi Jawaban' }[t] || t;
+    }
+    function typeBadgeClass(t) {
+        return { multiple_choice:'badge-mc', true_false:'badge-tf', multiple_answer:'badge-ma' }[t] || 'badge-mc';
+    }
+
+    function renderAiPreview() {
+        const list = $('aiPreviewList');
+        $('aiPreviewTitle').textContent = `${aiQuestions.length} soal berhasil di-generate`;
+        $('aiPreview').style.display = '';
+
+        list.innerHTML = aiQuestions.map((q, i) => {
+            const opts = ['a','b','c','d'].map(x => {
+                const val = q['option_' + x];
+                if (!val) return '';
+                const isCorrect = q.question_type === 'multiple_answer'
+                    ? (q.correct_answers || []).includes(x.toUpperCase())
+                    : q.correct_answer === x.toUpperCase();
+                return `<div class="ai-q-opt${isCorrect ? ' correct' : ''}">
+                    <strong>${x.toUpperCase()}.</strong> ${esc(val)}
+                </div>`;
+            }).join('');
+
+            return `<div class="ai-q-card" id="aiq-${i}">
+                <span class="ai-q-type-badge ${typeBadgeClass(q.question_type)}">${typeLabel(q.question_type)}</span>
+                <div class="ai-q-text">${i+1}. ${esc(q.question)}</div>
+                <div class="ai-q-opts">${opts}</div>
+                ${q.explanation ? `<div class="ai-q-explanation">💡 ${esc(q.explanation)}</div>` : ''}
+
+                {{-- Edit area --}}
+                <div class="ai-edit-area" id="editArea-${i}">
+                    <textarea id="editQ-${i}" rows="2">${esc(q.question)}</textarea>
+                    <input id="editOptA-${i}" placeholder="Opsi A" value="${esc(q.option_a)}">
+                    <input id="editOptB-${i}" placeholder="Opsi B" value="${esc(q.option_b)}">
+                    <input id="editOptC-${i}" placeholder="Opsi C" value="${esc(q.option_c || '')}">
+                    <input id="editOptD-${i}" placeholder="Opsi D" value="${esc(q.option_d || '')}">
+                    <input id="editExpl-${i}" placeholder="Penjelasan" value="${esc(q.explanation || '')}">
+                    <button onclick="applyEdit(${i})"
+                        style="padding:5px 12px;background:#279685;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;">
+                        ✓ Terapkan Edit
+                    </button>
+                </div>
+
+                <div class="ai-q-actions">
+                    <button class="btn-edit-q" onclick="toggleEditArea(${i})">✏️ Edit</button>
+                    <button class="btn-accept-q" onclick="acceptSatu(${i})" id="acceptBtn-${i}">✓ Simpan</button>
+                    <button class="btn-reject-q" onclick="rejectSatu(${i})">✕</button>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    window.toggleEditArea = function(i) {
+        const area = $(`editArea-${i}`);
+        area.classList.toggle('open');
+    };
+
+    window.applyEdit = function(i) {
+        aiQuestions[i].question  = $(`editQ-${i}`).value.trim()    || aiQuestions[i].question;
+        aiQuestions[i].option_a  = $(`editOptA-${i}`).value.trim() || aiQuestions[i].option_a;
+        aiQuestions[i].option_b  = $(`editOptB-${i}`).value.trim() || aiQuestions[i].option_b;
+        aiQuestions[i].option_c  = $(`editOptC-${i}`).value.trim();
+        aiQuestions[i].option_d  = $(`editOptD-${i}`).value.trim();
+        aiQuestions[i].explanation = $(`editExpl-${i}`).value.trim();
+        $(`editArea-${i}`).classList.remove('open');
+        renderAiPreview();
+        toast('Edit diterapkan.');
+    };
+
+    window.rejectSatu = function(i) {
+        const card = $(`aiq-${i}`);
+        if (card) { card.style.opacity = '0.3'; card.style.pointerEvents = 'none'; }
+        aiQuestions[i]._rejected = true;
+    };
+
+    window.acceptSatu = async function(i) {
+        const q   = aiQuestions[i];
+        const btn = $(`acceptBtn-${i}`);
+        if (!q || q._rejected) return;
+
+        btn.disabled    = true;
+        btn.textContent = '⏳';
+
+        const ok = await simpanSatuSoalAI(q);
+        if (ok) {
+            const card = $(`aiq-${i}`);
+            if (card) card.classList.add('accepted');
+            btn.textContent = '✓ Tersimpan';
+            aiQuestions[i]._saved = true;
+            toast('Soal disimpan!');
+        } else {
+            btn.disabled    = false;
+            btn.textContent = '✓ Simpan';
+        }
+    };
+
+    window.acceptAllSoal = async function() {
+        const toSave = aiQuestions.filter(q => !q._saved && !q._rejected);
+        if (toSave.length === 0) { toast('Semua soal sudah disimpan atau ditolak.'); return; }
+
+        const allBtn = document.querySelector('.btn-accept-all');
+        allBtn.disabled    = true;
+        allBtn.textContent = `⏳ Menyimpan ${toSave.length} soal...`;
+
+        let saved = 0;
+        for (let i = 0; i < aiQuestions.length; i++) {
+            const q = aiQuestions[i];
+            if (q._saved || q._rejected) continue;
+            const ok = await simpanSatuSoalAI(q);
+            if (ok) {
+                q._saved = true;
+                saved++;
+                const card = $(`aiq-${i}`);
+                if (card) card.classList.add('accepted');
+                const btn = $(`acceptBtn-${i}`);
+                if (btn) btn.textContent = '✓ Tersimpan';
+            }
+        }
+
+        allBtn.disabled    = false;
+        allBtn.textContent = '✓ Simpan Semua';
+        toast(`${saved} soal berhasil disimpan!`);
+        if (saved > 0) await fetchQuestions();
+    };
+
+    async function simpanSatuSoalAI(q) {
+        try {
+            const res = await fetch(`${API}/admin/quizzes/${QUIZ}/questions`, {
+                method: 'POST',
+                headers: {
+                    Authorization:  'Bearer ' + token,
+                    Accept:         'application/json',
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    question:        q.question,
+                    question_type:   q.question_type,
+                    option_a:        q.option_a,
+                    option_b:        q.option_b,
+                    option_c:        q.option_c || '',
+                    option_d:        q.option_d || '',
+                    correct_answer:  q.correct_answer,
+                    correct_answers: q.correct_answers || [],
+                    explanation:     q.explanation || '',
+                    difficulty:      q.difficulty || 'sedang',
+                    points:          q.points || 10,
+                }),
+            });
+            return res.ok;
+        } catch (e) {
+            toast('Gagal menyimpan soal: ' + e.message, 'err');
+            return false;
+        }
     }
 
     /* ── Init ────────────────────────────────────────────────── */

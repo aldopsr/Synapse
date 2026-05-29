@@ -1,15 +1,4 @@
 // profile_screen.dart
-// PERUBAHAN RESPONSIVENESS — import & logika IDENTIK dengan aslinya:
-// - import dari '../utils/constants.dart' (bukan constants/app_constants)
-// - _fetchUserData pakai SharedPreferences + http langsung (bukan AuthService)
-// - _logout pakai SharedPreferences.remove (bukan AuthService)
-// FIX #1: SafeArea di body mahasiswa/public
-// FIX #2: Center + ConstrainedBox(maxWidth:480)
-// FIX #3: Text nama overflow protection
-// FIX #4: Expanded di banner status
-// FIX #5: softWrap + overflow di teks kuota public
-// FIX #6: minimumSize tombol bawah
-
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -17,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'login_screen.dart';
 import 'change_password_screen.dart';
 import '../utils/constants.dart';
+import 'quiz_statistic_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -35,7 +25,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   final String baseUrl = AppConstants.baseUrl;
 
-  // Tema Warna Konsisten SYNAPSE
   static const Color _primaryColor = Color(0xFF2A9D8F);
   static const Color _softBg       = Color(0xFFF0FDFB);
 
@@ -131,7 +120,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // ================== TAMPILAN TAMU ==================
     if (_isGuest) {
       return Scaffold(
         backgroundColor: Colors.grey[100],
@@ -205,7 +193,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
     }
 
-    // ================== TAMPILAN MAHASISWA & PUBLIC ==================
     final bool isMahasiswa = _role == 'mahasiswa';
     final bool isPublic    = _role == 'public';
 
@@ -218,12 +205,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         foregroundColor: Colors.blueGrey[900],
         elevation: 0,
       ),
-      // FIX #1: SafeArea
       body: SafeArea(
         child: _isLoading
             ? const Center(child: CircularProgressIndicator(color: _primaryColor))
             : Center(
-                // FIX #2: Center + maxWidth 480
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 480),
                   child: SingleChildScrollView(
@@ -232,7 +217,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        // Avatar dengan Inisial Nama Elegan
                         Container(
                           width: 84, height: 84,
                           decoration: BoxDecoration(
@@ -248,8 +232,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                         ),
                         const SizedBox(height: 16),
-
-                        // FIX #3: overflow protection nama
                         Text(
                           'Halo, $_name',
                           textAlign: TextAlign.center,
@@ -262,8 +244,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                         ),
                         const SizedBox(height: 24),
-
-                        // Banner Status Berbentuk Card Premium Terintegrasi
                         Container(
                           width: double.infinity,
                           padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
@@ -282,7 +262,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 color: isPublic ? Colors.orange[700] : _primaryColor,
                               ),
                               const SizedBox(width: 12),
-                              // FIX #4: Expanded di teks status
                               Expanded(
                                 child: Text(
                                   isPublic ? 'Status: Pengguna Umum' : 'Status: Pengguna Aktif',
@@ -297,16 +276,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                         ),
                         const SizedBox(height: 16),
-
-                        // Info Items Panel (Menggunakan style modern box modular)
                         _buildInfoItem(Icons.person_outline_rounded, "Nama Lengkap", _name),
-
                         if (isMahasiswa && _nim.isNotEmpty)
                           _buildInfoItem(Icons.badge_outlined, "NIM / ID", _nim),
-                        
                         if (isMahasiswa && _kelas.isNotEmpty)
                           _buildInfoItem(Icons.class_outlined, "Kelas", _kelas),
-
                         if (isPublic) ...[
                           const SizedBox(height: 6),
                           Container(
@@ -322,7 +296,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               children: [
                                 Icon(Icons.info_outline_rounded, color: Colors.orange[800], size: 18),
                                 const SizedBox(width: 10),
-                                // FIX #5: softWrap + TextOverflow.visible di dalam Expanded cerdas
                                 const Expanded(
                                   child: Text(
                                     'ℹ️ Akun umum dapat mengakses materi & kuis bertanda "Umum", serta chatbot (maks 5 pesan/hari).',
@@ -335,10 +308,61 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ),
                           ),
                         ],
-
                         const SizedBox(height: 32),
 
-                        // Action Buttons Row (LOGOUT & UBAH PASSWORD)
+                        // ── Riwayat Kuis → QuizStatisticScreen ───────────
+                        GestureDetector(
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => const QuizStatisticScreen()),
+                          ),
+                          child: Container(
+                            margin: const EdgeInsets.only(bottom: 16),
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: const Color(0xFFE2E8F0)),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 44, height: 44,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFE6F4F2),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: const Icon(Icons.history_rounded,
+                                      color: Color(0xFF2A9D8F), size: 22),
+                                ),
+                                const SizedBox(width: 14),
+                                const Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text('Riwayat Kuis',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 14,
+                                            color: Color(0xFF0F172A),
+                                          )),
+                                      SizedBox(height: 2),
+                                      Text('Lihat hasil, statistik & review jawaban',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Color(0xFF94A3B8),
+                                          )),
+                                    ],
+                                  ),
+                                ),
+                                const Icon(Icons.arrow_forward_ios_rounded,
+                                    size: 14, color: Color(0xFF94A3B8)),
+                              ],
+                            ),
+                          ),
+                        ),
+
                         Row(
                           children: [
                             Expanded(
@@ -347,7 +371,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 style: OutlinedButton.styleFrom(
                                   foregroundColor: Colors.redAccent,
                                   side: const BorderSide(color: Colors.redAccent, width: 1.5),
-                                  // FIX #6: min height 48px
                                   minimumSize: const Size(0, 48),
                                   shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(14)),
@@ -367,7 +390,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: _primaryColor,
                                   foregroundColor: Colors.white,
-                                  // FIX #6: min height 48px
                                   minimumSize: const Size(0, 48),
                                   shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(14)),
@@ -388,10 +410,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // Refaktor item info agar tampilannya presisi, simetris, dan bersih mirip list item kuis
   Widget _buildInfoItem(IconData icon, String title, String value) {
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 6), // FIX: Menggunakan symmetric, bukan only(vertical)
+      margin: const EdgeInsets.symmetric(vertical: 6),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -412,7 +433,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               color: _primaryColor.withOpacity(0.08),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(icon, color: _primaryColor, size: 20), // FIX: Menghapus const karena menerima parameter variabel
+            child: Icon(icon, color: _primaryColor, size: 20),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -424,8 +445,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Text(
                   value,
                   style: const TextStyle(
-                    fontSize: 15, 
-                    color: Color(0xFF1A1A2E), 
+                    fontSize: 15,
+                    color: Color(0xFF1A1A2E),
                     fontWeight: FontWeight.bold,
                   ),
                 ),

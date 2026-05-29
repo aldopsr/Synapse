@@ -306,6 +306,10 @@ class QuizController extends Controller
                 $q->whereNull('end_at')->orWhere('end_at', '>=', $now);
             });
 
+        if ($request->has('course_id') && $request->course_id) {
+            $query->where('course_id', $request->course_id);
+        }
+
         // Public hanya lihat quiz visibility 'umum'
         if ($role === 'public') {
             $query->where('visibility', 'umum');
@@ -591,5 +595,138 @@ class QuizController extends Controller
         });
 
         return response()->json(['message' => 'Berhasil', 'data' => $history], 200);
+    }
+
+    public function duelQuizList(Request $request)
+    {
+        $now  = Carbon::now();
+        $role = $request->user()->role ?? 'public';
+
+        $query = Quiz::where('is_active', true)
+            ->where('is_duel_enabled', true)
+            ->where(function ($q) use ($now) {
+                $q->whereNull('start_at')->orWhere('start_at', '<=', $now);
+            })
+            ->where(function ($q) use ($now) {
+                $q->whereNull('end_at')->orWhere('end_at', '>=', $now);
+            });
+
+        if ($role === 'public') {
+            $query->where('visibility', 'umum');
+        }
+
+        $quizzes = $query->get()->map(function ($quiz) {
+            $course = $quiz->course_id
+                ? \App\Models\Course::find($quiz->course_id)
+                : null;
+            return [
+                'id'    => (string) $quiz->id,
+                'title' => $quiz->title,
+                'course'=> $course
+                    ? ['id' => (string) $course->id,
+                    'title' => $course->title ?? $course->name ?? '-']
+                    : null,
+                'duration_minutes' => $quiz->duration_minutes,
+                'passing_score'    => $quiz->passing_score ?? 70,
+                'questions_count'  => \App\Models\QuizQuestion::where(
+                    'quiz_id', (string) $quiz->id)->count(),
+            ];
+        });
+
+        return response()->json(['message' => 'Berhasil', 'data' => $quizzes]);
+    }
+
+    // ── 1. Toggle is_duel_enabled ────────────────────────────────
+    // Tambah setelah method toggleActive():
+    
+    public function toggleDuel($id)
+    {
+        $quiz = Quiz::find($id);
+        if (!$quiz) {
+            return response()->json(['message' => 'Quiz tidak ditemukan'], 404);
+        }
+    
+        // Pastikan hanya dosen yang mengampu matkul ini yang bisa toggle
+        $user = auth('sanctum')->user();
+        if ($user->role === 'dosen') {
+            $courseIds = \App\Models\Course::where('dosen_id', (string) $user->id)
+                ->get()->map(fn($c) => (string) $c->id)->toArray();
+            if (!in_array((string) $quiz->course_id, $courseIds)) {
+                return response()->json(['message' => 'Akses ditolak'], 403);
+            }
+        }
+    
+        $newVal = !($quiz->is_duel_enabled ?? false);
+        $quiz->update(['is_duel_enabled' => $newVal]);
+    
+        return response()->json([
+            'message'          => $newVal ? 'Kuis diaktifkan untuk duel' : 'Kuis dinonaktifkan dari duel',
+            'is_duel_enabled'  => $newVal,
+            'data'             => $quiz->fresh(),
+        ]);
+    }
+    
+    // ── 2. Histori duel untuk dosen ──────────────────────────────
+    // Tambah method baru:
+    
+    public function duelHistory(Request $request)
+    {
+        $user = $request->user();
+    
+        // Ambil course_id milik dosen ini
+        $courseIds = \App\Models\Course::where('dosen_id', (string) $user->id)
+            ->get()->map(fn($c) => (string) $c->id)->toArray();
+    
+        if (empty($courseIds) && $user->course_id) {
+            $courseIds = [$user->course_id];
+        }
+    
+        // Ambil quiz milik dosen
+        $quizIds = \App\Models\Quiz::whereIn('course_id', $courseIds)
+            ->get()->map(fn($q) => (string) $q->id)->toArray();
+    
+        if (empty($quizIds)) {
+            return response()->json(['message' => 'Berhasil', 'data' => []]);
+        }
+    
+        // Ambil semua duel yang pakai quiz milik dosen ini
+        $duels = \App\Models\Duel::whereIn('quiz_id', $quizIds)
+            ->orderBy('created_at', 'desc')
+            ->limit(100)
+            ->get();
+    
+        if ($duels->isEmpty()) {
+            return response()->json(['message' => 'Berhasil', 'data' => []]);
+        }
+    
+        // Lookup user dan quiz
+        $userIds  = $duels->pluck('challenger_id')->merge($duels->pluck('opponent_id'))->unique()->toArray();
+        $users    = \App\Models\User::whereIn('_id', $userIds)->get()
+                        ->keyBy(fn($u) => (string) $u->id);
+        $quizMap  = \App\Models\Quiz::whereIn('_id', $quizIds)->get()
+                        ->keyBy(fn($q) => (string) $q->id);
+    
+        $result = $duels->map(function ($duel) use ($users, $quizMap) {
+            $challenger = $users->get((string) $duel->challenger_id);
+            $opponent   = $users->get((string) $duel->opponent_id);
+            $quiz       = $quizMap->get((string) $duel->quiz_id);
+            $winner     = $duel->winner_id ? $users->get((string) $duel->winner_id) : null;
+    
+            return [
+                'id'               => (string) $duel->id,
+                'quiz_title'       => $quiz?->title ?? 'Quiz Dihapus',
+                'status'           => $duel->status,
+                'challenger_name'  => $challenger?->name ?? '-',
+                'challenger_nim'   => $challenger?->nim ?? '-',
+                'opponent_name'    => $opponent?->name ?? '-',
+                'opponent_nim'     => $opponent?->nim ?? '-',
+                'challenger_score' => $duel->challenger_score,
+                'opponent_score'   => $duel->opponent_score,
+                'winner_name'      => $winner?->name,
+                'created_at'       => $duel->created_at,
+            ];
+        });
+    
+        return response()->json(['message' => 'Berhasil', 'data' => $result]);
     }
 }

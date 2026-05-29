@@ -1,12 +1,12 @@
 @extends('layouts.app')
 
 @section('title', 'Kelola Aset AR - Synapse')
-@section('header_title', 'Aset AR')
+@section('header_title', 'Aset 3D')
 
 @section('content')
 <style>
 /* ======================================================
-   KELOLA ASET AR — modernized
+   KELOLA ASET 3D — modernized
    ====================================================== */
 
 /* --- Page layout --- */
@@ -322,7 +322,7 @@ model-viewer {
             <div class="card-header">
                 <div class="ch-icon purple">🌐</div>
                 <div>
-                    <h3>Upload Aset AR Baru</h3>
+                    <h3>Upload Aset 3D Baru</h3>
                     <p>File .glb atau .gltf, maks. 100MB</p>
                 </div>
             </div>
@@ -338,7 +338,7 @@ model-viewer {
 
                 {{-- Judul --}}
                 <div class="fg">
-                    <label>Judul Aset AR <span class="req">*</span></label>
+                    <label>Judul Aset 3D <span class="req">*</span></label>
                     <input type="text" id="titleAR" class="fc"
                         placeholder="Contoh: Motherboard ATX 3D" maxlength="255">
                 </div>
@@ -394,7 +394,7 @@ model-viewer {
                     <button class="btn-upload" id="btnUpload" type="button"
                         onclick="submitUpload()" disabled>
                         <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path fill-rule="evenodd" d="M11.47 2.47a.75.75 0 0 1 1.06 0l4.5 4.5a.75.75 0 0 1-1.06 1.06l-3.22-3.22V16.5a.75.75 0 0 1-1.5 0V4.81L8.03 8.03a.75.75 0 0 1-1.06-1.06l4.5-4.5ZM3 15.75a.75.75 0 0 1 .75.75v2.25a1.5 1.5 0 0 0 1.5 1.5h13.5a1.5 1.5 0 0 0 1.5-1.5V16.5a.75.75 0 0 1 1.5 0v2.25a3 3 0 0 1-3 3H5.25a3 3 0 0 1-3-3V16.5a.75.75 0 0 1 .75-.75Z" clip-rule="evenodd"/></svg>
-                        <span id="uploadLabel">Upload Aset AR</span>
+                        <span id="uploadLabel">Upload Aset 3D</span>
                     </button>
                 </div>
 
@@ -407,7 +407,7 @@ model-viewer {
         <div class="card-header">
             <div class="ch-icon teal">🖼️</div>
             <div>
-                <h3>Galeri Aset AR</h3>
+                <h3>Galeri Aset 3D</h3>
                 <p id="gallerySubtitle">Memuat aset...</p>
             </div>
         </div>
@@ -641,7 +641,7 @@ model-viewer {
         if (!list || list.length === 0) {
             grid.innerHTML = `<div class="ar-empty">
                 <div class="ei">📭</div>
-                <div class="el">Belum ada aset AR</div>
+                <div class="el">Belum ada aset 3D</div>
                 <div class="es">${$('searchInput').value || $('filterMateri').value
                     ? 'Coba ubah filter.' : 'Upload aset pertamamu di form kiri!'}</div>
             </div>`;
@@ -821,7 +821,7 @@ model-viewer {
 
                 // Reset form
                 resetForm();
-                toast('Aset AR berhasil diupload!');
+                toast('Aset 3D berhasil diupload!');
 
                 // Hapus chip "Baru" setelah 10 detik
                 setTimeout(() => {
@@ -835,12 +835,12 @@ model-viewer {
                 if (data.errors) msg = Object.values(data.errors).flat()[0] || msg;
                 toast(msg, 'err');
                 btn.disabled   = false;
-                lbl.textContent = 'Upload Aset AR';
+                lbl.textContent = 'Upload Aset 3D';
             }
         } catch (e) {
             toast('Koneksi bermasalah: ' + e.message, 'err');
             btn.disabled   = false;
-            lbl.textContent = 'Upload Aset AR';
+            lbl.textContent = 'Upload Aset 3D';
         } finally {
             $('thumbProgress').classList.remove('show');
         }
@@ -859,7 +859,7 @@ model-viewer {
         $('thumbPreview').className  = 'thumb-preview';
         $('thumbPreview').innerHTML  = '';
         $('btnUpload').disabled   = true;
-        $('uploadLabel').textContent = 'Upload Aset AR';
+        $('uploadLabel').textContent = 'Upload Aset 3D';
         selectedFile = null;
         thumbBlob    = null;
     }
@@ -868,7 +868,7 @@ model-viewer {
        HAPUS AR — optimistic
     ═══════════════════════════════════════════════════════════ */
     window.hapusAR = async function (id, title) {
-        if (!confirm(`Hapus aset AR "${title}"?\n\nFile 3D akan terhapus permanen dari server.`)) return;
+        if (!confirm(`Hapus aset 3D "${title}"?\n\nFile 3D akan terhapus permanen dari server.`)) return;
 
         // Optimistic: fade out card
         const card = document.getElementById(`arcard-${id}`);
@@ -887,7 +887,7 @@ model-viewer {
                 allAR = allAR.filter(ar => (ar._id||ar.id) != id);
                 applyFilter();
                 $('gallerySubtitle').textContent = `${allAR.length} aset di ${isAdmin ? 'semua materi' : 'materi kamu'}`;
-                toast('Aset AR berhasil dihapus.');
+                toast('Aset 3D berhasil dihapus.');
             } else {
                 // Rollback visual
                 if (card) { card.style.opacity = '1'; card.style.transform = ''; }

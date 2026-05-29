@@ -35,4 +35,13 @@ return [
         ],
     ],
 
+    'fcm' => [
+        'server_key' => env('FCM_SERVER_KEY', ''),
+    ],
+
+    'gemini' => [
+        'key'    => env('GEMINI_API_KEY', ''),
+        'key_ai' => env('GEMINI_API_KEY_AI', ''),
+    ],
+
 ];

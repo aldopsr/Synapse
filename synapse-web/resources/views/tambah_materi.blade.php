@@ -159,6 +159,51 @@
 }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 .toast.err  { background: #dc2626; }
+
+/* ── AI Deskripsi ───────────────────────────────── */
+.ai-desc-wrap { position: relative; }
+.btn-ai-desc {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 5px 12px; border: none; border-radius: 7px;
+    background: linear-gradient(135deg, #279685, #1a6b5e);
+    color: #fff; font-size: 11px; font-weight: 700;
+    cursor: pointer; font-family: inherit;
+    transition: opacity .15s;
+    position: absolute; right: 0; top: -30px;
+}
+.btn-ai-desc:hover   { opacity: .85; }
+.btn-ai-desc:disabled { opacity: .6; cursor: not-allowed; }
+
+.ai-desc-panel {
+    background: #f0fdfb; border: 1.5px solid #a7f3d0;
+    border-radius: 10px; padding: 14px 16px; margin-top: 8px;
+    display: none;
+}
+.ai-desc-panel.open { display: block; }
+.ai-desc-panel p {
+    font-size: 11px; font-weight: 700; color: #065f46;
+    margin: 0 0 8px; text-transform: uppercase; letter-spacing: .05em;
+}
+.ai-desc-option {
+    background: #fff; border: 1px solid #d1fae5;
+    border-radius: 8px; padding: 10px 12px; margin-bottom: 8px;
+    cursor: pointer; font-size: 13px; color: #1a1a1a;
+    transition: border-color .15s, background .15s;
+    display: flex; align-items: flex-start; gap: 8px;
+}
+.ai-desc-option:hover { border-color: #279685; background: #f0fdfb; }
+.ai-desc-option.selected { border-color: #279685; background: #e6f4f2; }
+.ai-desc-option-label {
+    font-size: 10px; font-weight: 700; color: #279685;
+    white-space: nowrap; margin-top: 2px;
+}
+.btn-use-desc {
+    padding: 7px 16px; border: none; border-radius: 8px;
+    background: #279685; color: #fff; font-size: 12px;
+    font-weight: 700; cursor: pointer; font-family: inherit;
+    margin-top: 4px;
+}
+.btn-use-desc:disabled { background: #9ca3af; cursor: not-allowed; }
 </style>
 
 <a href="/mata-kuliah/{{ $course_id }}/materi" class="back-link">
@@ -190,10 +235,23 @@
                         placeholder="Contoh: Pengenalan Struktur Data" required>
                 </div>
                 <div class="fg">
-                    <label>Deskripsi Singkat <span class="req">*</span></label>
+                <label>Deskripsi Singkat <span class="req">*</span></label>
+                <div class="ai-desc-wrap" style="position:relative;padding-top:30px;">
+                    <button class="btn-ai-desc" id="btnAiDesc" onclick="generateDesc()" type="button">
+                        ✨ Generate dengan AI
+                    </button>
                     <input type="text" id="description" class="fc"
                         placeholder="Ringkasan singkat yang muncul di card materi" required>
                 </div>
+                <div class="ai-desc-panel" id="aiDescPanel">
+                    <p>Pilih versi deskripsi:</p>
+                    <div id="aiDescOptions"></div>
+                    <button class="btn-use-desc" id="btnUseDesc"
+                        onclick="useSelectedDesc()" disabled>
+                        ✓ Gunakan Deskripsi Ini
+                    </button>
+                </div>
+            </div>
             </div>
         </div>
 
@@ -492,6 +550,93 @@
             btn.textContent = '💾 Simpan Materi';
         }
     };
+
+    /* ── AI Generate Deskripsi ───────────────────────────── */
+    let selectedDescIdx = -1;
+    let aiDescriptions  = [];
+
+    window.generateDesc = async function() {
+        const title   = $('title').value.trim();
+        if (!title) { toast('Isi judul materi terlebih dahulu.', 'err'); return; }
+
+        const btn = $('btnAiDesc');
+        btn.disabled    = true;
+        btn.textContent = '⏳ Generating...';
+
+        // Coba ambil konten editor kalau ada
+        let content = '';
+        try {
+            if (typeof myEditor !== 'undefined' && myEditor.getData) {
+                content = myEditor.getData();
+            }
+        } catch (e) {}
+
+        try {
+            const res  = await fetch(`${window.apiBaseUrl}/ai/generate-description`, {
+                method: 'POST',
+                headers: {
+                    Authorization:  'Bearer ' + window.token,
+                    Accept:         'application/json',
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ title, content }),
+            });
+            const data = await res.json();
+
+            if (!res.ok) {
+                toast(data.message || 'Gagal generate deskripsi.', 'err'); return;
+            }
+
+            const d = data.descriptions;
+            aiDescriptions = [
+                { label: 'Singkat (1 kalimat)',  text: d.short  || '' },
+                { label: 'Menengah (2-3 kalimat)', text: d.medium || '' },
+                { label: 'Panjang (4-5 kalimat)', text: d.long   || '' },
+            ].filter(x => x.text);
+
+            renderDescOptions();
+            $('aiDescPanel').classList.add('open');
+
+        } catch (e) {
+            toast('Koneksi bermasalah.', 'err');
+        } finally {
+            btn.disabled    = false;
+            btn.textContent = '✨ Generate dengan AI';
+        }
+    };
+
+    function renderDescOptions() {
+        selectedDescIdx = -1;
+        $('btnUseDesc').disabled = true;
+        $('aiDescOptions').innerHTML = aiDescriptions.map((d, i) => `
+            <div class="ai-desc-option" id="descOpt-${i}" onclick="selectDesc(${i})">
+                <span class="ai-desc-option-label">${d.label}</span>
+                <span>${esc(d.text)}</span>
+            </div>
+        `).join('');
+    }
+
+    window.selectDesc = function(i) {
+        document.querySelectorAll('.ai-desc-option')
+            .forEach(el => el.classList.remove('selected'));
+        document.getElementById(`descOpt-${i}`).classList.add('selected');
+        selectedDescIdx = i;
+        $('btnUseDesc').disabled = false;
+    };
+
+    window.useSelectedDesc = function() {
+        if (selectedDescIdx < 0) return;
+        const text = aiDescriptions[selectedDescIdx].text;
+        $('description').value = text;
+        $('aiDescPanel').classList.remove('open');
+        selectedDescIdx = -1;
+        toast('Deskripsi diterapkan! Kamu bisa edit manual.');
+    };
+
+    // Helper esc kalau belum ada
+    if (typeof esc === 'undefined') {
+        window.esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
 
     // ── Init ─────────────────────────────────────────────────
     updateChecklist();

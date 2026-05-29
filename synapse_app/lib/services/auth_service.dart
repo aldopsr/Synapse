@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/constants.dart';
+import 'fcm_service.dart';
 
 class AuthService {
 
@@ -25,6 +26,8 @@ class AuthService {
 
         SharedPreferences prefs = await SharedPreferences.getInstance();
         await prefs.setString('token', token);
+
+        FcmService().init(); 
 
         // Simpan data user juga — biar tidak perlu hit API terus
         if (userData != null) {
@@ -167,6 +170,8 @@ class AuthService {
         );
       } catch (_) {}
     }
+
+    await FcmService().deleteToken();
 
     // Hapus semua data lokal
     await prefs.clear();

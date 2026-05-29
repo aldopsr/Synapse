@@ -22,6 +22,7 @@ class User extends Authenticatable
         'otp',
         'otp_expires_at',
         'email_verified_at',
+        'duel_code',
     ];
 
     protected $hidden = [

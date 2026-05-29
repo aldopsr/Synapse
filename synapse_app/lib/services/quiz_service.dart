@@ -16,13 +16,16 @@ class QuizService {
   }
 
   // 1. GET QUIZ
-  Future<List<QuizModel>> getQuizzes() async {
+  Future<List<QuizModel>> getQuizzes({String? courseId}) async {
     final token = await _getToken();
     if (token == null) return [];
 
     try {
+      final uri = courseId != null && courseId.isNotEmpty
+          ? Uri.parse('${getBaseUrl()}/quizzes?course_id=$courseId')
+          : Uri.parse('${getBaseUrl()}/quizzes');
       final response = await http.get(
-        Uri.parse('${getBaseUrl()}/quizzes'),
+        uri,
         headers: {
           'Authorization': 'Bearer $token',
           'Accept': 'application/json',

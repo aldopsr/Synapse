@@ -10,10 +10,14 @@ import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import 'login_screen.dart';
 import 'materials_screen.dart';
-import 'quiz_list_screen.dart';
+// import 'quiz_list_screen.dart';
 import 'chatbot_screen.dart';
 import 'profile_screen.dart';
-import 'ar_gallery_screen.dart';
+// import 'ar_gallery_screen.dart';
+import 'fyp_screen.dart';
+import 'duel_screen.dart';
+import 'duel_waiting_screen.dart';
+import '../services/fcm_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -37,7 +41,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   final List<Widget> _pages = [
     const MaterialsScreen(),
-    const QuizListScreen(),
+    const FypScreen(),
     const ChatbotScreen(),
     const ProfileScreen(),
   ];
@@ -46,6 +50,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _loadUserData();
+    _setupFcmHandler();
   }
 
   Future<void> _loadUserData() async {
@@ -120,6 +125,39 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() => _selectedIndex = index);
   }
 
+  void _setupFcmHandler() {
+    FcmService.onDuelNotification = (data) {
+      final type   = data['type']?.toString() ?? '';
+      final duelId = data['duel_id']?.toString() ?? '';
+      if (!mounted || duelId.isEmpty) return;
+
+      if (type == 'duel_challenge') {
+        // Saya ditantang → buka WaitingScreen sebagai opponent
+        Navigator.push(context, MaterialPageRoute(
+          builder: (_) => DuelWaitingScreen(
+            duelId: duelId, role: 'opponent'),
+        ));
+      } else if (type == 'duel_accepted') {
+        // Tantangan saya diterima → buka WaitingScreen sebagai challenger
+        Navigator.push(context, MaterialPageRoute(
+          builder: (_) => DuelWaitingScreen(
+            duelId: duelId, role: 'challenger'),
+        ));
+      } else if (type == 'duel_completed') {
+        // Duel selesai → buka DuelScreen tab riwayat
+        Navigator.push(context, MaterialPageRoute(
+          builder: (_) => const DuelScreen(),
+        ));
+      }
+    };
+  }
+
+  @override
+  void dispose() {
+    FcmService.onDuelNotification = null;
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -159,7 +197,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   _buildNavItem(0, Icons.menu_book_rounded, 'Materi',
                       isLocked: false),
-                  _buildNavItem(1, Icons.quiz_rounded, 'Kuis',
+                  _buildNavItem(1, Icons.psychology_rounded, 'FYP',
                       isLocked: !_canAccessQuiz),
                   _buildCenterButton(),
                   _buildNavItem(2, Icons.smart_toy_rounded, 'Tanya AI',
@@ -245,7 +283,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return GestureDetector(
       onTap: () => Navigator.push(
         context,
-        MaterialPageRoute(builder: (context) => const ArGalleryScreen()),
+        MaterialPageRoute(builder: (context) => const DuelScreen()),
       ),
       child: Container(
         width: 56,
@@ -265,7 +303,8 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ],
         ),
-        child: const Icon(Icons.view_in_ar_rounded,
+        // Icon pedang/duel
+        child: const Icon(Icons.sports_martial_arts_rounded,
             color: Colors.white, size: 26),
       ),
     );

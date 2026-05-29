@@ -5,7 +5,7 @@ class AppConstants {
   // HP Fisik via WiFi → 'http://192.168.x.x:8000/api'
   // Production        → 'https://api.synapse.app/api'
   // ============================================================
-  static const String baseUrl = 'http://192.168.68.109:8000/api';
+  static const String baseUrl = 'http://192.168.1.12:8000/api';
 
   // ── Auth ─────────────────────────────────────────────────────
   static const String loginUrl          = '$baseUrl/auth/login';

@@ -1,13 +1,24 @@
+// lib/screens/quiz_list_screen.dart
+// Perubahan dari versi asli:
+// - Tambah parameter courseId + courseTitle (optional)
+// - Kalau ada courseId, filter kuis by matkul
+// - Kalau dipanggil dari navbar tanpa parameter, tampil semua kuis (perilaku lama)
 import 'package:flutter/material.dart';
 import '../services/quiz_service.dart';
 import '../models/quiz_model.dart';
 import 'quiz_screen.dart';
-import 'quiz_review_screen.dart';
 import 'quiz_statistic_screen.dart';
 import 'home_screen.dart';
 
 class QuizListScreen extends StatefulWidget {
-  const QuizListScreen({super.key});
+  final String? courseId;
+  final String? courseTitle;
+
+  const QuizListScreen({
+    super.key,
+    this.courseId,
+    this.courseTitle,
+  });
 
   @override
   State<QuizListScreen> createState() => _QuizListScreenState();
@@ -25,7 +36,7 @@ class _QuizListScreenState extends State<QuizListScreen> {
 
   void _loadQuizzes() {
     setState(() {
-      _quizzesFuture = _quizService.getQuizzes();
+      _quizzesFuture = _quizService.getQuizzes(courseId: widget.courseId);
     });
   }
 
@@ -52,60 +63,83 @@ class _QuizListScreenState extends State<QuizListScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  const Expanded(
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'Siap Mengerjakan?',
-                          style: TextStyle(
+                        // Kalau dipanggil dari matkul, tampilkan nama matkul
+                        if (widget.courseTitle != null) ...[
+                          Text(
+                            widget.courseTitle!,
+                            style: const TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'Pilih kuis & buktikan kemampuanmu!',
+                            style: TextStyle(
+                                fontSize: 13, color: Colors.white70),
+                          ),
+                        ] else ...[
+                          const Text(
+                            'Siap Mengerjakan?',
+                            style: TextStyle(
                               fontSize: 24,
                               fontWeight: FontWeight.bold,
-                              color: Colors.white),
-                        ),
-                        SizedBox(height: 4),
-                        Text(
-                          'Pilih Kuis & Buktikan!',
-                          style: TextStyle(
-                              fontSize: 14, color: Colors.white70),
-                        ),
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'Pilih Kuis & Buktikan!',
+                            style: TextStyle(
+                                fontSize: 14, color: Colors.white70),
+                          ),
+                        ],
                       ],
                     ),
                   ),
                   const SizedBox(width: 12),
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (_) => const QuizStatisticScreen()));
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                            color: Colors.white.withOpacity(0.3)),
+                  // Tombol statistik — hanya tampil kalau tidak di-filter by course
+                  if (widget.courseId == null)
+                    GestureDetector(
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const QuizStatisticScreen()),
                       ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.bar_chart_rounded,
-                              color: Colors.white, size: 18),
-                          SizedBox(width: 6),
-                          Text(
-                            'Statistik',
-                            style: TextStyle(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                              color: Colors.white.withOpacity(0.3)),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.bar_chart_rounded,
+                                color: Colors.white, size: 18),
+                            SizedBox(width: 6),
+                            Text(
+                              'Statistik',
+                              style: TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold,
-                                fontSize: 12),
-                          ),
-                        ],
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
                 ],
               ),
             ),
@@ -127,39 +161,43 @@ class _QuizListScreenState extends State<QuizListScreen> {
                   ),
                   child: RefreshIndicator(
                     color: const Color(0xFF2A9D8F),
-                    onRefresh: () async {
-                      _loadQuizzes();
-                    },
+                    onRefresh: () async => _loadQuizzes(),
                     child: FutureBuilder<List<QuizModel>>(
                       future: _quizzesFuture,
                       builder: (context, snapshot) {
                         if (snapshot.connectionState ==
                             ConnectionState.waiting) {
                           return const Center(
-                              child: CircularProgressIndicator(
-                                  color: Color(0xFF2A9D8F)));
+                            child: CircularProgressIndicator(
+                                color: Color(0xFF2A9D8F)),
+                          );
                         } else if (snapshot.hasError) {
                           return _buildInfoState(
-                              'Gagal memuat data.\n${snapshot.error}',
-                              Icons.error_outline_rounded,
-                              Colors.red);
+                            'Gagal memuat data.\n${snapshot.error}',
+                            Icons.error_outline_rounded,
+                            Colors.red,
+                          );
                         } else if (!snapshot.hasData ||
                             snapshot.data!.isEmpty) {
                           return _buildInfoState(
-                              'Belum ada kuis tersedia.\nTunggu misi selanjutnya! 🏆',
-                              Icons.task_alt_rounded,
-                              const Color(0xFF2A9D8F));
+                            'Belum ada kuis tersedia.\nTunggu misi selanjutnya! 🏆',
+                            Icons.task_alt_rounded,
+                            const Color(0xFF2A9D8F),
+                          );
                         }
 
                         final quizzes = snapshot.data!;
                         return ListView.builder(
                           physics: const AlwaysScrollableScrollPhysics(),
-                          padding: EdgeInsets.only(top: 24, left: 24, right: 24, bottom: HomeScreen.navBarHeight),
+                          padding: EdgeInsets.only(
+                            top: 24,
+                            left: 24,
+                            right: 24,
+                            bottom: HomeScreen.navBarHeight,
+                          ),
                           itemCount: quizzes.length,
-                          itemBuilder: (context, index) {
-                            final quiz = quizzes[index];
-                            return _buildQuizCard(context, quiz);
-                          },
+                          itemBuilder: (context, index) =>
+                              _buildQuizCard(context, quizzes[index]),
                         );
                       },
                     ),
@@ -189,11 +227,11 @@ class _QuizListScreenState extends State<QuizListScreen> {
               width: 60,
               height: 60,
               decoration: BoxDecoration(
-                color: const Color(0xFF7A919E),
-                borderRadius: BorderRadius.circular(15),
+                color: const Color(0xFF2A9D8F).withOpacity(0.15),
+                borderRadius: BorderRadius.circular(16),
               ),
               child: const Icon(Icons.quiz_rounded,
-                  color: Colors.white70, size: 30),
+                  color: Color(0xFF2A9D8F), size: 30),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -203,56 +241,54 @@ class _QuizListScreenState extends State<QuizListScreen> {
                   Text(
                     quiz.title,
                     style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF334155)),
-                    maxLines: 1,
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1A1A2E),
+                    ),
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Uji kemampuanmu di sini...',
-                    style:
-                        TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      const Icon(Icons.timer_outlined,
+                          size: 14, color: Color(0xFF64748B)),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${quiz.durationMinutes} menit',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF64748B),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  '${quiz.durationMinutes}:00',
-                  style: const TextStyle(
-                      color: Color(0xFF2A9D8F),
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13),
-                ),
-                const SizedBox(height: 4),
-                const Icon(Icons.arrow_forward_rounded,
-                    color: Color(0xFF334155), size: 20),
-              ],
-            ),
+            const Icon(Icons.arrow_forward_ios_rounded,
+                color: Color(0xFF2A9D8F), size: 16),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildInfoState(String text, IconData icon, Color color) {
-    return SingleChildScrollView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      child: Container(
-        height: 400,
-        alignment: Alignment.center,
+  Widget _buildInfoState(String msg, IconData icon, Color color) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 60, color: color.withOpacity(0.5)),
+            Icon(icon, size: 60, color: color.withOpacity(0.4)),
             const SizedBox(height: 16),
-            Text(text,
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey[600], fontSize: 16)),
+            Text(
+              msg,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                  fontSize: 15, color: color.withOpacity(0.7), height: 1.5),
+            ),
           ],
         ),
       ),

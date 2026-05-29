@@ -21,6 +21,7 @@ class AuthController extends Controller
         if ($request->role === 'mahasiswa') {
             $request->validate([
                 'name'     => 'required|string|max:255',
+                'duel_code'  => $this->_generateDuelCode(),
                 'email'    => 'required|email|unique:users,email|ends_with:@apps.ipb.ac.id',
                 'password' => 'required|min:6',
                 'nim'      => [
@@ -264,5 +265,17 @@ class AuthController extends Controller
         Cache::forget("reset_token_{$request->email}");
 
         return response()->json(['message' => 'Password berhasil direset!'], 200);
+    }
+    
+    private function _generateDuelCode(): string
+    {
+        $chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+        do {
+            $code = '';
+            for ($i = 0; $i < 6; $i++) {
+                $code .= $chars[random_int(0, strlen($chars) - 1)];
+            }
+        } while (\App\Models\User::where('duel_code', $code)->exists());
+        return $code;
     }
 }

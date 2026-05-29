@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "367488794400",
+    "project_id": "synapse-ae87b",
+    "storage_bucket": "synapse-ae87b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:367488794400:android:fb16c72989a4c78e9f2145",
+        "android_client_info": {
+          "package_name": "com.example.synapse_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDhnHmOHccRvZU2438rpiWvuJH_hBa-4Iw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

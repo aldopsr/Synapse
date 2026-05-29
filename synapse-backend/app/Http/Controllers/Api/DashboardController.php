@@ -1,18 +1,14 @@
 <?php
-// ============================================================
-// PATCH: synapse-backend/app/Http/Controllers/Api/DashboardController.php
-// Tambahkan data kuis_soal (jumlah soal per kuis) dan kuis_nonaktif
-// untuk melengkapi grafik dosen yang lebih informatif.
-//
-// Ganti SELURUH method getStats() dengan kode di bawah ini.
-// ============================================================
-
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\Material;
+use App\Models\Quiz;
+use App\Models\QuizAttempt;
+use App\Models\Duel;
+use App\Models\Course;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
@@ -22,32 +18,94 @@ class DashboardController extends Controller
     {
         $user = $request->user();
 
-        // ═══════════════════════════════════════════════════════
+        // ═══════════════════════════════════════════════
         // 👑 ADMIN / SUPERADMIN
-        // ═══════════════════════════════════════════════════════
-        if ($user->role === 'admin' || $user->role === 'superadmin') {
+        // ═══════════════════════════════════════════════
+        if (in_array($user->role, ['admin', 'superadmin'])) {
             $totalDosen     = User::where('role', 'dosen')->count();
             $totalMahasiswa = User::where('role', 'mahasiswa')->count();
             $totalMateri    = Material::count();
+            $totalDuel      = Duel::count();
+            $totalAR = 0;
+            try { $totalAR = DB::table('ar_assets')->count(); } catch (\Exception $e) {}
 
-            // Total AR assets
-            try {
-                $totalAR = DB::table('ar_assets')->count();
-            } catch (\Exception $e) {
-                $totalAR = 0;
+            // ── Grafik 1: Aktivitas per mata kuliah ──
+            $courses        = Course::all();
+            $matkul         = [];
+            $matkulAttempts = [];
+            foreach ($courses as $c) {
+                $qids = Quiz::where('course_id', (string) $c->id)
+                    ->get()->map(fn($q) => (string) $q->id)->toArray();
+                $cnt = empty($qids) ? 0
+                    : QuizAttempt::whereIn('quiz_id', $qids)->count();
+                if ($cnt > 0) {
+                    $matkul[]         = $c->title ?? $c->name ?? '-';
+                    $matkulAttempts[] = $cnt;
+                }
+            }
+            array_multisort($matkulAttempts, SORT_DESC, $matkul);
+            $matkul         = array_slice($matkul, 0, 8);
+            $matkulAttempts = array_slice($matkulAttempts, 0, 8);
+
+            // ── Grafik 2: Registrasi user per 6 bulan ──
+            $regLabels = [];
+            $regData   = [];
+            for ($i = 5; $i >= 0; $i--) {
+                $m = Carbon::now()->subMonths($i);
+                $regLabels[] = $m->translatedFormat('M Y');
+                $regData[]   = User::whereIn('role', ['mahasiswa', 'public'])
+                    ->whereMonth('created_at', $m->month)
+                    ->whereYear('created_at',  $m->year)
+                    ->count();
             }
 
-            // Grafik 1: Proporsi pengguna (pie)
-            // Grafik 2: Materi baru per 5 bulan terakhir (bar)
-            $barLabels = [];
-            $barData   = [];
-            for ($i = 4; $i >= 0; $i--) {
-                $month = Carbon::now()->subMonths($i);
-                $barLabels[] = $month->translatedFormat('M Y');
-                $barData[]   = Material::whereMonth('created_at', $month->month)
-                                       ->whereYear('created_at',  $month->year)
-                                       ->count();
-            }
+            // ── Leaderboard A: Dosen Teraktif ──
+            $dosenList  = User::where('role', 'dosen')->get();
+            $dosenBoard = $dosenList->map(function ($d) {
+                $courseIds = Course::where('dosen_id', (string) $d->id)
+                    ->get()->map(fn($c) => (string) $c->id)->toArray();
+                if (empty($courseIds) && $d->course_id) $courseIds = [$d->course_id];
+
+                $jumlahMateri = Material::where('user_id', (string) $d->id)->count();
+                $jumlahKuis   = empty($courseIds) ? 0
+                    : Quiz::whereIn('course_id', $courseIds)->count();
+                $quizIds = empty($courseIds) ? []
+                    : Quiz::whereIn('course_id', $courseIds)
+                        ->get()->map(fn($q) => (string) $q->id)->toArray();
+                $jumlahAttempts = empty($quizIds) ? 0
+                    : QuizAttempt::whereIn('quiz_id', $quizIds)
+                        ->distinct('user_id')->count('user_id');
+                $skor = ($jumlahMateri * 2) + ($jumlahKuis * 3) + $jumlahAttempts;
+
+                return [
+                    'name'            => $d->name,
+                    'jumlah_materi'   => $jumlahMateri,
+                    'jumlah_kuis'     => $jumlahKuis,
+                    'mahasiswa_aktif' => $jumlahAttempts,
+                    'skor_aktivitas'  => $skor,
+                ];
+            })->sortByDesc('skor_aktivitas')->values()->take(10)->toArray();
+
+            // ── Leaderboard B: Top Mahasiswa Sistem ──
+            $allAttempts    = QuizAttempt::all();
+            $byUser         = $allAttempts->groupBy('user_id');
+            $mahasiswaBoard = $byUser->map(function ($attempts, $userId) {
+                $u = User::find($userId);
+                if (!$u || $u->role !== 'mahasiswa') return null;
+
+                $avgScore  = round($attempts->avg('score'), 1);
+                $totalKuis = $attempts->count();
+                $duelWon   = Duel::where('winner_id', (string) $userId)->count();
+
+                return [
+                    'name'       => $u->name,
+                    'nim'        => $u->nim ?? '-',
+                    'avg_score'  => $avgScore,
+                    'total_kuis' => $totalKuis,
+                    'duel_won'   => $duelWon,
+                    'skor'       => ($avgScore * 0.5) + ($totalKuis * 3) + ($duelWon * 5),
+                ];
+            })->filter()->sortByDesc('skor')->values()->take(10)->toArray();
 
             return response()->json([
                 'success' => true,
@@ -57,82 +115,102 @@ class DashboardController extends Controller
                     'total_mahasiswa' => $totalMahasiswa,
                     'total_materi'    => $totalMateri,
                     'total_ar'        => $totalAR,
+                    'total_duel'      => $totalDuel,
                 ],
                 'charts' => [
-                    'pie' => [
-                        'labels' => ['Mahasiswa', 'Dosen'],
-                        'data'   => [$totalMahasiswa, $totalDosen],
+                    'matkul_activity' => [
+                        'labels' => $matkul,
+                        'data'   => $matkulAttempts,
                     ],
-                    'bar' => [
-                        'labels' => $barLabels,
-                        'data'   => $barData,
+                    'registrasi' => [
+                        'labels' => $regLabels,
+                        'data'   => $regData,
                     ],
+                ],
+                'leaderboard' => [
+                    'dosen'     => $dosenBoard,
+                    'mahasiswa' => $mahasiswaBoard,
                 ],
             ]);
         }
 
-        // ═══════════════════════════════════════════════════════
+        // ═══════════════════════════════════════════════
         // 👨‍🏫 DOSEN
-        // ═══════════════════════════════════════════════════════
+        // ═══════════════════════════════════════════════
         if ($user->role === 'dosen') {
+            $courseIds = Course::where('dosen_id', (string) $user->id)
+                ->get()->map(fn($c) => (string) $c->id)->toArray();
+            if (empty($courseIds) && $user->course_id) {
+                $courseIds = [$user->course_id];
+            }
 
-            // Stat cards
-            $materiSaya = Material::where('user_id', $user->id)->count();
+            $materiSaya = Material::where('user_id', (string) $user->id)->count();
 
             try {
-                // Kuis milik dosen ini (by course_id karena kuis dibuat per matkul)
-                $kuisQuery  = DB::table('quizzes')->where('course_id', $user->course_id);
-                $kuisAktif  = (clone $kuisQuery)->where('is_active', true)->count();
-                $kuisNonaktif = (clone $kuisQuery)->where('is_active', false)->count();
+                $allKuisIds = empty($courseIds) ? []
+                    : Quiz::whereIn('course_id', $courseIds)
+                        ->get()->map(fn($q) => (string) $q->id)->toArray();
 
-                // Nilai dari quiz_attempts untuk kuis-kuis ini
-                $kuisIds    = (clone $kuisQuery)->pluck('_id')->toArray();
-                $rataNilai  = DB::table('quiz_attempts')
-                                ->whereIn('quiz_id', $kuisIds)
-                                ->avg('score') ?? 0;
-                $mahasiswaHadir = DB::table('quiz_attempts')
-                                ->whereIn('quiz_id', $kuisIds)
-                                ->distinct('user_id')
-                                ->count('user_id');
+                $kuisAktif    = empty($courseIds) ? 0 : Quiz::whereIn('course_id', $courseIds)->where('is_active', true)->count();
+                $kuisNonaktif = empty($courseIds) ? 0 : Quiz::whereIn('course_id', $courseIds)->where('is_active', false)->count();
+                $rataNilai    = empty($allKuisIds) ? 0 : (QuizAttempt::whereIn('quiz_id', $allKuisIds)->avg('score') ?? 0);
+                $mahasiswaHadir = empty($allKuisIds) ? 0
+                    : QuizAttempt::whereIn('quiz_id', $allKuisIds)->distinct('user_id')->count('user_id');
 
-                // Grafik 1: Persebaran nilai grade A–E
-                $gradeData = [
-                    DB::table('quiz_attempts')->whereIn('quiz_id', $kuisIds)->whereBetween('score', [90, 100])->count(),
-                    DB::table('quiz_attempts')->whereIn('quiz_id', $kuisIds)->whereBetween('score', [80, 89])->count(),
-                    DB::table('quiz_attempts')->whereIn('quiz_id', $kuisIds)->whereBetween('score', [70, 79])->count(),
-                    DB::table('quiz_attempts')->whereIn('quiz_id', $kuisIds)->whereBetween('score', [60, 69])->count(),
-                    DB::table('quiz_attempts')->whereIn('quiz_id', $kuisIds)->where('score', '<', 60)->count(),
-                ];
+                // ── Grafik 1: % Kelulusan per kuis ──
+                $kuisList = empty($courseIds) ? collect()
+                    : Quiz::whereIn('course_id', $courseIds)
+                        ->where('is_active', true)->latest()->limit(8)->get();
 
-                // Grafik 2: Jumlah soal per kuis (horizontal bar)
-                // Ambil max 8 kuis terakhir supaya chart tidak overflow
-                $kuisList = DB::table('quizzes')
-                    ->where('course_id', $user->course_id)
-                    ->latest()
-                    ->limit(8)
-                    ->get(['_id', 'title']);
-
-                $kuisSoalLabels = [];
-                $kuisSoalData   = [];
+                $lulusLabels = [];
+                $lulusData   = [];
                 foreach ($kuisList as $k) {
-                    $judul = strlen($k->title) > 25
-                        ? substr($k->title, 0, 22) . '...'
-                        : $k->title;
-                    $kuisSoalLabels[] = $judul;
-                    $kuisSoalData[]   = DB::table('quiz_questions')
-                                          ->where('quiz_id', $k->_id ?? $k->id)
-                                          ->count();
+                    $kId   = (string) $k->id;
+                    $total = QuizAttempt::where('quiz_id', $kId)->count();
+                    if ($total === 0) continue;
+                    $lulus = QuizAttempt::where('quiz_id', $kId)->where('is_passed', true)->count();
+                    $pct   = round(($lulus / $total) * 100, 1);
+                    $judul = mb_strlen($k->title) > 22 ? mb_substr($k->title, 0, 20) . '…' : $k->title;
+                    $lulusLabels[] = $judul;
+                    $lulusData[]   = $pct;
                 }
 
+                // ── Grafik 2: Passed vs Failed keseluruhan ──
+                $totalAttempts = empty($allKuisIds) ? 0 : QuizAttempt::whereIn('quiz_id', $allKuisIds)->count();
+                $totalLulus    = empty($allKuisIds) ? 0 : QuizAttempt::whereIn('quiz_id', $allKuisIds)->where('is_passed', true)->count();
+                $totalGagal    = $totalAttempts - $totalLulus;
+
+                // ── Leaderboard mahasiswa ──
+                $attempts = empty($allKuisIds) ? collect()
+                    : QuizAttempt::whereIn('quiz_id', $allKuisIds)->get();
+
+                $byUser = $attempts->groupBy('user_id');
+                $leaderboard = $byUser->map(function ($userAttempts, $userId) use ($allKuisIds) {
+                    $u = User::find($userId);
+                    if (!$u) return null;
+
+                    $avgScore   = round($userAttempts->avg('score'), 1);
+                    $totalKuis  = $userAttempts->count();
+                    $lulusCount = $userAttempts->where('is_passed', true)->count();
+                    $duelWon    = Duel::where('winner_id', (string) $userId)
+                        ->whereIn('quiz_id', $allKuisIds)->count();
+
+                    return [
+                        'name'        => $u->name,
+                        'nim'         => $u->nim ?? '-',
+                        'avg_score'   => $avgScore,
+                        'total_kuis'  => $totalKuis,
+                        'lulus_count' => $lulusCount,
+                        'duel_won'    => $duelWon,
+                        'skor'        => ($avgScore * 0.5) + ($totalKuis * 3) + ($duelWon * 5),
+                    ];
+                })->filter()->sortByDesc('skor')->values()->take(10)->toArray();
+
             } catch (\Exception $e) {
-                // Fallback aman kalau tabel belum ada
-                $kuisAktif      = 0;
-                $kuisNonaktif   = 0;
-                $rataNilai      = 0;
-                $mahasiswaHadir = 0;
-                $gradeData      = [0, 0, 0, 0, 0];
-                $kuisSoalLabels = [];
-                $kuisSoalData   = [];
+                $kuisAktif = $kuisNonaktif = $rataNilai = $mahasiswaHadir = 0;
+                $lulusLabels = $lulusData = [];
+                $totalLulus = $totalGagal = 0;
+                $leaderboard = [];
             }
 
             return response()->json([
@@ -141,22 +219,21 @@ class DashboardController extends Controller
                 'cards'   => [
                     'materi_saya'     => $materiSaya,
                     'kuis_aktif'      => $kuisAktif,
-                    'kuis_nonaktif'   => $kuisNonaktif,   // ← BARU: untuk fallback doughnut
-                    'rata_nilai'      => round($rataNilai, 2),
+                    'kuis_nonaktif'   => $kuisNonaktif,
+                    'rata_nilai'      => round($rataNilai, 1),
                     'mahasiswa_hadir' => $mahasiswaHadir,
                 ],
                 'charts' => [
-                    // Grafik 1: persebaran nilai (sudah ada sebelumnya)
-                    'bar' => [
-                        'labels' => ['A (90–100)', 'B (80–89)', 'C (70–79)', 'D (60–69)', 'E (<60)'],
-                        'data'   => $gradeData,
+                    'kelulusan_per_kuis' => [
+                        'labels' => $lulusLabels,
+                        'data'   => $lulusData,
                     ],
-                    // Grafik 2: jumlah soal per kuis (BARU — mengganti line partisipasi kosong)
-                    'kuis_soal' => [
-                        'labels' => $kuisSoalLabels,
-                        'data'   => $kuisSoalData,
+                    'passed_failed' => [
+                        'lulus' => $totalLulus,
+                        'gagal' => $totalGagal,
                     ],
                 ],
+                'leaderboard' => $leaderboard,
             ]);
         }
 

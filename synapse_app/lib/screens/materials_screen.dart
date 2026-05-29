@@ -1,8 +1,12 @@
+// lib/screens/materials_screen.dart
 import 'package:flutter/material.dart';
 import '../services/material_service.dart';
+import '../services/quiz_service.dart';
+import '../models/quiz_model.dart';
 import 'material_detail_screen.dart';
-import 'practice_screen.dart';
 import 'home_screen.dart';
+import 'quiz_list_screen.dart';
+import 'quiz_screen.dart';
 
 class MaterialsScreen extends StatefulWidget {
   const MaterialsScreen({super.key});
@@ -17,6 +21,8 @@ class _MaterialsScreenState extends State<MaterialsScreen> {
   bool _isCoursesLoading   = true;
   bool _isMaterialsLoading = true;
   String? _selectedCourseId;
+  List<QuizModel> _quizzes        = [];
+  bool _isQuizzesLoading          = false;
 
   static const Color _primaryColor = Color(0xFF2A9D8F);
   static const Color _softBg       = Color(0xFFF0FDFB);
@@ -42,15 +48,43 @@ class _MaterialsScreenState extends State<MaterialsScreen> {
 
   Future<void> _onCourseSelected(String? courseId) async {
     if (_selectedCourseId == courseId) return;
-    setState(() { _selectedCourseId = courseId; _isMaterialsLoading = true; });
-    final materials = courseId == null
-        ? await MaterialService().getMaterials()
-        : await MaterialService().getMaterialsByCourse(courseId);
-    if (mounted) {
-      setState(() { _materials = materials; _isMaterialsLoading = false; });
-    }
+
+    // Reset dulu — pastikan UI kosong sebelum fetch baru dimulai
+    setState(() {
+      _selectedCourseId   = courseId;
+      _isMaterialsLoading = true;
+      _quizzes            = [];
+      _isQuizzesLoading   = courseId != null;
+    });
+
+    // Simpan courseId lokal untuk guard race condition
+    final String? targetCourse = courseId;
+
+    // Fetch materi dan kuis secara paralel
+    final results = await Future.wait([
+      courseId == null
+          ? MaterialService().getMaterials()
+          : MaterialService().getMaterialsByCourse(courseId),
+      if (courseId != null)
+        QuizService().getQuizzes(courseId: courseId)
+      else
+        Future.value(<QuizModel>[]),
+    ]);
+
+    if (!mounted) return;
+
+    // Guard: kalau user sudah pindah matkul lagi, abaikan hasil ini
+    if (_selectedCourseId != targetCourse) return;
+
+    setState(() {
+      _materials          = results[0] as List;
+      _isMaterialsLoading = false;
+      _quizzes            = results[1] as List<QuizModel>;
+      _isQuizzesLoading   = false;
+    });
   }
 
+  // ── Course selector chip ──────────────────────────────────
   Widget _buildCourseSelector() {
     if (_isCoursesLoading) {
       return const Padding(
@@ -162,6 +196,7 @@ class _MaterialsScreenState extends State<MaterialsScreen> {
     );
   }
 
+  // ── Bottom sheet semua materi ─────────────────────────────
   void _showAllMaterialsSheet(BuildContext context, List<dynamic> allMaterials) {
     showModalBottomSheet(
       context: context,
@@ -237,79 +272,55 @@ class _MaterialsScreenState extends State<MaterialsScreen> {
     );
   }
 
-  void _showAllPracticesSheet(BuildContext context, List<dynamic> allMaterials) {
+  // ── Bottom sheet semua kuis matkul ────────────────────────
+  void _showAllQuizzesSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) {
-        String q = '';
-        return StatefulBuilder(builder: (context, setSheet) {
-          final filtered = q.isEmpty
-              ? allMaterials
-              : allMaterials.where((m) =>
-                  (m['title'] ?? '').toString().toLowerCase().contains(q.toLowerCase())).toList();
-          return Container(
-            height: MediaQuery.of(context).size.height * 0.85,
-            decoration: const BoxDecoration(
-              color: _primaryColor,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
-            ),
-            child: Column(
-              children: [
-                Center(
-                  child: Container(
-                    margin: const EdgeInsets.only(top: 12, bottom: 20),
-                    width: 40, height: 4,
-                    decoration: BoxDecoration(color: Colors.white.withOpacity(0.5), borderRadius: BorderRadius.circular(10)),
-                  ),
+        return Container(
+          height: MediaQuery.of(context).size.height * 0.75,
+          decoration: const BoxDecoration(
+            color: _primaryColor,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+          ),
+          child: Column(
+            children: [
+              Center(
+                child: Container(
+                  margin: const EdgeInsets.only(top: 12, bottom: 20),
+                  width: 40, height: 4,
+                  decoration: BoxDecoration(color: Colors.white.withOpacity(0.5), borderRadius: BorderRadius.circular(10)),
                 ),
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 20),
-                  child: Row(children: [
-                    Icon(Icons.quiz_rounded, color: Colors.white, size: 24),
-                    SizedBox(width: 10),
-                    Text('Semua Mini Kuis',
-                        style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
-                  ]),
-                ),
-                const SizedBox(height: 16),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(30)),
-                    child: TextField(
-                      onChanged: (v) => setSheet(() => q = v),
-                      decoration: const InputDecoration(
-                        hintText: 'Cari kuis...',
-                        border: InputBorder.none,
-                        enabledBorder: InputBorder.none,
-                        focusedBorder: InputBorder.none,
-                        suffixIcon: Icon(Icons.search, color: Colors.black54),
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 20),
+                child: Row(children: [
+                  Icon(Icons.quiz_rounded, color: Colors.white, size: 24),
+                  SizedBox(width: 10),
+                  Text('Kuis per Mata Kuliah',
+                      style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+                ]),
+              ),
+              const SizedBox(height: 16),
+              Expanded(
+                child: _courses.isEmpty
+                    ? const Center(child: Text('Belum ada mata kuliah', style: TextStyle(color: Colors.white)))
+                    : ListView.builder(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+                        itemCount: _courses.length,
+                        itemBuilder: (ctx, i) => _buildCourseQuizCard(_courses[i]),
                       ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Expanded(
-                  child: filtered.isEmpty
-                      ? const Center(child: Text('Kuis tidak ditemukan', style: TextStyle(color: Colors.white)))
-                      : ListView.builder(
-                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
-                          physics: const BouncingScrollPhysics(),
-                          itemCount: filtered.length,
-                          itemBuilder: (ctx, i) => _buildPracticeCard(filtered[i], isInSheet: true),
-                        ),
-                ),
-              ],
-            ),
-          );
-        });
+              ),
+            ],
+          ),
+        );
       },
     );
   }
 
+  // ── Card materi ───────────────────────────────────────────
   Widget _buildMaterialCard(BuildContext context, dynamic item) {
     final String? imageUrl = item['image'];
     return GestureDetector(
@@ -375,11 +386,13 @@ class _MaterialsScreenState extends State<MaterialsScreen> {
     );
   }
 
-  Widget _buildPracticeCard(dynamic item, {bool isInSheet = false}) {
-    final bool hasPractice = (item['has_practice'] == true) ||
-        ((item['questions'] as List?)?.isNotEmpty ?? false);
+  // ── Card kuis per matkul (BARU — iterate _courses bukan _materials) ──
+  Widget _buildCourseQuizCard(dynamic course) {
+    final courseId    = (course['_id'] ?? course['id'])?.toString() ?? '';
+    final courseTitle = course['title'] ?? course['name'] ?? 'Matkul';
+
     return Container(
-      margin: EdgeInsets.symmetric(horizontal: isInSheet ? 4 : 20, vertical: 6),
+      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -389,11 +402,15 @@ class _MaterialsScreenState extends State<MaterialsScreen> {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
-          onTap: () => Navigator.push(context,
-              MaterialPageRoute(builder: (_) => PracticeScreen(
-                materialId: (item['_id'] ?? item['id'])?.toString() ?? '',
-                materialTitle: item['title'] ?? 'Kuis',
-              ))),
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => QuizListScreen(
+                courseId: courseId,
+                courseTitle: courseTitle,
+              ),
+            ),
+          ),
           child: Padding(
             padding: const EdgeInsets.all(14),
             child: Row(
@@ -401,10 +418,8 @@ class _MaterialsScreenState extends State<MaterialsScreen> {
                 Container(
                   width: 48, height: 48,
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: hasPractice
-                          ? [_primaryColor, const Color(0xFF1F7A6E)]
-                          : [Colors.grey.shade400, Colors.grey.shade500],
+                    gradient: const LinearGradient(
+                      colors: [_primaryColor, Color(0xFF1F7A6E)],
                       begin: Alignment.topLeft, end: Alignment.bottomRight,
                     ),
                     borderRadius: BorderRadius.circular(12),
@@ -417,28 +432,15 @@ class _MaterialsScreenState extends State<MaterialsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Kuis ${item['title'] ?? 'Materi'}',
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.black87),
+                        'Kuis $courseTitle',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 14, color: Colors.black87),
                         maxLines: 1, overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Icon(
-                            hasPractice ? Icons.check_circle : Icons.lock_clock_outlined,
-                            size: 12,
-                            color: hasPractice ? _primaryColor : Colors.orange[700],
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            hasPractice ? 'Tersedia • Uji pemahamanmu!' : 'Belum ada soal',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: hasPractice ? _primaryColor : Colors.orange[700],
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
+                      const Text(
+                        'Lihat semua kuis matkul ini',
+                        style: TextStyle(fontSize: 11, color: _primaryColor, fontWeight: FontWeight.w500),
                       ),
                     ],
                   ),
@@ -452,12 +454,71 @@ class _MaterialsScreenState extends State<MaterialsScreen> {
     );
   }
 
+  // ── Card kuis inline (saat filter matkul spesifik) ─────
+  Widget _buildInlineQuizCard(QuizModel quiz) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 3))],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => QuizScreen(quiz: quiz)),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              children: [
+                Container(
+                  width: 48, height: 48,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [_primaryColor, Color(0xFF1F7A6E)],
+                      begin: Alignment.topLeft, end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.quiz_rounded, color: Colors.white, size: 24),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(quiz.title,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 14, color: Colors.black87),
+                        maxLines: 2, overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          const Icon(Icons.timer_outlined, size: 12, color: Color(0xFF94A3B8)),
+                          const SizedBox(width: 4),
+                          Text('${quiz.durationMinutes} menit',
+                            style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8))),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: _primaryColor),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final List<dynamic> materialsWithPractice = _materials.where((m) {
-      return m['has_practice'] == true || ((m['questions'] as List?)?.isNotEmpty ?? false);
-    }).toList();
-
     return Scaffold(
       backgroundColor: Colors.grey[100],
       body: CustomScrollView(
@@ -465,8 +526,11 @@ class _MaterialsScreenState extends State<MaterialsScreen> {
         slivers: [
           SliverToBoxAdapter(
             child: Padding(
-              // FIX: top padding dinamis, aman di semua notch/status bar
-              padding: EdgeInsets.only(left: 20, top: MediaQuery.of(context).padding.top + 16, right: 20, bottom: 10),
+              padding: EdgeInsets.only(
+                  left: 20,
+                  top: MediaQuery.of(context).padding.top + 16,
+                  right: 20,
+                  bottom: 10),
               child: RichText(
                 text: const TextSpan(
                   style: TextStyle(fontSize: 28, color: Colors.black87, fontWeight: FontWeight.bold),
@@ -495,6 +559,7 @@ class _MaterialsScreenState extends State<MaterialsScreen> {
             )
           else ...[
 
+            // ── Section Materi ──────────────────────────────
             SliverToBoxAdapter(
               child: _buildSectionHeader(
                 title: 'Rekomendasi Materi',
@@ -503,7 +568,6 @@ class _MaterialsScreenState extends State<MaterialsScreen> {
                 onTap: () => _showAllMaterialsSheet(context, _materials),
               ),
             ),
-
             SliverToBoxAdapter(
               child: SizedBox(
                 height: 200,
@@ -523,25 +587,60 @@ class _MaterialsScreenState extends State<MaterialsScreen> {
               ),
             ),
 
-            if (materialsWithPractice.isNotEmpty) ...[
+            // ── Section Kuis ─────────────────────────────────
+            // Filter semua: card per matkul
+            // Filter spesifik: list kuis langsung
+            if (_selectedCourseId == null) ...[
+              if (_courses.isNotEmpty) ...[
+                SliverToBoxAdapter(
+                  child: _buildSectionHeader(
+                    title: 'Kuis Mata Kuliah',
+                    icon: Icons.quiz_rounded,
+                    count: _courses.length,
+                    onTap: () => _showAllQuizzesSheet(context),
+                  ),
+                ),
+                SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (ctx, i) => _buildCourseQuizCard(_courses[i]),
+                    childCount: _courses.length > 3 ? 3 : _courses.length,
+                  ),
+                ),
+              ],
+            ] else ...[
               SliverToBoxAdapter(
                 child: _buildSectionHeader(
-                  title: 'Rekomendasi Mini Kuis',
+                  title: 'Kuis',
                   icon: Icons.quiz_rounded,
-                  count: materialsWithPractice.length,
-                  onTap: () => _showAllPracticesSheet(context, materialsWithPractice),
+                  count: _isQuizzesLoading ? null : _quizzes.length,
+                  onTap: () {},
                 ),
               ),
-              SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (ctx, i) => _buildPracticeCard(materialsWithPractice[i]),
-                  childCount: materialsWithPractice.length > 3 ? 3 : materialsWithPractice.length,
+              if (_isQuizzesLoading)
+                const SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.all(20),
+                    child: Center(child: CircularProgressIndicator(color: _primaryColor)),
+                  ),
+                )
+              else if (_quizzes.isEmpty)
+                const SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    child: Text('Belum ada kuis untuk matkul ini.',
+                        style: TextStyle(color: Colors.grey, fontSize: 13)),
+                  ),
+                )
+              else
+                SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (ctx, i) => _buildInlineQuizCard(_quizzes[i]),
+                    childCount: _quizzes.length,
+                  ),
                 ),
-              ),
             ],
           ],
 
-          // FIX: padding bawah kompensasi nav bar
           SliverToBoxAdapter(child: SizedBox(height: HomeScreen.navBarHeight)),
         ],
       ),

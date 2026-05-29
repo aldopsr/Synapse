@@ -124,6 +124,68 @@ tbody td { padding: 12px 16px; font-size: 13px; color: #1a1a1a; }
     opacity: 0; transition: all .3s; z-index: 999;
 }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* Edit & Delete buttons */
+.btn-edit-mhs {
+    padding: 5px 10px; border: none; border-radius: 7px;
+    font-size: 11px; font-weight: 700; cursor: pointer;
+    background: #fef3c7; color: #92400e;
+    transition: background .15s;
+}
+.btn-edit-mhs:hover { background: #fde68a; }
+.btn-delete-mhs {
+    padding: 5px 10px; border: none; border-radius: 7px;
+    font-size: 11px; font-weight: 700; cursor: pointer;
+    background: #fee2e2; color: #991b1b;
+    transition: background .15s;
+}
+.btn-delete-mhs:hover { background: #fecaca; }
+
+/* Modal */
+.modal-overlay-mhs {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,.45); z-index: 1000;
+    align-items: center; justify-content: center;
+}
+.modal-overlay-mhs.open { display: flex; }
+.modal-box-mhs {
+    background: #fff; border-radius: 16px; width: 100%;
+    max-width: 460px; margin: 20px; overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,.2);
+}
+.modal-head-mhs {
+    padding: 20px 24px 16px;
+    border-bottom: 1px solid #f0f0f0;
+    display: flex; align-items: center; justify-content: space-between;
+}
+.modal-head-mhs h3 { font-size: 16px; font-weight: 700; margin: 0; }
+.modal-close-mhs {
+    width: 28px; height: 28px; border: none; background: #f5f5f5;
+    border-radius: 8px; cursor: pointer; font-size: 14px;
+}
+.modal-body-mhs { padding: 20px 24px; }
+.fg-mhs { margin-bottom: 16px; }
+.fg-mhs label { display: block; font-size: 12px; font-weight: 700; color: #555; margin-bottom: 6px; }
+.fg-mhs input {
+    width: 100%; padding: 9px 12px; border: 1px solid #e5e7eb;
+    border-radius: 9px; font-size: 13px; font-family: inherit;
+    box-sizing: border-box; outline: none;
+    transition: border-color .15s;
+}
+.fg-mhs input:focus { border-color: #279685; }
+.modal-foot-mhs {
+    padding: 14px 24px; border-top: 1px solid #f0f0f0;
+    display: flex; justify-content: flex-end; gap: 10px; background: #fafafa;
+}
+.btn-cancel-mhs {
+    padding: 8px 18px; border: 1px solid #e5e7eb; border-radius: 9px;
+    background: #fff; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.btn-save-mhs {
+    padding: 8px 18px; border: none; border-radius: 9px;
+    background: #279685; color: #fff; font-size: 13px; font-weight: 700; cursor: pointer;
+}
+.btn-save-mhs:disabled { background: #9ca3af; cursor: not-allowed; }
 </style>
 
 <div class="page-top">
@@ -186,6 +248,43 @@ tbody td { padding: 12px 16px; font-size: 13px; color: #1a1a1a; }
 </div>
 
 <div class="toast" id="toast"></div>
+
+{{-- Modal Edit Mahasiswa --}}
+<div class="modal-overlay-mhs" id="modalEditMhs">
+    <div class="modal-box-mhs">
+        <div class="modal-head-mhs">
+            <h3>✏️ Edit Data Mahasiswa</h3>
+            <button class="modal-close-mhs" onclick="tutupModalMhs()">✕</button>
+        </div>
+        <div class="modal-body-mhs">
+            <input type="hidden" id="editMhsId">
+            <div class="fg-mhs">
+                <label>Nama Lengkap</label>
+                <input type="text" id="editMhsName" placeholder="Nama mahasiswa">
+            </div>
+            <div class="fg-mhs">
+                <label>Email</label>
+                <input type="email" id="editMhsEmail" placeholder="email@example.com">
+            </div>
+            <div class="fg-mhs">
+                <label>NIM</label>
+                <input type="text" id="editMhsNim" placeholder="NIM">
+            </div>
+            <div class="fg-mhs">
+                <label>Kelas</label>
+                <input type="text" id="editMhsKelas" placeholder="Kelas">
+            </div>
+            <div class="fg-mhs">
+                <label>Password Baru <span style="color:#94a3b8;font-weight:400;">(kosongkan jika tidak diubah)</span></label>
+                <input type="password" id="editMhsPassword" placeholder="Min. 8 karakter">
+            </div>
+        </div>
+        <div class="modal-foot-mhs">
+            <button class="btn-cancel-mhs" onclick="tutupModalMhs()">Batal</button>
+            <button class="btn-save-mhs" id="btnSaveMhs" onclick="simpanEditMhs()">Simpan</button>
+        </div>
+    </div>
+</div>
 @endsection
 
 @push('scripts')
@@ -348,15 +447,16 @@ tbody td { padding: 12px 16px; font-size: 13px; color: #1a1a1a; }
                     <td>${scoreEl}</td>
                     <td>
                         <div class="action-btns">
-                            <button class="btn-detail" id="btnDetail-${uid}"
-                                onclick="toggleDetail('${uid}')">
+                            <button class="btn-detail" id="btnDetail-${uid}" onclick="toggleDetail('${uid}')">
                                 📊 Detail
                             </button>
-                            <button class="btn-export"
-                                onclick="exportStudentCSV('${uid}')"
-                                title="Export riwayat quiz mahasiswa ini">
+                            <button class="btn-export" onclick="exportStudentCSV('${uid}')" title="Export CSV">
                                 ⬇ Export
                             </button>
+                            ${isAdmin ? `
+                            <button class="btn-edit-mhs" onclick="bukaEditMhs('${uid}')">✏️ Edit</button>
+                            <button class="btn-delete-mhs" onclick="hapusMhs('${uid}', '${esc(s.name||'')}')">🗑 Hapus</button>
+                            ` : ''}
                         </div>
                     </td>
                 </tr>
@@ -492,6 +592,87 @@ tbody td { padding: 12px 16px; font-size: 13px; color: #1a1a1a; }
         link.click();
         toast('Export berhasil!');
     };
+
+    /* ── Edit Mahasiswa ──────────────────────────────────── */
+    window.bukaEditMhs = function(uid) {
+        const s = allData.find(d => d.user_id === uid);
+        if (!s) return;
+        document.getElementById('editMhsId').value       = uid;
+        document.getElementById('editMhsName').value     = s.name  || '';
+        document.getElementById('editMhsEmail').value    = s.email || '';
+        document.getElementById('editMhsNim').value      = s.nim   || '';
+        document.getElementById('editMhsKelas').value    = s.kelas || '';
+        document.getElementById('editMhsPassword').value = '';
+        document.getElementById('modalEditMhs').classList.add('open');
+    };
+
+    window.tutupModalMhs = function() {
+        document.getElementById('modalEditMhs').classList.remove('open');
+    };
+
+    window.simpanEditMhs = async function() {
+        const uid   = document.getElementById('editMhsId').value;
+        const name  = document.getElementById('editMhsName').value.trim();
+        const email = document.getElementById('editMhsEmail').value.trim();
+        const nim   = document.getElementById('editMhsNim').value.trim();
+        const kelas = document.getElementById('editMhsKelas').value.trim();
+        const pwd   = document.getElementById('editMhsPassword').value;
+
+        if (!name || !email) {
+            alert('Nama dan email wajib diisi.'); return;
+        }
+        if (pwd && pwd.length < 8) {
+            alert('Password minimal 8 karakter.'); return;
+        }
+
+        const body = { name, email, nim, kelas };
+        if (pwd) body.password = pwd;
+
+        const btn = document.getElementById('btnSaveMhs');
+        btn.disabled = true; btn.textContent = 'Menyimpan...';
+
+        try {
+            const res  = await fetch(`${API}/student-data/${uid}`, {
+                method: 'PUT',
+                headers: { Authorization: 'Bearer ' + token, Accept: 'application/json', 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+            });
+            const data = await res.json();
+            if (res.ok) {
+                tutupModalMhs();
+                toast('Data mahasiswa berhasil diperbarui!');
+                await fetchData();
+            } else {
+                alert(data.message || 'Gagal menyimpan.');
+            }
+        } catch (e) { alert('Koneksi bermasalah.'); }
+        finally { btn.disabled = false; btn.textContent = 'Simpan'; }
+    };
+
+    /* ── Hapus Mahasiswa ──────────────────────────────────── */
+    window.hapusMhs = async function(uid, name) {
+        if (!confirm(`Hapus akun mahasiswa "${name}"?\n\nSemua data riwayat kuis dan duel juga akan terhapus.\nTindakan ini tidak bisa dibatalkan.`)) return;
+
+        try {
+            const res = await fetch(`${API}/student-data/${uid}`, {
+                method: 'DELETE',
+                headers: { Authorization: 'Bearer ' + token, Accept: 'application/json' }
+            });
+            if (res.ok) {
+                toast(`Akun ${name} berhasil dihapus.`);
+                allData = allData.filter(d => d.user_id !== uid);
+                applyFilter();
+            } else {
+                const data = await res.json().catch(() => ({}));
+                alert(data.message || 'Gagal menghapus.');
+            }
+        } catch (e) { alert('Koneksi bermasalah.'); }
+    };
+
+    /* ── Tutup modal saat klik overlay ──────────────────── */
+    document.getElementById('modalEditMhs').addEventListener('click', function(e) {
+        if (e.target === this) tutupModalMhs();
+    });
 
     // ── Escape ────────────────────────────────────────────────
     function esc(s) {

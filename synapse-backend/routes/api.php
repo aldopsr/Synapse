@@ -19,7 +19,12 @@ use App\Http\Controllers\Api\CourseController;
 use App\Http\Controllers\Api\DosenController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\StudentDataController;
+use App\Http\Controllers\Api\FypController;
 use Illuminate\Support\Facades\File;
+use App\Http\Controllers\Api\FcmController;
+use App\Http\Controllers\Api\DuelController;
+use App\Http\Controllers\Api\GeminiController;
+
 
 // =================================================================
 // 1. JALUR PUBLIK (Tanpa perlu Login / Token - Tamu Bebas Masuk)
@@ -73,6 +78,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/quizzes/{id}/leaderboard', [QuizController::class , 'leaderboard']);
     // Kuota chatbot untuk public
     Route::get('/chat/quota', [AiChatController::class, 'chatQuota']);
+    Route::post('/fcm-token',   [FcmController::class, 'store']);
+    Route::delete('/fcm-token', [FcmController::class, 'destroy']);
 });
 
 
@@ -123,6 +130,14 @@ Route::middleware(['auth:sanctum', 'role:dosen,admin,superadmin'])->group(functi
     Route::get('/student-data/quiz-participants', [StudentDataController::class, 'quizParticipants']);
     Route::get('/student-data/all', [StudentDataController::class, 'allStudents']);
     Route::get('/student-data/{userId}/detail', [StudentDataController::class, 'studentDetail']);
+    Route::put('/student-data/{userId}',    [StudentDataController::class, 'update']);
+    Route::delete('/student-data/{userId}', [StudentDataController::class, 'destroy']);
+
+    Route::post('/admin/quizzes/{id}/toggle-duel', [QuizController::class, 'toggleDuel']);
+    Route::get('/admin/duels/history',             [QuizController::class, 'duelHistory']);
+
+    Route::post('/ai/generate-questions',   [GeminiController::class, 'generateQuestions']);
+    Route::post('/ai/generate-description', [GeminiController::class, 'generateDescription']);
 });
 
 
@@ -136,10 +151,24 @@ Route::middleware(['auth:sanctum', 'role:mahasiswa,public'])->group(function () 
     Route::get('/quiz-history',             [QuizController::class, 'getHistory']);
     Route::post('/chat',                    [AiChatController::class, 'chat']);
     Route::post('/explain-question', [AiChatController::class, 'explainQuestion']);
+    Route::get('/fyp', [FypController::class, 'index']);
+
+    Route::get('/duels',                    [DuelController::class, 'index']);
+    Route::get('/duels/history',            [DuelController::class, 'history']);
+    Route::post('/duels/challenge',         [DuelController::class, 'challenge']);
+    Route::post('/duels/{id}/respond',      [DuelController::class, 'respond']);
+    Route::get('/duels/{id}/questions',     [DuelController::class, 'getQuestions']);
+    Route::post('/duels/{id}/submit',       [DuelController::class, 'submit']);
+    Route::get('/duels/{id}/status',        [DuelController::class, 'status']);
+    Route::get('/duel-quizzes', [QuizController::class, 'duelQuizList']);
+    Route::get('/user/duel-code',                [DuelController::class, 'myDuelCode']);
+    Route::post('/user/regenerate-duel-code',    [DuelController::class, 'regenerateDuelCode']);
+    Route::delete('/duels/{id}/cancel',          [DuelController::class, 'cancel']);
 
 
     // Khusus mahasiswa saja
     Route::middleware('role:mahasiswa')->group(function () {
         Route::post('/analyze-score',     [AiChatController::class, 'analyzeScore']);
     });
+
 });

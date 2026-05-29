@@ -215,4 +215,72 @@ class StudentDataController extends Controller
                 '4'=>'D4 / Sarjana Terapan','5'=>'S2','6'=>'S3'];
         return $map[$nim[2]] ?? '-';
     }
+
+    // ── Edit data mahasiswa ────────────────────────────────────
+    public function update(Request $request, $userId)
+    {
+        $admin = $request->user();
+        if (!in_array($admin->role, ['admin', 'superadmin'])) {
+            return response()->json(['message' => 'Akses ditolak'], 403);
+        }
+ 
+        $user = User::find($userId);
+        if (!$user || $user->role !== 'mahasiswa') {
+            return response()->json(['message' => 'Mahasiswa tidak ditemukan'], 404);
+        }
+ 
+        $request->validate([
+            'name'     => 'sometimes|string|max:255',
+            'email'    => 'sometimes|email|max:255',
+            'nim'      => 'sometimes|string|max:50',
+            'kelas'    => 'sometimes|string|max:50',
+            'password' => 'sometimes|string|min:8',
+        ]);
+ 
+        $updateData = array_filter([
+            'name'  => $request->name,
+            'email' => $request->email,
+            'nim'   => $request->nim,
+            'kelas' => $request->kelas,
+        ]);
+ 
+        if ($request->filled('password')) {
+            $updateData['password'] = bcrypt($request->password);
+        }
+ 
+        if (empty($updateData)) {
+            return response()->json(['message' => 'Tidak ada data yang diubah'], 422);
+        }
+ 
+        $user->update($updateData);
+ 
+        return response()->json([
+            'message' => 'Data mahasiswa berhasil diperbarui',
+            'data'    => $user->fresh(),
+        ]);
+    }
+ 
+    // ── Hapus akun mahasiswa ───────────────────────────────────
+    public function destroy(Request $request, $userId)
+    {
+        $admin = $request->user();
+        if (!in_array($admin->role, ['admin', 'superadmin'])) {
+            return response()->json(['message' => 'Akses ditolak'], 403);
+        }
+ 
+        $user = User::find($userId);
+        if (!$user || $user->role !== 'mahasiswa') {
+            return response()->json(['message' => 'Mahasiswa tidak ditemukan'], 404);
+        }
+ 
+        // Hapus data terkait (quiz attempts, duel, fcm token)
+        \App\Models\QuizAttempt::where('user_id', (string) $userId)->delete();
+        \App\Models\Duel::where('challenger_id', (string) $userId)
+            ->orWhere('opponent_id', (string) $userId)->delete();
+        \App\Models\FcmToken::where('user_id', (string) $userId)->delete();
+ 
+        $user->delete();
+ 
+        return response()->json(['message' => 'Akun mahasiswa berhasil dihapus']);
+    }
 }
