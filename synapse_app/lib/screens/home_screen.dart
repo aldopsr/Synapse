@@ -69,7 +69,7 @@ class _HomeScreenState extends State<HomeScreen> {
         }
         _isLoading = false;
       });
-      SynapseFabController.isGuest = _isGuest;
+      
     }
   }
 

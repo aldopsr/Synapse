@@ -10,8 +10,7 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 
 // ── Controller global ─────────────────────────────────────────
 class SynapseFabController {
-  static final ValueNotifier<bool> visible  = ValueNotifier(true);
-  static bool isGuest = true; // diset dari HomeScreen setelah load user
+  static final ValueNotifier<bool> visible = ValueNotifier(true);
 }
 
 // ── SynapseFab — bisa dipakai di Stack manapun ───────────────
@@ -35,32 +34,6 @@ class _SynapseFabState extends State<SynapseFab> {
   }
 
   void _onTap() {
-    if (SynapseFabController.isGuest) {
-      HapticFeedback.lightImpact();
-      showDialog(
-        context: context,
-        builder: (_) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Row(children: [
-            Icon(Icons.lock_rounded, color: Color(0xFF2A9D8F)),
-            SizedBox(width: 8),
-            Text('Login dulu yuk!',
-                style: TextStyle(fontWeight: FontWeight.bold)),
-          ]),
-          content: const Text(
-              'Fitur ini hanya untuk pengguna terdaftar. '
-              'Daftar gratis untuk akses kuis, AI tutor, dan catatan!'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Nanti',
-                  style: TextStyle(color: Colors.grey)),
-            ),
-          ],
-        ),
-      );
-      return;
-    }
     HapticFeedback.lightImpact();
     // Dapatkan posisi absolut FAB di screen
     double screenX = _posX;
