@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/constants.dart';
 import '../widgets/synapse_fab.dart';
+import '../utils/chat_notifier.dart';
 
 class ChatMessage {
   final String text;
@@ -66,12 +67,12 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     _loadHistory();
     _checkRoleAndQuota();
     // Reload history saat FAB chatbot kirim pesan baru
-    SynapseFabController.chatUpdated.addListener(_onFabChatUpdated);
+    ChatNotifier.chatUpdated.addListener(_onFabChatUpdated);
   }
 
   @override
   void dispose() {
-    SynapseFabController.chatUpdated.removeListener(_onFabChatUpdated);
+    ChatNotifier.chatUpdated.removeListener(_onFabChatUpdated);
     _controller.dispose();
     _scrollController.dispose();
     super.dispose();

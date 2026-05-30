@@ -18,9 +18,11 @@ class Duel extends Model
         'opponent_score'   => 'float',
         'challenger_time'  => 'integer',
         'opponent_time'    => 'integer',
+        'challenger_ready' => 'boolean',
+        'opponent_ready'   => 'boolean',
+        'battle_starts_at' => 'datetime',
     ];
 
-    // Status: pending | active | completed | expired | declined
     public function isPending(): bool   { return $this->status === 'pending'; }
     public function isActive(): bool    { return $this->status === 'active'; }
     public function isCompleted(): bool { return $this->status === 'completed'; }

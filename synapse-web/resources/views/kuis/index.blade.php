@@ -1,404 +1,208 @@
 @extends('layouts.app')
-
 @section('title', 'Kelola Kuis - Synapse')
 @section('header_title', 'Kelola Kuis')
 
 @section('content')
 <style>
-/* =====================================================
-   KELOLA KUIS — modernized
-   ===================================================== */
-.page-header {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 16px;
-    margin-bottom: 24px;
-    flex-wrap: wrap;
-}
-.page-header-left h2 { font-size: 18px; font-weight: 700; color: #1a1a1a; margin: 0 0 4px; }
-.page-header-left p  { font-size: 13px; color: #888; margin: 0; }
+.page-header { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:24px; flex-wrap:wrap; }
+.page-header-left h2 { font-size:20px; font-weight:800; color:#111827; margin:0 0 4px; letter-spacing:-.3px; }
+.page-header-left p  { font-size:13px; color:#9ca3af; margin:0; }
 
-.btn-primary {
-    display: inline-flex; align-items: center; gap: 7px;
-    background: #279685; color: #fff; border: none;
-    padding: 10px 18px; border-radius: 10px;
-    font-size: 13px; font-weight: 700; cursor: pointer;
-    transition: background .18s, transform .18s;
-    white-space: nowrap; font-family: inherit;
-    text-decoration: none;
-}
-.btn-primary:hover { background: #1f7a6c; transform: translateY(-2px); }
+/* Toolbar */
+.toolbar { display:flex; align-items:center; gap:10px; margin-bottom:16px; flex-wrap:wrap; }
+.search-wrap { position:relative; flex:1; min-width:200px; max-width:320px; }
+.search-wrap svg { position:absolute; left:11px; top:50%; transform:translateY(-50%); color:#c4c8d0; pointer-events:none; width:15px; height:15px; }
+.search-input { width:100%; padding:9px 12px 9px 36px; border:1.5px solid #e8eaed; border-radius:99px; font-size:13px; font-family:inherit; background:#fff; color:#111827; box-sizing:border-box; transition:border-color .15s; }
+.search-input:focus { outline:none; border-color:#279685; }
+.search-input::placeholder { color:#d1d5db; }
+.filter-select { padding:9px 13px; border:1.5px solid #e8eaed; border-radius:99px; font-size:13px; font-family:inherit; background:#fff; color:#374151; cursor:pointer; }
+.filter-select:focus { outline:none; border-color:#279685; }
 
-.toolbar {
-    display: flex; align-items: center; gap: 10px;
-    margin-bottom: 16px; flex-wrap: wrap;
-}
-.search-wrap {
-    position: relative; flex: 1;
-    min-width: 200px; max-width: 320px;
-}
-.search-wrap svg {
-    position: absolute; left: 11px; top: 50%;
-    transform: translateY(-50%); color: #bbb; pointer-events: none;
-}
-.search-input {
-    width: 100%; padding: 9px 12px 9px 36px;
-    border: 1px solid #e5e7eb; border-radius: 10px;
-    font-size: 13px; font-family: inherit; background: #fff;
-    color: #1a1a1a; box-sizing: border-box;
-    transition: border-color .15s, box-shadow .15s;
-}
-.search-input:focus {
-    outline: none; border-color: #279685;
-    box-shadow: 0 0 0 3px rgba(39,150,133,.1);
-}
-.search-input::placeholder { color: #ccc; }
+.pills { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+.pill { padding:6px 14px; border-radius:99px; font-size:12px; font-weight:700; cursor:pointer; border:1.5px solid #e8eaed; background:#fff; color:#6b7280; transition:all .15s; font-family:inherit; }
+.pill:hover { border-color:#279685; color:#279685; }
+.pill.active { background:#279685; color:#fff; border-color:#279685; }
+.pill.active.p-nonaktif    { background:#ef4444; border-color:#ef4444; }
+.pill.active.p-belum_mulai { background:#f59e0b; border-color:#f59e0b; }
+.pill.active.p-sudah_selesai { background:#6b7280; border-color:#6b7280; }
 
-.filter-select {
-    padding: 9px 13px;
-    border: 1px solid #e5e7eb; border-radius: 10px;
-    font-size: 13px; font-family: inherit;
-    background: #fff; color: #444; cursor: pointer;
-}
-.filter-select:focus { outline: none; border-color: #279685; }
+.count-badge { font-size:12px; font-weight:600; color:#9ca3af; white-space:nowrap; margin-left:auto; }
+.count-badge span { color:#279685; font-weight:700; }
 
-.pills { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
-.pill {
-    padding: 6px 14px; border-radius: 99px; font-size: 12px;
-    font-weight: 700; cursor: pointer; border: 1.5px solid #e5e7eb;
-    background: #fff; color: #666;
-    transition: all .15s; white-space: nowrap;
-    font-family: inherit;
-}
-.pill:hover { border-color: #279685; color: #279685; }
-.pill.active { background: #279685; color: #fff; border-color: #279685; }
-.pill.active.p-nonaktif   { background: #ef4444; border-color: #ef4444; }
-.pill.active.p-belum_mulai{ background: #f59e0b; border-color: #f59e0b; }
-.pill.active.p-sudah_selesai{ background: #6b7280; border-color: #6b7280; }
-.pill.active.p-aktif      { background: #279685; border-color: #279685; }
+/* Grid */
+.kuis-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:16px; }
 
-.count-badge {
-    font-size: 12px; font-weight: 700; color: #888;
-    white-space: nowrap; margin-left: auto;
-}
-.count-badge span { color: #279685; font-weight: 700; }
+/* Quiz card */
+.quiz-card { background:#fff; border-radius:16px; border:1px solid #eff0f2; overflow:hidden; display:flex; flex-direction:column; transition:transform .2s,box-shadow .2s; }
+.quiz-card:hover { transform:translateY(-3px); box-shadow:0 12px 28px rgba(0,0,0,.07); }
+.quiz-card.is-inactive { opacity:.7; }
 
-.kuis-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: 16px;
-}
+.card-strip { height:4px; }
+.strip-aktif         { background:linear-gradient(90deg,#279685,#4A90E2); }
+.strip-nonaktif      { background:#e5e7eb; }
+.strip-belum_mulai   { background:linear-gradient(90deg,#f59e0b,#ef4444); }
+.strip-sudah_selesai { background:#9ca3af; }
 
-.quiz-card {
-    background: #fff;
-    border-radius: 16px;
-    border: 1px solid #eee;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    transition: transform .2s, box-shadow .2s, border-color .2s;
-    position: relative;
-}
-.quiz-card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 12px 28px rgba(0,0,0,.07);
-}
-.quiz-card.is-inactive { opacity: .75; border-color: #f0f0f0; }
+.card-body { padding:18px; flex:1; }
 
-.card-strip { height: 4px; transition: background .3s; }
-.strip-aktif          { background: linear-gradient(90deg, #279685, #4A90E2); }
-.strip-nonaktif       { background: #e5e7eb; }
-.strip-belum_mulai    { background: linear-gradient(90deg, #f59e0b, #ef4444); }
-.strip-sudah_selesai  { background: #9ca3af; }
+.card-title-row { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; margin-bottom:6px; }
+.card-title { font-size:14px; font-weight:700; color:#111827; line-height:1.4; flex:1; }
+.card-title a { color:inherit; text-decoration:none; }
+.card-title a:hover { color:#279685; }
 
-.card-body { padding: 18px 18px 14px; flex: 1; }
+/* Status badge — no emoji */
+.status-badge { display:inline-flex; align-items:center; gap:5px; padding:3px 10px; border-radius:99px; font-size:11px; font-weight:700; white-space:nowrap; flex-shrink:0; }
+.status-badge svg { width:8px; height:8px; }
+.s-aktif        { background:#d1fae5; color:#065f46; }
+.s-nonaktif     { background:#fee2e2; color:#991b1b; }
+.s-belum_mulai  { background:#fef3c7; color:#92400e; }
+.s-sudah_selesai{ background:#e5e7eb; color:#374151; }
 
-.card-title-row {
-    display: flex; align-items: flex-start;
-    justify-content: space-between; gap: 10px; margin-bottom: 6px;
-}
-.card-title { font-size: 14px; font-weight: 700; color: #1a1a1a; line-height: 1.4; flex: 1; }
-.card-title a { color: inherit; text-decoration: none; }
-.card-title a:hover { color: #279685; }
+.card-desc { font-size:12px; color:#9ca3af; margin:0 0 12px; line-height:1.5; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
 
-.status-badge {
-    display: inline-flex; align-items: center; gap: 4px;
-    padding: 3px 9px; border-radius: 99px;
-    font-size: 10px; font-weight: 700;
-    white-space: nowrap; flex-shrink: 0;
-}
-.s-aktif        { background: #d1fae5; color: #065f46; }
-.s-nonaktif     { background: #fee2e2; color: #991b1b; }
-.s-belum_mulai  { background: #fef3c7; color: #92400e; }
-.s-sudah_selesai{ background: #e5e7eb; color: #374151; }
+/* Meta chips — SVG icons */
+.card-meta { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px; }
+.meta-chip { display:inline-flex; align-items:center; gap:5px; padding:4px 10px; border-radius:8px; font-size:11px; font-weight:600; }
+.meta-chip svg { width:12px; height:12px; }
+.chip-matkul { background:#f0fdf9; color:#0f6e56; }
+.chip-soal   { background:#e8f1fd; color:#185fa5; }
+.chip-soal.zero { background:#fef3c7; color:#92400e; }
+.chip-durasi { background:#f5f3ff; color:#534ab7; }
+.chip-jadwal { background:#fffbeb; color:#92400e; }
 
-.card-desc {
-    font-size: 12px; color: #999; margin: 0 0 12px; line-height: 1.5;
-    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
-    overflow: hidden;
-}
+/* Toggle row */
+.card-toggle-row { display:flex; align-items:center; justify-content:space-between; padding:10px 0 0; border-top:1px solid #f5f6f8; margin-top:4px; }
+.toggle-label { font-size:12px; font-weight:600; color:#9ca3af; }
+.toggle-label.on { color:#279685; }
 
-.card-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
-.meta-chip {
-    display: inline-flex; align-items: center; gap: 4px;
-    padding: 4px 9px; border-radius: 8px;
-    font-size: 11px; font-weight: 600;
-}
-.chip-matkul  { background: #e3faf8; color: #0f6e56; }
-.chip-soal    { background: #e8f1fd; color: #185fa5; }
-.chip-soal.zero { background: #fef3c7; color: #92400e; }
-.chip-durasi  { background: #f0eeff; color: #534ab7; }
-.chip-jadwal  { background: #fef3c7; color: #92400e; }
-.chip-duel    { background: #e6f4f2; color: #2A9D8F; }
-.chip-duel.off { background: #f1f5f9; color: #94a3b8; }
+.toggle-wrap { position:relative; width:42px; height:24px; cursor:pointer; flex-shrink:0; }
+.toggle-wrap input { opacity:0; width:0; height:0; position:absolute; }
+.toggle-track { position:absolute; inset:0; background:#e5e7eb; border-radius:99px; transition:background .25s; }
+.toggle-wrap input:checked + .toggle-track { background:#279685; }
+.toggle-thumb { position:absolute; top:3px; left:3px; width:18px; height:18px; background:#fff; border-radius:50%; transition:transform .25s; box-shadow:0 1px 3px rgba(0,0,0,.2); pointer-events:none; }
+.toggle-wrap input:checked ~ .toggle-thumb { transform:translateX(18px); }
 
-.card-toggle-row {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 10px 0 0;
-    border-top: 1px solid #f5f5f5;
-    margin-top: 2px;
-}
-.toggle-label { font-size: 12px; font-weight: 600; color: #888; }
-.toggle-label.on { color: #279685; }
+/* Duel toggle */
+.card-duel-row { display:flex; align-items:center; justify-content:space-between; padding:8px 0 0; }
+.duel-toggle-wrap { position:relative; width:38px; height:22px; cursor:pointer; flex-shrink:0; }
+.duel-toggle-wrap input { opacity:0; width:0; height:0; position:absolute; }
+.duel-track { position:absolute; inset:0; background:#e5e7eb; border-radius:99px; transition:background .25s; }
+.duel-toggle-wrap input:checked + .duel-track { background:#279685; }
+.duel-thumb { position:absolute; top:3px; left:3px; width:16px; height:16px; background:#fff; border-radius:50%; transition:transform .25s; box-shadow:0 1px 3px rgba(0,0,0,.2); pointer-events:none; }
+.duel-toggle-wrap input:checked ~ .duel-thumb { transform:translateX(16px); }
 
-.toggle-wrap {
-    position: relative; width: 42px; height: 24px;
-    cursor: pointer; flex-shrink: 0;
-}
-.toggle-wrap input { opacity: 0; width: 0; height: 0; position: absolute; }
-.toggle-track {
-    position: absolute; inset: 0;
-    background: #e5e7eb; border-radius: 99px;
-    transition: background .25s;
-}
-.toggle-wrap input:checked + .toggle-track { background: #279685; }
-.toggle-thumb {
-    position: absolute;
-    top: 3px; left: 3px;
-    width: 18px; height: 18px;
-    background: #fff; border-radius: 50%;
-    transition: transform .25s;
-    box-shadow: 0 1px 3px rgba(0,0,0,.2);
-    pointer-events: none;
-}
-.toggle-wrap input:checked ~ .toggle-thumb { transform: translateX(18px); }
-.toggle-wrap.loading .toggle-track { background: #d1d5db; }
-.toggle-wrap.loading .toggle-thumb {
-    background: #9ca3af;
-    animation: spin .6s linear infinite;
-}
-@keyframes spin {
-    0%   { transform: rotate(0deg) translateX(9px); }
-    100% { transform: rotate(360deg) translateX(9px); }
-}
+/* Card footer */
+.card-footer { border-top:1px solid #f5f6f8; padding:11px 18px; display:flex; gap:6px; flex-wrap:wrap; background:#fafafa; }
+.btn-act { flex:1; min-width:70px; display:inline-flex; align-items:center; justify-content:center; gap:5px; padding:7px 10px; border-radius:8px; font-size:11px; font-weight:700; border:1.5px solid transparent; cursor:pointer; transition:background .15s; font-family:inherit; text-decoration:none; white-space:nowrap; overflow:hidden; }
+.btn-act svg { width:12px; height:12px; flex-shrink:0; }
+.ba-soal   { background:#f0fdf9; color:#0f6e56; border-color:#b2e8e0; }
+.ba-soal:hover { background:#dcfaf5; }
+.ba-edit   { background:#fffbeb; color:#854d0e; border-color:#fde68a; }
+.ba-edit:hover { background:#fef9c3; }
+.ba-lb     { background:#f5f3ff; color:#6d28d9; border-color:#ddd6fe; }
+.ba-lb:hover { background:#ede9fe; }
+.ba-del    { background:#fef2f2; color:#dc2626; border-color:#fecaca; }
+.ba-del:hover { background:#fee2e2; }
 
-/* Toggle duel row */
-.card-duel-row {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 8px 0 0; margin-top: 6px;
-}
-.duel-toggle-wrap {
-    position: relative; width: 38px; height: 22px;
-    cursor: pointer; flex-shrink: 0;
-}
-.duel-toggle-wrap input { opacity: 0; width: 0; height: 0; position: absolute; }
-.duel-track {
-    position: absolute; inset: 0;
-    background: #e5e7eb; border-radius: 99px;
-    transition: background .25s;
-}
-.duel-toggle-wrap input:checked + .duel-track { background: #2A9D8F; }
-.duel-thumb {
-    position: absolute; top: 3px; left: 3px;
-    width: 16px; height: 16px;
-    background: #fff; border-radius: 50%;
-    transition: transform .25s;
-    box-shadow: 0 1px 3px rgba(0,0,0,.2);
-    pointer-events: none;
-}
-.duel-toggle-wrap input:checked ~ .duel-thumb { transform: translateX(16px); }
+/* Skeleton */
+.skeleton { background:linear-gradient(90deg,#f5f5f5 25%,#eee 50%,#f5f5f5 75%); background-size:200% 100%; animation:shimmer 1.4s infinite; border-radius:8px; }
+@keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+.skeleton-card { background:#fff; border-radius:16px; border:1px solid #eff0f2; overflow:hidden; }
 
-.card-footer {
-    border-top: 1px solid #f0f0f0;
-    padding: 11px 18px;
-    display: flex; gap: 6px; flex-wrap: wrap;
-    background: #fafafa;
-}
-.btn-action {
-    flex: 1; min-width: 70px;
-    display: inline-flex; align-items: center; justify-content: center; gap: 5px;
-    padding: 7px 10px; border-radius: 8px;
-    font-size: 11px; font-weight: 700;
-    border: none; cursor: pointer;
-    transition: background .15s, transform .12s;
-    font-family: inherit; text-decoration: none;
-    white-space: nowrap;
-}
-.btn-action:hover { transform: translateY(-1px); }
-.btn-soal   { background: #e3faf8; color: #0f6e56; }
-.btn-soal:hover   { background: #c0ede8; }
-.btn-edit   { background: #fef3c7; color: #92400e; }
-.btn-edit:hover   { background: #fde68a; }
-.btn-delete { background: #fee2e2; color: #991b1b; }
-.btn-delete:hover { background: #fecaca; }
+/* Empty */
+.empty-state { grid-column:1/-1; text-align:center; padding:64px 20px; }
+.empty-icon  { width:60px; height:60px; border-radius:18px; background:#f5f6f8; display:flex; align-items:center; justify-content:center; margin:0 auto 16px; }
+.empty-icon svg { width:30px; height:30px; color:#d1d5db; }
+.empty-title { font-size:15px; font-weight:700; color:#374151; margin-bottom:6px; }
+.empty-sub   { font-size:13px; color:#9ca3af; }
 
-.skeleton {
-    background: linear-gradient(90deg,#f0f0f0 25%,#e8e8e8 50%,#f0f0f0 75%);
-    background-size: 200% 100%;
-    animation: shimmer 1.4s infinite;
-    border-radius: 8px;
-}
-@keyframes shimmer {
-    0%   { background-position: 200% 0; }
-    100% { background-position: -200% 0; }
-}
-.skeleton-card {
-    background: #fff; border-radius: 16px;
-    border: 1px solid #eee; overflow: hidden;
-}
+/* Tab nav */
+.tab-nav { display:flex; border-bottom:2px solid #e8eaed; margin-bottom:20px; }
+.tab-btn { padding:10px 20px; border:none; background:none; cursor:pointer; font-weight:600; font-size:14px; color:#9ca3af; border-bottom:2px solid transparent; margin-bottom:-2px; transition:color .15s,border-color .15s; font-family:inherit; display:inline-flex; align-items:center; gap:7px; }
+.tab-btn svg { width:16px; height:16px; }
+.tab-btn.active { color:#279685; border-bottom-color:#279685; font-weight:700; }
+.tab-btn:hover:not(.active) { color:#374151; }
 
-.empty-state {
-    grid-column: 1 / -1;
-    text-align: center; padding: 60px 20px; color: #bbb;
-}
-.empty-state .ei  { font-size: 48px; margin-bottom: 12px; }
-.empty-state .el  { font-size: 15px; font-weight: 700; color: #888; margin-bottom: 6px; }
-.empty-state .es  { font-size: 12px; }
-
-.toast {
-    position: fixed; bottom: 24px; right: 24px;
-    padding: 11px 16px; border-radius: 10px;
-    font-size: 13px; font-weight: 600; z-index: 9999;
-    transform: translateY(80px); opacity: 0;
-    transition: all .28s cubic-bezier(.34,1.56,.64,1);
-    display: flex; align-items: center; gap: 8px;
-    max-width: 300px; box-shadow: 0 8px 24px rgba(0,0,0,.18);
-    color: #fff; pointer-events: none;
-}
-.toast.show { transform: translateY(0); opacity: 1; }
-.toast.ok  { background: #279685; }
-.toast.err { background: #ef4444; }
-
-/* Tab navigation */
-.tab-nav {
-    display: flex; gap: 0;
-    border-bottom: 2px solid #e5e7eb;
-    margin-bottom: 20px;
-}
-.tab-btn {
-    padding: 10px 20px; border: none; background: none;
-    cursor: pointer; font-weight: 600; font-size: 14px;
-    color: #94a3b8; border-bottom: 2px solid transparent;
-    margin-bottom: -2px; transition: color .15s, border-color .15s;
-    font-family: inherit;
-}
-.tab-btn.active { color: #279685; border-bottom-color: #279685; font-weight: 700; }
-.tab-btn:hover:not(.active) { color: #475569; }
-
-/* Duel history table */
-.duel-table {
-    width: 100%; border-collapse: collapse;
-    font-size: 13px; background: white;
-    border-radius: 12px; overflow: hidden;
-    border: 1px solid #e5e7eb;
-}
-.duel-table th {
-    padding: 12px 16px; text-align: left;
-    font-weight: 700; color: #475569;
-    background: #f8fafc; border-bottom: 1px solid #e5e7eb;
-}
-.duel-table td {
-    padding: 12px 16px; border-bottom: 1px solid #f0f0f0;
-    color: #1e293b;
-}
-.duel-table tr:last-child td { border-bottom: none; }
-.duel-table tr:nth-child(even) td { background: #fafafa; }
-.status-pill {
-    display: inline-block; padding: 2px 8px;
-    border-radius: 6px; font-size: 11px; font-weight: 700;
-}
+/* Duel table */
+.duel-table { width:100%; border-collapse:collapse; font-size:13px; background:#fff; border-radius:14px; overflow:hidden; border:1px solid #e8eaed; }
+.duel-table th { padding:12px 16px; text-align:left; font-weight:700; color:#6b7280; font-size:11px; text-transform:uppercase; letter-spacing:.05em; background:#f9fafb; border-bottom:1px solid #e8eaed; }
+.duel-table td { padding:12px 16px; border-bottom:1px solid #f5f6f8; color:#111827; }
+.duel-table tr:last-child td { border-bottom:none; }
+.duel-table tr:hover td { background:#f8fffe; }
+.d-pill { display:inline-block; padding:2px 9px; border-radius:7px; font-size:11px; font-weight:700; }
 </style>
 
-{{-- ========== PAGE HEADER ========== --}}
 <div class="page-header">
     <div class="page-header-left">
         <h2>Daftar Kuis</h2>
         <p id="pageSubtitle">Memuat data...</p>
     </div>
-    <a href="/kuis/buat" class="btn-primary">
-        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
-            <path fill-rule="evenodd" d="M12 3.75a.75.75 0 0 1 .75.75v6.75h6.75a.75.75 0 0 1 0 1.5h-6.75v6.75a.75.75 0 0 1-1.5 0v-6.75H4.5a.75.75 0 0 1 0-1.5h6.75V4.5a.75.75 0 0 1 .75-.75Z" clip-rule="evenodd"/>
-        </svg>
+    <a href="/kuis/buat" class="btn btn-primary" style="border-radius:99px">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         Buat Kuis Baru
     </a>
 </div>
 
-{{-- ========== TAB NAVIGATION ========== --}}
 <div class="tab-nav">
-    <button class="tab-btn active" id="tab-kuis" onclick="switchTab('kuis')">📋 Daftar Kuis</button>
-    <button class="tab-btn" id="tab-duel" onclick="switchTab('duel')">⚔️ Histori Duel</button>
+    <button class="tab-btn active" id="tab-kuis" onclick="switchTab('kuis')">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        Daftar Kuis
+    </button>
+    <button class="tab-btn" id="tab-duel" onclick="switchTab('duel')">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        Histori Duel
+    </button>
 </div>
 
-{{-- ========== TOOLBAR (hanya tampil di tab kuis) ========== --}}
 <div id="toolbarPanel">
-<div class="toolbar">
-    <div class="search-wrap">
-        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-        </svg>
-        <input type="text" class="search-input" id="searchInput"
-            placeholder="Cari judul kuis..." oninput="applyFilters()">
+    <div class="toolbar">
+        <div class="search-wrap">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            <input type="text" class="search-input" id="searchInput" placeholder="Cari judul kuis..." oninput="applyFilters()">
+        </div>
+        <select class="filter-select" id="filterMatkul" onchange="applyFilters()" style="display:none">
+            <option value="">Semua Matkul</option>
+        </select>
+        <div class="pills">
+            <button class="pill active" data-status="">Semua</button>
+            <button class="pill p-aktif"          data-status="aktif">Aktif</button>
+            <button class="pill p-belum_mulai"    data-status="belum_mulai">Belum Mulai</button>
+            <button class="pill p-sudah_selesai"  data-status="sudah_selesai">Selesai</button>
+            <button class="pill p-nonaktif"       data-status="nonaktif">Nonaktif</button>
+        </div>
+        <span class="count-badge" id="countBadge">Memuat...</span>
     </div>
-    <select class="filter-select" id="filterMatkul" onchange="applyFilters()" style="display:none;">
-        <option value="">Semua Matkul</option>
-    </select>
-    <div class="pills">
-        <button class="pill active" data-status="">Semua</button>
-        <button class="pill p-aktif"         data-status="aktif">🟢 Aktif</button>
-        <button class="pill p-belum_mulai"   data-status="belum_mulai">🟡 Belum Mulai</button>
-        <button class="pill p-sudah_selesai" data-status="sudah_selesai">⚪ Selesai</button>
-        <button class="pill p-nonaktif"      data-status="nonaktif">🔴 Nonaktif</button>
-    </div>
-    <span class="count-badge" id="countBadge">Memuat...</span>
-</div>
 </div>
 
-{{-- ========== QUIZ GRID ========== --}}
 <div id="kuisPanel">
-<div class="kuis-grid" id="kuisGrid">
-    @for ($i = 0; $i < 6; $i++)
-    <div class="skeleton-card">
-        <div style="height:4px;" class="skeleton"></div>
-        <div style="padding:18px;">
-            <div class="skeleton" style="height:14px;width:75%;margin-bottom:8px;"></div>
-            <div class="skeleton" style="height:12px;width:90%;margin-bottom:4px;"></div>
-            <div class="skeleton" style="height:12px;width:60%;margin-bottom:14px;"></div>
-            <div style="display:flex;gap:6px;">
-                <div class="skeleton" style="height:24px;width:90px;border-radius:8px;"></div>
-                <div class="skeleton" style="height:24px;width:70px;border-radius:8px;"></div>
-                <div class="skeleton" style="height:24px;width:80px;border-radius:8px;"></div>
+    <div class="kuis-grid" id="kuisGrid">
+        @for($i=0;$i<6;$i++)
+        <div class="skeleton-card">
+            <div style="height:4px" class="skeleton"></div>
+            <div style="padding:18px">
+                <div class="skeleton" style="height:14px;width:75%;margin-bottom:8px"></div>
+                <div class="skeleton" style="height:12px;width:90%;margin-bottom:4px"></div>
+                <div class="skeleton" style="height:12px;width:60%;margin-bottom:14px"></div>
+                <div style="display:flex;gap:6px">
+                    <div class="skeleton" style="height:24px;width:90px;border-radius:8px"></div>
+                    <div class="skeleton" style="height:24px;width:70px;border-radius:8px"></div>
+                </div>
+            </div>
+            <div style="border-top:1px solid #f5f6f8;padding:11px 18px;display:flex;gap:6px;background:#fafafa">
+                <div class="skeleton" style="height:32px;flex:1;border-radius:8px"></div>
+                <div class="skeleton" style="height:32px;flex:1;border-radius:8px"></div>
+                <div class="skeleton" style="height:32px;width:36px;border-radius:8px"></div>
             </div>
         </div>
-        <div style="border-top:1px solid #f0f0f0;padding:11px 18px;display:flex;gap:6px;background:#fafafa;">
-            <div class="skeleton" style="height:32px;flex:1;border-radius:8px;"></div>
-            <div class="skeleton" style="height:32px;flex:1;border-radius:8px;"></div>
-            <div class="skeleton" style="height:32px;width:40px;border-radius:8px;"></div>
-        </div>
+        @endfor
     </div>
-    @endfor
-</div>
 </div>
 
-{{-- ========== DUEL HISTORY PANEL ========== --}}
-<div id="duelPanel" style="display:none;">
+<div id="duelPanel" style="display:none">
     <div id="duelHistoryTable">
-        <div style="padding:40px;text-align:center;color:#94a3b8;">Memuat histori duel...</div>
+        <div style="padding:40px;text-align:center;color:#9ca3af">Memuat histori duel...</div>
     </div>
 </div>
-
-{{-- Toast --}}
-<div class="toast" id="toast"></div>
 
 @endsection
 
@@ -412,461 +216,261 @@
     const isAdmin = role === 'admin' || role === 'superadmin';
 
     const $ = id => document.getElementById(id);
-    let allQuizzes    = [];
-    let courseMap     = {};
-    let activeStatus  = '';
-    let toggleInFlight   = new Set();
-    let duelInFlight     = new Set();
+    let allQuizzes = [], courseMap = {}, activeStatus = '';
+    let toggleInFlight = new Set(), duelInFlight = new Set();
     let duelHistoryLoaded = false;
 
-    /* ── toast ───────────────────────────────────────────────── */
-    function toast(msg, type = 'ok') {
-        const el = $('toast');
-        el.textContent = (type === 'ok' ? '✓  ' : '✕  ') + msg;
-        el.className   = 'toast ' + type + ' show';
-        clearTimeout(el._t);
-        el._t = setTimeout(() => el.classList.remove('show'), 3200);
-    }
+    function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+    function escJs(s){ return String(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'\\"'); }
+    function fmtDate(d){ if(!d)return'—'; const dt=new Date(d); if(isNaN(dt))return d; return dt.toLocaleString('id-ID',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}); }
 
-    /* ── helpers ─────────────────────────────────────────────── */
-    function esc(s) {
-        return String(s||'')
-            .replace(/&/g,'&amp;').replace(/</g,'&lt;')
-            .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-    }
-    function escJs(s) {
-        return String(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'\\"');
-    }
-    function fmtDate(d) {
-        if (!d) return '—';
-        const dt = new Date(d);
-        if (isNaN(dt)) return d;
-        return dt.toLocaleString('id-ID', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
-    }
+    // SVG icons inline
+    const ICO = {
+        book:  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>`,
+        check: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>`,
+        clock: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
+        cal:   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`,
+        warn:  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
+        inbox: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>`,
+        edit:  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`,
+        lb:    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`,
+        trash: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>`,
+        dot:   `<svg viewBox="0 0 8 8"><circle cx="4" cy="4" r="3" fill="currentColor"/></svg>`,
+    };
+
     function statusInfo(s) {
         return {
-            aktif:         { cls:'s-aktif',         strip:'strip-aktif',         label:'🟢 Aktif' },
-            nonaktif:      { cls:'s-nonaktif',       strip:'strip-nonaktif',      label:'🔴 Nonaktif' },
-            belum_mulai:   { cls:'s-belum_mulai',    strip:'strip-belum_mulai',   label:'🟡 Belum Mulai' },
-            sudah_selesai: { cls:'s-sudah_selesai',  strip:'strip-sudah_selesai', label:'⚪ Selesai' },
-        }[s] || { cls:'s-nonaktif', strip:'strip-nonaktif', label: s };
+            aktif:         { cls:'s-aktif',         strip:'strip-aktif',         label:'Aktif' },
+            nonaktif:      { cls:'s-nonaktif',       strip:'strip-nonaktif',      label:'Nonaktif' },
+            belum_mulai:   { cls:'s-belum_mulai',    strip:'strip-belum_mulai',   label:'Belum Mulai' },
+            sudah_selesai: { cls:'s-sudah_selesai',  strip:'strip-sudah_selesai', label:'Selesai' },
+        }[s] || { cls:'s-nonaktif', strip:'strip-nonaktif', label:s };
     }
 
-    /* ── TAB SWITCH ──────────────────────────────────────────── */
     window.switchTab = function(tab) {
-        const kuisPanel    = $('kuisPanel');
-        const duelPanel    = $('duelPanel');
-        const toolbarPanel = $('toolbarPanel');
-        const tabKuis      = $('tab-kuis');
-        const tabDuel      = $('tab-duel');
-
-        if (tab === 'kuis') {
-            kuisPanel.style.display    = '';
-            duelPanel.style.display    = 'none';
-            toolbarPanel.style.display = '';
-            tabKuis.classList.add('active');
-            tabDuel.classList.remove('active');
+        const kp=$('kuisPanel'),dp=$('duelPanel'),tp=$('toolbarPanel');
+        const tk=$('tab-kuis'),td=$('tab-duel');
+        if (tab==='kuis') {
+            kp.style.display=''; dp.style.display='none'; tp.style.display='';
+            tk.classList.add('active'); td.classList.remove('active');
         } else {
-            kuisPanel.style.display    = 'none';
-            duelPanel.style.display    = '';
-            toolbarPanel.style.display = 'none';
-            tabDuel.classList.add('active');
-            tabKuis.classList.remove('active');
+            kp.style.display='none'; dp.style.display=''; tp.style.display='none';
+            td.classList.add('active'); tk.classList.remove('active');
             fetchDuelHistory();
         }
     };
 
-    /* ── FETCH DUEL HISTORY ──────────────────────────────────── */
     async function fetchDuelHistory() {
         if (duelHistoryLoaded) return;
         const el = $('duelHistoryTable');
-
         try {
-            const res  = await fetch(API + '/admin/duels/history', {
-                headers: { Authorization: 'Bearer ' + token, Accept: 'application/json' }
-            });
+            const res  = await fetch(API+'/admin/duels/history',{headers:{Authorization:'Bearer '+token,Accept:'application/json'}});
             const data = await res.json();
-            const list = data.data || [];
+            const list = data.data||[];
             duelHistoryLoaded = true;
-
-            if (list.length === 0) {
-                el.innerHTML = `<div style="padding:60px;text-align:center;background:white;border-radius:12px;border:1px solid #e5e7eb;">
-                    <div style="font-size:40px;margin-bottom:12px;">⚔️</div>
-                    <div style="font-weight:700;font-size:15px;color:#475569;margin-bottom:6px;">Belum ada histori duel</div>
-                    <div style="font-size:13px;color:#94a3b8;">Aktifkan kuis untuk duel agar mahasiswa bisa bertanding</div>
+            if (!list.length) {
+                el.innerHTML=`<div style="padding:60px;text-align:center;background:#fff;border-radius:14px;border:1px solid #eff0f2">
+                    <div style="width:56px;height:56px;border-radius:16px;background:#f5f6f8;display:flex;align-items:center;justify-content:center;margin:0 auto 14px">${ICO.inbox}</div>
+                    <div style="font-weight:700;font-size:15px;color:#374151;margin-bottom:6px">Belum ada histori duel</div>
+                    <div style="font-size:13px;color:#9ca3af">Aktifkan kuis untuk duel agar mahasiswa bisa bertanding</div>
                 </div>`;
                 return;
             }
-
-            const statusPill = (s) => {
-                const map = {
-                    pending:   'background:#FEF3C7;color:#D97706',
-                    active:    'background:#DBEAFE;color:#2563EB',
-                    completed: 'background:#D1FAE5;color:#059669',
-                    expired:   'background:#F1F5F9;color:#64748B',
-                    declined:  'background:#FEE2E2;color:#DC2626',
-                    cancelled: 'background:#F1F5F9;color:#64748B',
-                };
-                const label = {
-                    pending:'Menunggu', active:'Berlangsung', completed:'Selesai',
-                    expired:'Kedaluwarsa', declined:'Ditolak', cancelled:'Dibatalkan'
-                };
-                const style = map[s] || 'background:#f1f5f9;color:#64748b';
-                return `<span class="status-pill" style="${style}">${label[s]||s}</span>`;
+            const pill=(s)=>{
+                const map={pending:'background:#fef3c7;color:#d97706',active:'background:#dbeafe;color:#2563eb',completed:'background:#d1fae5;color:#059669',expired:'background:#f1f5f9;color:#64748b',declined:'background:#fee2e2;color:#dc2626',cancelled:'background:#f1f5f9;color:#64748b'};
+                const lbl={pending:'Menunggu',active:'Berlangsung',completed:'Selesai',expired:'Kedaluwarsa',declined:'Ditolak',cancelled:'Dibatalkan'};
+                return `<span class="d-pill" style="${map[s]||'background:#f1f5f9;color:#64748b'}">${lbl[s]||s}</span>`;
             };
-
-            el.innerHTML = `
-            <table class="duel-table">
-                <thead>
-                    <tr>
-                        <th>Quiz</th>
-                        <th>Penantang</th>
-                        <th>Lawan</th>
-                        <th style="text-align:center;">Skor</th>
-                        <th>Pemenang</th>
-                        <th style="text-align:center;">Status</th>
-                        <th>Tanggal</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${list.map(d => `
-                    <tr>
-                        <td style="font-weight:600;">${esc(d.quiz_title)}</td>
-                        <td>
-                            <div style="font-weight:600;">${esc(d.challenger_name)}</div>
-                            <div style="font-size:11px;color:#94a3b8;">${esc(d.challenger_nim)}</div>
-                        </td>
-                        <td>
-                            <div style="font-weight:600;">${esc(d.opponent_name)}</div>
-                            <div style="font-size:11px;color:#94a3b8;">${esc(d.opponent_nim)}</div>
-                        </td>
-                        <td style="text-align:center;">
-                            ${d.challenger_score !== null && d.opponent_score !== null
-                                ? `<span style="font-weight:700;color:#2A9D8F;">${d.challenger_score}</span>
-                                   <span style="color:#94a3b8;margin:0 4px;">vs</span>
-                                   <span style="font-weight:700;color:#2A9D8F;">${d.opponent_score}</span>`
-                                : '<span style="color:#94a3b8;">—</span>'
-                            }
-                        </td>
-                        <td style="font-weight:600;color:#059669;">
-                            ${d.winner_name ? '🏆 ' + esc(d.winner_name) : '<span style="color:#94a3b8;">—</span>'}
-                        </td>
-                        <td style="text-align:center;">${statusPill(d.status)}</td>
-                        <td style="color:#64748B;font-size:12px;">
-                            ${d.created_at ? new Date(d.created_at).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'}) : '—'}
-                        </td>
-                    </tr>`).join('')}
-                </tbody>
+            el.innerHTML=`<table class="duel-table">
+                <thead><tr><th>Quiz</th><th>Penantang</th><th>Lawan</th><th style="text-align:center">Skor</th><th>Pemenang</th><th style="text-align:center">Status</th><th>Tanggal</th></tr></thead>
+                <tbody>${list.map(d=>`<tr>
+                    <td style="font-weight:600">${esc(d.quiz_title)}</td>
+                    <td><div style="font-weight:600">${esc(d.challenger_name)}</div><div style="font-size:11px;color:#9ca3af">${esc(d.challenger_nim)}</div></td>
+                    <td><div style="font-weight:600">${esc(d.opponent_name)}</div><div style="font-size:11px;color:#9ca3af">${esc(d.opponent_nim)}</div></td>
+                    <td style="text-align:center">${d.challenger_score!==null&&d.opponent_score!==null?`<b style="color:#279685">${d.challenger_score}</b><span style="color:#9ca3af;margin:0 4px">vs</span><b style="color:#279685">${d.opponent_score}</b>`:'<span style="color:#9ca3af">—</span>'}</td>
+                    <td style="font-weight:600;color:#059669">${d.winner_name?esc(d.winner_name):'<span style="color:#9ca3af">—</span>'}</td>
+                    <td style="text-align:center">${pill(d.status)}</td>
+                    <td style="color:#9ca3af;font-size:12px">${d.created_at?new Date(d.created_at).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'}):'—'}</td>
+                </tr>`).join('')}</tbody>
             </table>`;
-        } catch (e) {
-            el.innerHTML = `<div style="padding:20px;text-align:center;color:#ef4444;background:white;border-radius:12px;border:1px solid #e5e7eb;">
-                Gagal memuat histori duel. <button onclick="duelHistoryLoaded=false;fetchDuelHistory()"
-                style="background:#279685;color:white;border:none;padding:4px 12px;border-radius:6px;cursor:pointer;font-weight:600;margin-left:8px;">Coba lagi</button>
-            </div>`;
+        } catch(e) {
+            el.innerHTML=`<div style="padding:20px;text-align:center;color:#ef4444;background:#fff;border-radius:14px;border:1px solid #eff0f2">Gagal memuat histori. <button onclick="duelHistoryLoaded=false;fetchDuelHistory()" style="background:#279685;color:#fff;border:none;padding:4px 12px;border-radius:7px;cursor:pointer;font-weight:700;margin-left:8px">Coba lagi</button></div>`;
         }
     }
 
-    /* ── TOGGLE DUEL ─────────────────────────────────────────── */
-    window.toggleDuel = async function(id, checkbox) {
-        if (duelInFlight.has(id)) { checkbox.checked = !checkbox.checked; return; }
+    window.toggleDuel = async function(id, cb) {
+        if (duelInFlight.has(id)){cb.checked=!cb.checked;return;}
         duelInFlight.add(id);
-
-        const newVal  = checkbox.checked;
-        const label   = $('duel-label-' + id);
-        if (label) label.textContent = newVal ? '⚔️ Duel Aktif' : '— Duel Nonaktif';
-
+        const v=cb.checked, lbl=$('duel-label-'+id);
+        if(lbl) lbl.textContent=v?'Duel Aktif':'Duel Nonaktif';
         try {
-            const res = await fetch(`${API}/admin/quizzes/${id}/toggle-duel`, {
-                method: 'POST',
-                headers: { Authorization: 'Bearer ' + token, Accept: 'application/json' }
-            });
-            if (res.ok) {
-                const data   = await res.json();
-                const actual = data.is_duel_enabled ?? newVal;
-                checkbox.checked = actual;
-                if (label) label.textContent = actual ? '⚔️ Duel Aktif' : '— Duel Nonaktif';
-                // Update data lokal
-                const idx = allQuizzes.findIndex(q => (q._id||q.id) == id);
-                if (idx > -1) allQuizzes[idx].is_duel_enabled = actual;
-                // Reset cache histori
-                duelHistoryLoaded = false;
-                toast(actual ? 'Kuis diaktifkan untuk duel' : 'Kuis dinonaktifkan dari duel');
+            const res=await fetch(`${API}/admin/quizzes/${id}/toggle-duel`,{method:'POST',headers:{Authorization:'Bearer '+token,Accept:'application/json'}});
+            if(res.ok){
+                const data=await res.json(),actual=data.is_duel_enabled??v;
+                cb.checked=actual; if(lbl) lbl.textContent=actual?'Duel Aktif':'Duel Nonaktif';
+                const idx=allQuizzes.findIndex(q=>(q._id||q.id)==id);
+                if(idx>-1) allQuizzes[idx].is_duel_enabled=actual;
+                duelHistoryLoaded=false;
+                toast(actual?'Kuis diaktifkan untuk duel':'Kuis dinonaktifkan dari duel');
             } else {
-                checkbox.checked = !newVal;
-                if (label) label.textContent = !newVal ? '⚔️ Duel Aktif' : '— Duel Nonaktif';
-                toast('Gagal mengubah status duel.', 'err');
+                cb.checked=!v; if(lbl) lbl.textContent=!v?'Duel Aktif':'Duel Nonaktif';
+                toast('Gagal mengubah status duel.','err');
             }
-        } catch(e) {
-            checkbox.checked = !newVal;
-            if (label) label.textContent = !newVal ? '⚔️ Duel Aktif' : '— Duel Nonaktif';
-            toast('Koneksi bermasalah.', 'err');
-        } finally {
-            duelInFlight.delete(id);
-        }
+        } catch(_){ cb.checked=!v; if(lbl) lbl.textContent=!v?'Duel Aktif':'Duel Nonaktif'; toast('Koneksi bermasalah.','err'); }
+        finally { duelInFlight.delete(id); }
     };
 
-    /* ── fetch courses ───────────────────────────────────────── */
     async function fetchCourses() {
         if (!isAdmin) return;
         try {
-            const res  = await fetch(API + '/courses', {
-                headers: { Authorization: 'Bearer ' + token, Accept: 'application/json' }
-            });
-            const data = await res.json();
-            const list = data.data || [];
-            list.forEach(c => { courseMap[c._id || c.id] = c.title; });
-
-            const sel = $('filterMatkul');
-            sel.style.display = '';
-            list.forEach(c => {
-                const opt = document.createElement('option');
-                opt.value = c._id || c.id;
-                opt.textContent = c.title;
-                sel.appendChild(opt);
-            });
-        } catch (e) { console.warn('[Kuis] courses:', e.message); }
+            const res=await fetch(API+'/courses',{headers:{Authorization:'Bearer '+token,Accept:'application/json'}});
+            const list=(await res.json()).data||[];
+            list.forEach(c=>{courseMap[c._id||c.id]=c.title;});
+            const sel=$('filterMatkul'); sel.style.display='';
+            list.forEach(c=>{const o=document.createElement('option');o.value=c._id||c.id;o.textContent=c.title;sel.appendChild(o);});
+        } catch(_){}
     }
 
-    /* ── fetch quizzes ───────────────────────────────────────── */
     async function fetchQuizzes() {
         try {
-            const courseFilter = isAdmin ? ($('filterMatkul').value || '') : '';
-            const url = API + '/admin/quizzes' + (courseFilter ? `?course_id=${courseFilter}` : '');
-
-            const res  = await fetch(url, {
-                headers: { Authorization: 'Bearer ' + token, Accept: 'application/json' }
-            });
-            if (res.status === 401) { window.logout(); return; }
-            const data = await res.json();
-            allQuizzes = data.data || [];
-
-            const matkulCtx = isAdmin ? 'semua matkul' : (user?.course_id ? 'matkul kamu' : 'sistem');
-            $('pageSubtitle').textContent = allQuizzes.length + ' kuis tersedia di ' + matkulCtx;
-
+            const cf=isAdmin?($('filterMatkul').value||''):'';
+            const url=API+'/admin/quizzes'+(cf?`?course_id=${cf}`:'');
+            const res=await fetch(url,{headers:{Authorization:'Bearer '+token,Accept:'application/json'}});
+            if(res.status===401){window.logout();return;}
+            const data=await res.json();
+            allQuizzes=data.data||[];
+            $('pageSubtitle').textContent=allQuizzes.length+' kuis tersedia';
             applyFilters();
-        } catch (e) {
-            $('kuisGrid').innerHTML = `<div class="empty-state">
-                <div class="ei">⚠️</div>
-                <div class="el">Gagal memuat data</div>
-                <div class="es">${esc(e.message)}</div>
-                <button onclick="fetchQuizzes()" style="margin-top:14px;padding:8px 18px;background:#279685;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;">Coba lagi</button>
-            </div>`;
+        } catch(e) {
+            $('kuisGrid').innerHTML=`<div class="empty-state"><div class="empty-icon">${ICO.warn}</div><div class="empty-title">Gagal memuat data</div><div class="empty-sub">${esc(e.message)}</div></div>`;
         }
     }
 
-    /* ── apply filters ───────────────────────────────────────── */
     window.applyFilters = function() {
-        const q = $('searchInput').value.trim().toLowerCase();
-        let filtered = allQuizzes.filter(qz => {
-            const matchQ      = !q || (qz.title || '').toLowerCase().includes(q) || (qz.description || '').toLowerCase().includes(q);
-            const matchStatus = !activeStatus || (qz.status || '') === activeStatus;
-            return matchQ && matchStatus;
+        const q=$('searchInput').value.trim().toLowerCase();
+        const filtered=allQuizzes.filter(qz=>{
+            const mQ=!q||(qz.title||'').toLowerCase().includes(q)||(qz.description||'').toLowerCase().includes(q);
+            const mS=!activeStatus||(qz.status||'')===activeStatus;
+            return mQ&&mS;
         });
-        $('countBadge').innerHTML = `<span>${filtered.length}</span> dari ${allQuizzes.length} kuis`;
+        $('countBadge').innerHTML=`<span>${filtered.length}</span> dari ${allQuizzes.length} kuis`;
         renderGrid(filtered);
     };
 
-    /* ── render grid ─────────────────────────────────────────── */
     function renderGrid(list) {
-        const grid = $('kuisGrid');
-        if (!list || list.length === 0) {
-            grid.innerHTML = `<div class="empty-state">
-                <div class="ei">📝</div>
-                <div class="el">Belum ada kuis</div>
-                <div class="es">${activeStatus || $('searchInput').value ? 'Coba ubah filter atau pencarian.' : 'Klik "Buat Kuis Baru" untuk mulai.'}</div>
-            </div>`;
+        const grid=$('kuisGrid');
+        if(!list||!list.length){
+            grid.innerHTML=`<div class="empty-state"><div class="empty-icon">${ICO.inbox}</div><div class="empty-title">Belum ada kuis</div><div class="empty-sub">${activeStatus||$('searchInput').value?'Coba ubah filter.':'Klik "Buat Kuis Baru" untuk mulai.'}</div></div>`;
             return;
         }
-        grid.innerHTML = list.map(q => buildCard(q)).join('');
+        grid.innerHTML=list.map(buildCard).join('');
     }
 
-    /* ── build card ──────────────────────────────────────────── */
     function buildCard(q) {
-        const id     = q._id || q.id;
-        const status = q.status || (q.is_active ? 'aktif' : 'nonaktif');
-        const si     = statusInfo(status);
+        const id=q._id||q.id, status=q.status||(q.is_active?'aktif':'nonaktif'), si=statusInfo(status);
+        const title=q.title||'Tanpa Judul', desc=q.description||'', nSoal=q.questions_count??0, durasi=q.duration_minutes??0;
+        const isActive=!!q.is_active, isDuel=!!q.is_duel_enabled;
+        const courseTitle=q.course?.title||(q.course_id&&courseMap[q.course_id])||null;
+        const matkulChip=courseTitle?`<span class="meta-chip chip-matkul">${ICO.book} ${esc(courseTitle)}</span>`:'';
+        const soalChip=`<span class="meta-chip chip-soal${nSoal===0?' zero':''}">${ICO.check} ${nSoal} soal</span>`;
+        const durasiChip=`<span class="meta-chip chip-durasi">${ICO.clock} ${durasi} mnt</span>`;
+        const jadwalChip=(q.start_at||q.end_at)?`<span class="meta-chip chip-jadwal">${ICO.cal} ${esc(fmtDate(q.start_at).split(',')[0])}</span>`:'';
+        const duelLbl=isDuel?'Duel Aktif':'Duel Nonaktif';
 
-        const title    = q.title || 'Tanpa Judul';
-        const desc     = q.description || '';
-        const nSoal    = q.questions_count ?? 0;
-        const durasi   = q.duration_minutes ?? 0;
-        const isActive = !!q.is_active;
-        const isDuel   = !!q.is_duel_enabled;
-
-        const courseId    = q.course_id;
-        const courseTitle = q.course?.title || (courseId && courseMap[courseId]) || null;
-        const matkulChip  = courseTitle
-            ? `<span class="meta-chip chip-matkul">📚 ${esc(courseTitle)}</span>` : '';
-
-        const soalChip   = `<span class="meta-chip chip-soal${nSoal === 0 ? ' zero' : ''}">${nSoal === 0 ? '⚠' : '📋'} ${nSoal} soal</span>`;
-        const durasiChip = `<span class="meta-chip chip-durasi">⏱ ${durasi} mnt</span>`;
-
-        let jadwalChip = '';
-        if (q.start_at || q.end_at) {
-            const label = q.start_at ? fmtDate(q.start_at).split(',')[0] : 'Sekarang';
-            jadwalChip = `<span class="meta-chip chip-jadwal">📅 ${esc(label)}</span>`;
-        }
-
-        const toggleChecked  = isActive ? 'checked' : '';
-        const toggleLabelTxt = isActive ? '✓ Aktif — mahasiswa bisa akses' : '✗ Nonaktif — tersembunyi';
-        const toggleLabelCls = isActive ? 'on' : '';
-
-        const duelChecked  = isDuel ? 'checked' : '';
-        const duelLabelTxt = isDuel ? '⚔️ Duel Aktif' : '— Duel Nonaktif';
-
-        return `
-        <div class="quiz-card${isActive ? '' : ' is-inactive'}" id="qcard-${id}">
+        return `<div class="quiz-card${isActive?'':' is-inactive'}" id="qcard-${id}">
             <div class="card-strip ${si.strip}" id="strip-${id}"></div>
             <div class="card-body">
                 <div class="card-title-row">
                     <div class="card-title"><a href="/kuis/${id}/edit">${esc(title)}</a></div>
-                    <span class="status-badge ${si.cls}" id="sbadge-${id}">${si.label}</span>
+                    <span class="status-badge ${si.cls}" id="sbadge-${id}">${ICO.dot} ${si.label}</span>
                 </div>
-                ${desc ? `<div class="card-desc">${esc(desc)}</div>` : '<div style="margin-bottom:12px;"></div>'}
-                <div class="card-meta">
-                    ${matkulChip}${soalChip}${durasiChip}${jadwalChip}
-                </div>
+                ${desc?`<div class="card-desc">${esc(desc)}</div>`:'<div style="margin-bottom:12px"></div>'}
+                <div class="card-meta">${matkulChip}${soalChip}${durasiChip}${jadwalChip}</div>
                 <div class="card-toggle-row">
-                    <span class="toggle-label ${toggleLabelCls}" id="tlabel-${id}">${toggleLabelTxt}</span>
-                    <label class="toggle-wrap" id="twrap-${id}" title="Toggle aktif/nonaktif">
-                        <input type="checkbox" ${toggleChecked} onchange="toggleQuiz('${id}', this)">
-                        <div class="toggle-track"></div>
-                        <div class="toggle-thumb"></div>
+                    <span class="toggle-label${isActive?' on':''}" id="tlabel-${id}">${isActive?'Aktif — mahasiswa bisa akses':'Nonaktif — tersembunyi'}</span>
+                    <label class="toggle-wrap" id="twrap-${id}">
+                        <input type="checkbox" ${isActive?'checked':''} onchange="toggleQuiz('${id}',this)">
+                        <div class="toggle-track"></div><div class="toggle-thumb"></div>
                     </label>
                 </div>
                 <div class="card-duel-row">
-                    <span style="font-size:12px;font-weight:600;color:${isDuel ? '#2A9D8F' : '#94a3b8'};" id="duel-label-${id}">${duelLabelTxt}</span>
-                    <label class="duel-toggle-wrap" title="Toggle aktifkan untuk duel">
-                        <input type="checkbox" ${duelChecked} onchange="toggleDuel('${id}', this)">
-                        <div class="duel-track"></div>
-                        <div class="duel-thumb"></div>
+                    <span style="font-size:12px;font-weight:600;color:${isDuel?'#279685':'#9ca3af'}" id="duel-label-${id}">${duelLbl}</span>
+                    <label class="duel-toggle-wrap">
+                        <input type="checkbox" ${isDuel?'checked':''} onchange="toggleDuel('${id}',this)">
+                        <div class="duel-track"></div><div class="duel-thumb"></div>
                     </label>
                 </div>
             </div>
             <div class="card-footer">
-                <a class="btn-action btn-soal" href="/kuis/${id}/soal">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path fill-rule="evenodd" d="M7.502 6h7.128A3.375 3.375 0 0 1 18 9.375v9.375a3 3 0 0 0 3-3V6.108c0-1.505-1.125-2.811-2.664-2.94a48.972 48.972 0 0 0-.673-.05A3 3 0 0 0 15 1.5h-1.5a3 3 0 0 0-2.663 1.618c-.225.015-.45.032-.673.05C8.662 3.295 7.554 4.542 7.502 6ZM13.5 3A1.5 1.5 0 0 0 12 4.5h4.5A1.5 1.5 0 0 0 15 3h-1.5Z" clip-rule="evenodd"/><path fill-rule="evenodd" d="M3 9.375C3 8.339 3.84 7.5 4.875 7.5h9.75c1.036 0 1.875.84 1.875 1.875v11.25c0 1.035-.84 1.875-1.875 1.875h-9.75A1.875 1.875 0 0 1 3 20.625V9.375Zm9.586 4.594a.75.75 0 0 0-1.172-.938l-2.476 3.096-.908-.907a.75.75 0 0 0-1.06 1.06l1.5 1.5a.75.75 0 0 0 1.116-.062l3-3.75Z" clip-rule="evenodd"/></svg>
-                    Kelola Soal
-                    ${nSoal > 0 ? `<span style="background:rgba(15,110,86,.18);padding:1px 6px;border-radius:4px;font-size:10px;">${nSoal}</span>` : ''}
+                <a class="btn-act ba-soal" href="/kuis/${id}/soal">
+                    ${ICO.check} Kelola Soal
                 </a>
-                <a class="btn-action btn-edit" href="/kuis/${id}/edit">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M21.731 2.269a2.625 2.625 0 0 0-3.712 0l-1.157 1.157 3.712 3.712 1.157-1.157a2.625 2.625 0 0 0 0-3.712ZM19.513 8.199l-3.712-3.712-8.4 8.4a5.25 5.25 0 0 0-1.32 2.214l-.8 2.685a.75.75 0 0 0 .933.933l2.685-.8a5.25 5.25 0 0 0 2.214-1.32l8.4-8.4Z"/><path d="M5.25 5.25a3 3 0 0 0-3 3v10.5a3 3 0 0 0 3 3h10.5a3 3 0 0 0 3-3V13.5a.75.75 0 0 0-1.5 0v5.25a1.5 1.5 0 0 1-1.5 1.5H5.25a1.5 1.5 0 0 1-1.5-1.5V8.25a1.5 1.5 0 0 1 1.5-1.5h5.25a.75.75 0 0 0 0-1.5H5.25Z"/></svg>
-                    Edit
-                </a>
-                <a href="/kuis/${id}/leaderboard"
-                style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;
-                        border-radius:8px;font-size:12px;font-weight:600;
-                        background:#f0fdfb;color:#279685;border:1px solid #ccfbf1;
-                        text-decoration:none;transition:background .15s;"
-                onmouseover="this.style.background='#e3faf8'"
-                onmouseout="this.style.background='#f0fdfb'">
-                    🏆 Leaderboard
-                </a>
-                <button class="btn-action btn-delete" onclick="hapusQuiz('${id}','${escJs(title)}')">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path fill-rule="evenodd" d="M16.5 4.478v.227a48.816 48.816 0 0 1 3.878.512.75.75 0 1 1-.256 1.478l-.209-.035-1.005 13.07a3 3 0 0 1-2.991 2.77H8.084a3 3 0 0 1-2.991-2.77L4.087 6.66l-.209.035a.75.75 0 0 1-.256-1.478A48.567 48.567 0 0 1 7.5 4.705v-.227c0-1.564 1.213-2.9 2.816-2.951a52.662 52.662 0 0 1 3.369 0c1.603.051 2.815 1.387 2.815 2.951Zm-6.136-1.452a51.196 51.196 0 0 1 3.273 0C14.39 3.05 15 3.684 15 4.478v.113a49.488 49.488 0 0 0-6 0v-.113c0-.794.609-1.428 1.364-1.452Zm-.355 5.945a.75.75 0 1 0-1.5.058l.347 9a.75.75 0 1 0 1.499-.058l-.346-9Zm5.48.058a.75.75 0 1 0-1.498-.058l-.347 9a.75.75 0 0 0 1.5.058l.345-9Z" clip-rule="evenodd"/></svg>
-                </button>
+                <a class="btn-act ba-edit" href="/kuis/${id}/edit">${ICO.edit} Edit</a>
+                <a class="btn-act ba-lb" href="/kuis/${id}/leaderboard">${ICO.lb}</a>
+                <button class="btn-act ba-del" onclick="hapusQuiz('${id}','${escJs(title)}')">${ICO.trash}</button>
             </div>
         </div>`;
     }
 
-    /* ── toggle aktif/nonaktif ───────────────────────────────── */
-    window.toggleQuiz = async function(id, checkbox) {
-        if (toggleInFlight.has(id)) { checkbox.checked = !checkbox.checked; return; }
-        const newActive = checkbox.checked;
-        toggleInFlight.add(id);
-        updateCardVisual(id, newActive);
-        const wrap = $(`twrap-${id}`);
-        if (wrap) wrap.classList.add('loading');
-
+    window.toggleQuiz = async function(id, cb) {
+        if(toggleInFlight.has(id)){cb.checked=!cb.checked;return;}
+        const newActive=cb.checked; toggleInFlight.add(id);
+        updateCardVisual(id,newActive);
+        const wrap=$(`twrap-${id}`); if(wrap) wrap.classList.add('loading');
         try {
-            const res = await fetch(`${API}/admin/quizzes/${id}/toggle`, {
-                method: 'POST',
-                headers: { Authorization: 'Bearer ' + token, Accept: 'application/json' }
-            });
-            if (res.ok) {
-                const data   = await res.json();
-                const actual = data.data?.is_active ?? newActive;
-                const idx    = allQuizzes.findIndex(q => (q._id||q.id) == id);
-                if (idx > -1) {
-                    allQuizzes[idx].is_active = actual;
-                    allQuizzes[idx].status    = actual ? 'aktif' : (allQuizzes[idx].status === 'aktif' ? 'nonaktif' : allQuizzes[idx].status);
-                }
-                if (actual !== newActive) { updateCardVisual(id, actual); if (checkbox) checkbox.checked = actual; }
-                toast(actual ? 'Kuis diaktifkan' : 'Kuis dinonaktifkan');
-            } else {
-                updateCardVisual(id, !newActive);
-                if (checkbox) checkbox.checked = !newActive;
-                toast('Gagal mengubah status kuis.', 'err');
-            }
-        } catch (e) {
-            updateCardVisual(id, !newActive);
-            if (checkbox) checkbox.checked = !newActive;
-            toast('Koneksi bermasalah.', 'err');
-        } finally {
-            toggleInFlight.delete(id);
-            if (wrap) wrap.classList.remove('loading');
-        }
+            const res=await fetch(`${API}/admin/quizzes/${id}/toggle`,{method:'POST',headers:{Authorization:'Bearer '+token,Accept:'application/json'}});
+            if(res.ok){
+                const data=await res.json(),actual=data.data?.is_active??newActive;
+                const idx=allQuizzes.findIndex(q=>(q._id||q.id)==id);
+                if(idx>-1){allQuizzes[idx].is_active=actual;allQuizzes[idx].status=actual?'aktif':(allQuizzes[idx].status==='aktif'?'nonaktif':allQuizzes[idx].status);}
+                if(actual!==newActive){updateCardVisual(id,actual);cb.checked=actual;}
+                toast(actual?'Kuis diaktifkan':'Kuis dinonaktifkan');
+            } else { updateCardVisual(id,!newActive); cb.checked=!newActive; toast('Gagal mengubah status.','err'); }
+        } catch(_){ updateCardVisual(id,!newActive); cb.checked=!newActive; toast('Koneksi bermasalah.','err'); }
+        finally { toggleInFlight.delete(id); if(wrap) wrap.classList.remove('loading'); }
     };
 
-    function updateCardVisual(id, isActive) {
-        const card  = $(`qcard-${id}`);
-        const strip = $(`strip-${id}`);
-        const badge = $(`sbadge-${id}`);
-        const label = $(`tlabel-${id}`);
-        if (!card) return;
-        const si = statusInfo(isActive ? 'aktif' : 'nonaktif');
-        card.classList.toggle('is-inactive', !isActive);
-        if (strip) strip.className = 'card-strip ' + si.strip;
-        if (badge) { badge.className = 'status-badge ' + si.cls; badge.textContent = si.label; }
-        if (label) {
-            label.className   = 'toggle-label ' + (isActive ? 'on' : '');
-            label.textContent = isActive ? '✓ Aktif — mahasiswa bisa akses' : '✗ Nonaktif — tersembunyi';
-        }
+    function updateCardVisual(id,isActive) {
+        const card=$(`qcard-${id}`),strip=$(`strip-${id}`),badge=$(`sbadge-${id}`),lbl=$(`tlabel-${id}`);
+        if(!card)return;
+        const si=statusInfo(isActive?'aktif':'nonaktif');
+        card.classList.toggle('is-inactive',!isActive);
+        if(strip) strip.className='card-strip '+si.strip;
+        if(badge){badge.className='status-badge '+si.cls;badge.innerHTML=ICO.dot+' '+si.label;}
+        if(lbl){lbl.className='toggle-label'+(isActive?' on':'');lbl.textContent=isActive?'Aktif — mahasiswa bisa akses':'Nonaktif — tersembunyi';}
     }
 
-    /* ── hapus quiz ──────────────────────────────────────────── */
-    window.hapusQuiz = async function(id, title) {
-        if (!confirm(`Hapus kuis "${title}"?\n\nSemua soal di dalamnya juga akan terhapus. Tindakan ini tidak bisa dibatalkan.`)) return;
+    window.hapusQuiz = function(id, title) {
+        showDialog({
+            icon:'err', title:'Hapus Kuis',
+            msg:`Hapus "${title}"? Semua soal di dalamnya juga akan terhapus.`,
+            confirmText:'Hapus', confirmClass:'confirm-err',
+            onConfirm: () => doHapusQuiz(id)
+        });
+    };
+    window.doHapusQuiz = async function(id) {
         try {
-            const res = await fetch(`${API}/admin/quizzes/${id}`, {
-                method: 'DELETE',
-                headers: { Authorization: 'Bearer ' + token, Accept: 'application/json' }
-            });
-            if (res.ok) {
-                const card = $(`qcard-${id}`);
-                if (card) {
-                    card.style.transition = 'opacity .25s, transform .25s';
-                    card.style.opacity = '0';
-                    card.style.transform = 'scale(.95)';
-                    setTimeout(() => { allQuizzes = allQuizzes.filter(q => (q._id||q.id) != id); applyFilters(); }, 260);
-                }
+            const res=await fetch(`${API}/admin/quizzes/${id}`,{method:'DELETE',headers:{Authorization:'Bearer '+token,Accept:'application/json'}});
+            if(res.ok){
+                const card=$(`qcard-${id}`);
+                if(card){card.style.transition='opacity .25s,transform .25s';card.style.opacity='0';card.style.transform='scale(.95)';setTimeout(()=>{allQuizzes=allQuizzes.filter(q=>(q._id||q.id)!=id);applyFilters();},260);}
                 toast('Kuis berhasil dihapus.');
-            } else {
-                const err = await res.json().catch(() => ({}));
-                toast(err.message || 'Gagal menghapus kuis.', 'err');
-            }
-        } catch (e) { toast('Koneksi bermasalah.', 'err'); }
+            } else { const err=await res.json().catch(()=>({})); toast(err.message||'Gagal menghapus.','err'); }
+        } catch(_){ toast('Koneksi bermasalah.','err'); }
     };
 
-    /* ── pills ───────────────────────────────────────────────── */
-    document.querySelectorAll('.pill').forEach(pill => {
-        pill.addEventListener('click', () => {
-            document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
-            pill.classList.add('active');
-            activeStatus = pill.dataset.status;
-            applyFilters();
+    document.querySelectorAll('.pill').forEach(p=>{
+        p.addEventListener('click',()=>{
+            document.querySelectorAll('.pill').forEach(x=>x.classList.remove('active'));
+            p.classList.add('active'); activeStatus=p.dataset.status; applyFilters();
         });
     });
 
-    if (isAdmin) { $('filterMatkul').addEventListener('change', fetchQuizzes); }
+    if(isAdmin) $('filterMatkul').addEventListener('change',fetchQuizzes);
 
-    async function init() {
-        await fetchCourses();
-        await fetchQuizzes();
-    }
+    async function init(){ await fetchCourses(); await fetchQuizzes(); }
     init();
-
-    window.fetchQuizzes = fetchQuizzes;
+    window.fetchQuizzes=fetchQuizzes;
 })();
 </script>
 @endpush

@@ -321,4 +321,129 @@ PROMPT;
             ], 500);
         }
     }
+
+    // ── POST /api/ai/fyp-advice ────────────────────────────
+    // Terima data performa matkul, return saran belajar dari Gemini
+    // Hasilnya disimpan di chat_history user (sama dengan chatbot)
+    public function fypAdvice(Request $request)
+    {
+        $request->validate([
+            'course_title'  => 'required|string',
+            'status_label'  => 'required|string',
+            'avg_score'     => 'nullable|numeric',
+            'passing_score' => 'nullable|numeric',
+            'done_quizzes'  => 'nullable|integer',
+            'total_quizzes' => 'nullable|integer',
+            'insight'       => 'nullable|string',
+            'materials'     => 'nullable|array',
+        ]);
+
+        $courseTitle  = $request->course_title;
+        $statusLabel  = $request->status_label;
+        $avgScore     = $request->avg_score ?? '-';
+        $passingScore = $request->passing_score ?? 70;
+        $done         = $request->done_quizzes ?? 0;
+        $total        = $request->total_quizzes ?? 0;
+        $insight      = $request->insight ?? '';
+
+        // Format daftar materi kalau ada
+        $materialsText = '';
+        if (!empty($request->materials)) {
+            $list = collect($request->materials)
+                ->map(fn($m) => '- ' . ($m['title'] ?? '') .
+                    (!empty($m['description']) ? ': ' . $m['description'] : ''))
+                ->join("\n");
+            $materialsText = "\n\nMateri yang tersedia di matkul ini:\n{$list}";
+        }
+
+        $prompt = <<<PROMPT
+Kamu adalah tutor akademik senior yang jujur, peduli, dan analitis untuk mahasiswa Indonesia di SYNAPSE.
+
+DATA PERFORMA MAHASISWA:
+- Mata kuliah: {$courseTitle}
+- Status sistem: {$statusLabel}
+- Rata-rata skor kuis: {$avgScore} (KKM: {$passingScore})
+- Kuis yang sudah dikerjakan: {$done} dari {$total} kuis
+- Analisis sistem: {$insight}{$materialsText}
+
+TUGASMU:
+Analisa data di atas secara mendalam dan beri saran belajar yang KONKRET dan PERSONAL.
+
+ATURAN KETAT:
+- DILARANG saran generik seperti "belajar lebih giat", "jangan menyerah", "tetap semangat"
+- HARUS sebut angka spesifik dari data (skor, jumlah kuis, dll)
+- HARUS identifikasi masalah utama berdasarkan data (bukan asumsi)
+- HARUS beri langkah konkret yang bisa dilakukan SEKARANG
+- Jika skor 0 atau belum mengerjakan kuis → fokus pada cara memulai dan mengatasi hambatan
+- Jika skor rendah → analisa kemungkinan penyebab dan cara memperbaiki spesifik di matkul ini
+- Jika skor menengah → identifikasi gap dan cara mencapai KKM dengan langkah terukur
+- Gunakan bahasa Indonesia yang natural, seperti kakak kelas yang peduli — tidak kaku, tidak berlebihan
+
+FORMAT RESPONS (ikuti persis):
+**Analisis:** [1-2 kalimat diagnosis jujur berdasarkan data]
+
+**Yang perlu kamu lakukan:**
+1. [Langkah konkret pertama — spesifik, bisa dilakukan hari ini]
+2. [Langkah konkret kedua — spesifik, bisa dilakukan minggu ini]
+3. [Langkah konkret ketiga — spesifik, strategi jangka pendek]
+
+**Target realistis:** [Berapa skor yang bisa dicapai dan dalam berapa waktu jika langkah di atas dijalankan]
+PROMPT;
+
+        try {
+            $response = Http::withHeaders([
+                'Content-Type' => 'application/json',
+            ])->post($this->apiUrl . '?key=' . $this->apiKey, [
+                'contents' => [[
+                    'parts' => [['text' => $prompt]]
+                ]],
+                'generationConfig' => [
+                    'temperature'     => 0.75,
+                    'maxOutputTokens' => 1500,
+                ],
+            ]);
+
+            if (!$response->successful()) {
+                return response()->json([
+                    'message' => 'Gagal menghubungi Gemini API: ' . $response->status(),
+                ], 502);
+            }
+
+            $text = $response->json('candidates.0.content.parts.0.text', '');
+            $text = trim($text);
+            // Strip markdown code block kalau ada
+            $text = preg_replace('/```[a-zA-Z]*/', '', $text);
+            $text = trim($text);
+
+            if (empty($text)) {
+                return response()->json(['message' => 'AI tidak menghasilkan saran.'], 422);
+            }
+
+            // Simpan ke chat_history di DB/session agar muncul di chatbot
+            // Format identik dengan ChatMessage di Flutter
+            $userMsg = [
+                'text'      => "Berikan saran belajar untuk mata kuliah **{$courseTitle}** (skor rata-rata: {$avgScore}, status: {$statusLabel})",
+                'isUser'    => true,
+                'timestamp' => now()->toIso8601String(),
+            ];
+            $aiMsg = [
+                'text'      => $text,
+                'isUser'    => false,
+                'timestamp' => now()->toIso8601String(),
+            ];
+
+            return response()->json([
+                'message'   => 'Saran berhasil dibuat!',
+                'advice'    => $text,
+                'chat_messages' => [$userMsg, $aiMsg],
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Error: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
 }
+
+    

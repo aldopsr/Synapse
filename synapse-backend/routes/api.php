@@ -27,6 +27,7 @@ use App\Http\Controllers\Api\GeminiController;
 use App\Http\Controllers\Api\NoteController;
 
 
+
 // =================================================================
 // 1. JALUR PUBLIK (Tanpa perlu Login / Token - Tamu Bebas Masuk)
 // =================================================================
@@ -86,6 +87,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/notes',       [NoteController::class, 'store']);
     Route::put('/notes/{id}',   [NoteController::class, 'update']);
     Route::delete('/notes/{id}',[NoteController::class, 'destroy']);
+    Route::post('/ai/fyp-advice', [GeminiController::class, 'fypAdvice']);
 });
 
 
@@ -170,6 +172,7 @@ Route::middleware(['auth:sanctum', 'role:mahasiswa,public'])->group(function () 
     Route::get('/user/duel-code',                [DuelController::class, 'myDuelCode']);
     Route::post('/user/regenerate-duel-code',    [DuelController::class, 'regenerateDuelCode']);
     Route::delete('/duels/{id}/cancel',          [DuelController::class, 'cancel']);
+    Route::post('/duels/{id}/ready', [DuelController::class, 'ready']);
 
 
     // Khusus mahasiswa saja

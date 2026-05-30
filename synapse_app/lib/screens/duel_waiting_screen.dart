@@ -1,6 +1,4 @@
 // lib/screens/duel_waiting_screen.dart
-// Waiting room — challenger menunggu accept, opponent melihat tantangan masuk
-// Setelah accept → countdown 3..2..1 → DuelBattleScreen
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../services/duel_service.dart';
@@ -8,14 +6,9 @@ import 'duel_battle_screen.dart';
 
 class DuelWaitingScreen extends StatefulWidget {
   final String duelId;
-  final String role; // 'challenger' | 'opponent'
-
+  final String role;
   const DuelWaitingScreen({
-    super.key,
-    required this.duelId,
-    required this.role,
-  });
-
+      super.key, required this.duelId, required this.role});
   @override
   State<DuelWaitingScreen> createState() => _DuelWaitingScreenState();
 }
@@ -23,99 +16,158 @@ class DuelWaitingScreen extends StatefulWidget {
 class _DuelWaitingScreenState extends State<DuelWaitingScreen>
     with SingleTickerProviderStateMixin {
   static const Color _primary = Color(0xFF2A9D8F);
-  static const Color _ink     = Color(0xFF0F172A);
-  static const Color _inkMid  = Color(0xFF475569);
-  static const Color _red     = Color(0xFFDC2626);
+  static const Color _dark    = Color(0xFF0D2B28);
+  static const Color _darkMid = Color(0xFF1A4040);
+  static const Color _teal    = Color(0xFF3ECFBE);
+  static const Color _red     = Color(0xFFEF4444);
+  static const Color _amber   = Color(0xFFF59E0B);
+  static const Color _green   = Color(0xFF22C55E);
+  static const Color _slate   = Color(0xFF64748B);
 
   final DuelService _service = DuelService();
 
   Map<String, dynamic>? _duel;
-  bool  _isLoading    = true;
-  bool  _isResponding = false;
-  bool  _isCancelling = false;
-  int   _countdown    = 0; // >0 berarti sedang countdown
+  bool _isLoading    = true;
+  bool _isResponding = false;
+  bool _isCancelling = false;
+  bool _myReady      = false;
+  bool _oppReady     = false;
+  bool _markingReady = false;
+  int  _countdown    = 0;
+
+  // Satu-satunya timer — hanya untuk polling saat nunggu lawan ready
   Timer? _pollTimer;
-  Timer? _countdownTimer;
-  late AnimationController _pulseCtrl;
-  late Animation<double>   _pulseAnim;
+  // Timer countdown
+  Timer? _cdTimer;
+
+  AnimationController? _pulseCtrl;
+  Animation<double>?   _pulseAnim;
 
   @override
   void initState() {
     super.initState();
     _pulseCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 900),
-    )..repeat(reverse: true);
-    _pulseAnim = Tween<double>(begin: 0.95, end: 1.05)
-        .animate(CurvedAnimation(parent: _pulseCtrl,
-            curve: Curves.easeInOut));
+        vsync: this, duration: const Duration(milliseconds: 900))
+      ..repeat(reverse: true);
+    _pulseAnim = Tween<double>(begin: 0.92, end: 1.08).animate(
+        CurvedAnimation(parent: _pulseCtrl!, curve: Curves.easeInOut));
 
-    _loadDuel();
-    // Polling tiap 3 detik
-    _pollTimer = Timer.periodic(
-        const Duration(seconds: 3), (_) => _loadDuel());
+    _loadOnce();
   }
 
   @override
   void dispose() {
     _pollTimer?.cancel();
-    _countdownTimer?.cancel();
-    _pulseCtrl.dispose();
+    _cdTimer?.cancel();
+    _pulseCtrl?.dispose();
     super.dispose();
   }
 
-  Future<void> _loadDuel() async {
-    final res = await _service.getStatus(widget.duelId);
+  // Load sekali saat init
+  Future<void> _loadOnce() async {
+    final res  = await _service.getStatus(widget.duelId);
     if (!mounted) return;
     final data = res?['data'] as Map<String, dynamic>?;
-    if (data == null) return;
+    if (data == null) { setState(() => _isLoading = false); return; }
+
+    final myReady  = data['my_ready'] == true;
+    final oppReady = data['opponent_ready_status'] == true;
+    final status   = data['status']?.toString() ?? '';
 
     setState(() {
       _duel      = data;
       _isLoading = false;
+      _myReady   = myReady;
+      _oppReady  = oppReady;
     });
 
-    // Kalau status jadi active → mulai countdown
-    if (data['status'] == 'active' && _countdown == 0) {
-      _pollTimer?.cancel();
-      _startCountdown();
+    if (['expired','declined','cancelled'].contains(status)) {
+      _showStatusAndPop(status);
     }
-
-    // Kalau expired/declined/cancelled → tutup
-    if (['expired', 'declined', 'cancelled']
-        .contains(data['status'])) {
-      _pollTimer?.cancel();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(_statusMessage(data['status'])),
-          behavior: SnackBarBehavior.floating,
-        ));
-        Navigator.pop(context);
-      }
-    }
+    // Tidak auto-countdown dari load — hanya dari tombol Ready
   }
 
-  void _startCountdown() {
+  // Poll saat sudah ready tapi nunggu lawan
+  void _startPolling() {
+    _pollTimer?.cancel();
+    _pollTimer = Timer.periodic(const Duration(seconds: 3), (_) async {
+      final res  = await _service.getStatus(widget.duelId);
+      if (!mounted) { _pollTimer?.cancel(); return; }
+      final data = res?['data'] as Map<String, dynamic>?;
+      if (data == null) return;
+
+      final oppReady = data['opponent_ready_status'] == true;
+      final status   = data['status']?.toString() ?? '';
+
+      setState(() => _oppReady = oppReady);
+
+      if (['expired','declined','cancelled'].contains(status)) {
+        _pollTimer?.cancel();
+        _showStatusAndPop(status);
+        return;
+      }
+
+      // Lawan sudah ready → stop poll, mulai countdown
+      if (oppReady && _countdown == 0) {
+        _pollTimer?.cancel();
+        _beginCountdown();
+      }
+    });
+  }
+
+  void _beginCountdown() {
+    if (_countdown > 0) return; // sudah jalan
     setState(() => _countdown = 3);
-    _countdownTimer = Timer.periodic(
-        const Duration(seconds: 1), (timer) {
-      if (!mounted) { timer.cancel(); return; }
+    _cdTimer?.cancel();
+    _cdTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) { t.cancel(); return; }
       if (_countdown <= 1) {
-        timer.cancel();
-        _goToBattle();
+        t.cancel();
+        Navigator.pushReplacement(context, MaterialPageRoute(
+            builder: (_) => DuelBattleScreen(duelId: widget.duelId)));
       } else {
         setState(() => _countdown--);
       }
     });
   }
 
-  void _goToBattle() {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (_) => DuelBattleScreen(duelId: widget.duelId),
-      ),
-    );
+  void _showStatusAndPop(String status) {
+    final msg = switch (status) {
+      'expired'   => 'Waktu habis.',
+      'declined'  => 'Tantangan ditolak.',
+      'cancelled' => 'Tantangan dibatalkan.',
+      _           => 'Duel berakhir.',
+    };
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(msg), behavior: SnackBarBehavior.floating));
+    Navigator.pop(context);
+  }
+
+  Future<void> _markReady() async {
+    if (_markingReady || _myReady) return;
+    setState(() => _markingReady = true);
+
+    final res = await _service.markReady(widget.duelId);
+    print('READY RESPONSE WAITING: $res');
+
+    if (!mounted) return;
+
+    final data = res?['data'] as Map<String, dynamic>?;
+    final oppNowReady = data?['opponent_ready_status'] == true;
+    setState(() {
+      _markingReady = false;
+      _myReady      = true;
+      _oppReady     = oppNowReady;
+    });
+
+    if (oppNowReady) {
+      // Lawan sudah ready → langsung countdown
+      _beginCountdown();
+    } else {
+      // Lawan belum → poll sampai lawan ready
+      _startPolling();
+    }
+
   }
 
   Future<void> _accept() async {
@@ -124,8 +176,8 @@ class _DuelWaitingScreenState extends State<DuelWaitingScreen>
     if (!mounted) return;
     setState(() => _isResponding = false);
     if (res?['data'] != null) {
-      _pollTimer?.cancel();
-      _startCountdown();
+      // Refresh status — tidak auto-countdown
+      await _loadOnce();
     }
   }
 
@@ -143,229 +195,246 @@ class _DuelWaitingScreenState extends State<DuelWaitingScreen>
     Navigator.pop(context);
   }
 
-  String _statusMessage(String? status) => switch (status) {
-    'expired'   => 'Waktu habis, tantangan kedaluwarsa.',
-    'declined'  => 'Tantangan ditolak.',
-    'cancelled' => 'Tantangan dibatalkan.',
-    _           => 'Duel berakhir.',
-  };
-
   @override
   Widget build(BuildContext context) {
-    // Countdown screen
+    // Countdown screen — terpisah dari widget tree utama
     if (_countdown > 0) return _buildCountdown();
 
     return PopScope(
       canPop: false,
       child: Scaffold(
-        backgroundColor: Colors.white,
-        body: _isLoading
-            ? const Center(child: CircularProgressIndicator(
-                color: _primary, strokeWidth: 2))
-            : _buildWaiting(),
+        body: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+                colors: [_dark, _darkMid, Color(0xFF1F5C55)],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter)),
+          child: _isLoading
+              ? const Center(child: CircularProgressIndicator(
+                  color: _teal, strokeWidth: 2))
+              : _buildBody()),
       ),
     );
   }
 
   Widget _buildCountdown() {
     return Scaffold(
-      backgroundColor: const Color(0xFF0F172A),
-      body: Center(
-        child: Column(
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+              colors: [_dark, Color(0xFF0A1F1D)],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter)),
+        child: Center(child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text('Bersiap!',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w500,
-                )),
-            const SizedBox(height: 24),
-            ScaleTransition(
-              scale: _pulseAnim,
-              child: Text(
-                '$_countdown',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 96,
-                  fontWeight: FontWeight.w900,
-                  height: 1,
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-            const Text('Duel dimulai!',
-                style: TextStyle(
-                  color: Color(0xFF2A9D8F),
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1,
-                )),
+            const Text('BERSIAP!', style: TextStyle(
+                color: Colors.white54, fontSize: 16,
+                fontWeight: FontWeight.w900, letterSpacing: 3)),
+            const SizedBox(height: 20),
+            AnimatedBuilder(
+              animation: _pulseAnim ?? const AlwaysStoppedAnimation(1.0),
+              builder: (_, __) => Transform.scale(
+                scale: _pulseAnim?.value ?? 1.0,
+                child: Text('$_countdown', style: const TextStyle(
+                    color: Colors.white, fontSize: 100,
+                    fontWeight: FontWeight.w900, height: 1)))),
+            const SizedBox(height: 20),
+            const Text('⚔️ Duel Dimulai!', style: TextStyle(
+                color: _teal, fontSize: 18, fontWeight: FontWeight.w800)),
           ],
-        ),
+        )),
       ),
     );
   }
 
-  Widget _buildWaiting() {
-    final quiz         = _duel?['quiz_title']?.toString() ?? 'Quiz';
+  Widget _buildBody() {
+    final status       = _duel?['status']?.toString() ?? '';
     final isChallenger = widget.role == 'challenger';
-    final opponentData = _duel?['opponent'] as Map<String, dynamic>?;
-    final challengerData = _duel?['challenger'] as Map<String, dynamic>?;
-    final otherData = isChallenger ? opponentData : challengerData;
+    final quiz         = _duel?['quiz_title']?.toString() ?? 'Quiz';
+    final isPending    = status == 'pending';
+    final isActive     = status == 'active';
+
+    final Map<String, dynamic>? otherData = isChallenger
+        ? (_duel?['opponent'] as Map<String, dynamic>?)
+        : (_duel?['challenger'] as Map<String, dynamic>?);
     final otherName    = otherData?['name']?.toString() ?? 'Lawan';
+    final otherNim     = otherData?['nim']?.toString() ?? '';
+    final otherInitial = otherName.isNotEmpty ? otherName[0].toUpperCase() : '?';
+    final bottom       = MediaQuery.of(context).padding.bottom;
 
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          children: [
-            // Header
-            Align(
-              alignment: Alignment.centerLeft,
-              child: isChallenger
-                  ? GestureDetector(
-                      onTap: _isCancelling ? null : _cancel,
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.close_rounded,
-                              size: 18, color: _red),
-                          const SizedBox(width: 4),
-                          Text(
-                            _isCancelling ? 'Membatalkan...' : 'Batalkan',
-                            style: const TextStyle(
-                                color: _red,
-                                fontWeight: FontWeight.w600),
-                          ),
-                        ],
-                      ),
-                    )
-                  : const SizedBox.shrink(),
-            ),
-
+        padding: EdgeInsets.fromLTRB(24, 16, 24, bottom + 16),
+        child: Column(children: [
+          // Header
+          Row(children: [
+            if (isPending && isChallenger)
+              GestureDetector(
+                onTap: _isCancelling ? null : _cancel,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: _red.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: _red.withOpacity(0.3))),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    const Icon(Icons.close_rounded, color: _red, size: 16),
+                    const SizedBox(width: 6),
+                    Text(_isCancelling ? 'Membatalkan...' : 'Batalkan',
+                        style: const TextStyle(color: _red,
+                            fontWeight: FontWeight.w700)),
+                  ]))),
             const Spacer(),
-
-            // Animasi menunggu
-            ScaleTransition(
-              scale: _pulseAnim,
-              child: Container(
-                width: 96, height: 96,
-                decoration: BoxDecoration(
-                  color: _primary.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                    Icons.sports_martial_arts_rounded,
-                    color: _primary, size: 48),
-              ),
-            ),
-
-            const SizedBox(height: 28),
-
-            // Judul quiz
             Container(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 12, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: const Color(0xFFE6F4F2),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Text(quiz,
-                  style: const TextStyle(
-                    color: _primary, fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                  )),
-            ),
-            const SizedBox(height: 16),
+                color: Colors.white.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(99),
+                border: Border.all(color: _teal.withOpacity(0.3))),
+              child: Text(quiz, style: const TextStyle(
+                  color: _teal, fontSize: 11, fontWeight: FontWeight.w700))),
+          ]),
 
-            Text(
-              isChallenger
-                  ? 'Menunggu $otherName\nmenerima tantangan...'
-                  : '$otherName\nmenantangmu untuk duel!',
-              style: const TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w800,
-                color: _ink,
-                height: 1.3,
-              ),
-              textAlign: TextAlign.center,
-            ),
+          const Spacer(),
 
-            const SizedBox(height: 12),
+          // Avatar lawan
+          AnimatedBuilder(
+            animation: _pulseAnim ?? const AlwaysStoppedAnimation(1.0),
+            builder: (_, __) => Transform.scale(
+              scale: isPending ? (_pulseAnim?.value ?? 1.0) : 1.0,
+              child: Container(
+                width: 90, height: 90,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _teal.withOpacity(0.15),
+                  border: Border.all(color: _teal.withOpacity(0.5), width: 3),
+                  boxShadow: [BoxShadow(
+                      color: _teal.withOpacity(0.3),
+                      blurRadius: 20, spreadRadius: 2)]),
+                child: Center(child: Text(otherInitial, style: const TextStyle(
+                    fontSize: 38, fontWeight: FontWeight.w900,
+                    color: _teal)))))),
+          const SizedBox(height: 16),
 
-            Text(
-              isChallenger
-                  ? 'Tantangan akan kedaluwarsa dalam 5 menit'
-                  : 'Terima tantangan untuk mulai bertanding',
-              style: const TextStyle(
-                  fontSize: 13, color: _inkMid),
-              textAlign: TextAlign.center,
-            ),
+          Text(otherName, style: const TextStyle(
+              color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900)),
+          if (otherNim.isNotEmpty)
+            Text(otherNim, style: TextStyle(
+                color: Colors.white.withOpacity(0.4), fontSize: 13)),
+          const SizedBox(height: 8),
 
-            const Spacer(),
+          Text(
+            isPending
+              ? (isChallenger
+                  ? 'Menunggu $otherName menerima...'
+                  : '$otherName menantangmu!')
+              : isActive
+                  ? (_myReady
+                      ? '✓ Kamu siap! Menunggu lawan...'
+                      : 'Tekan tombol siap untuk mulai!')
+                  : 'Memproses...',
+            style: TextStyle(
+                color: Colors.white.withOpacity(0.6),
+                fontSize: 14, height: 1.4),
+            textAlign: TextAlign.center),
 
-            // Tombol aksi
-            if (!isChallenger) ...[
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: _isResponding ? null : _accept,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _primary,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14)),
-                  ),
-                  child: _isResponding
-                      ? const SizedBox(
-                          width: 20, height: 20,
-                          child: CircularProgressIndicator(
-                              color: Colors.white, strokeWidth: 2))
-                      : const Text('Terima & Bertanding',
-                          style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16)),
-                ),
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: OutlinedButton(
-                  onPressed: _isResponding ? null : _decline,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: _red,
-                    side: const BorderSide(color: _red),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14)),
-                  ),
-                  child: const Text('Tolak',
-                      style: TextStyle(fontWeight: FontWeight.w600)),
-                ),
-              ),
-            ] else ...[
-              // Indikator loading untuk challenger
-              Row(
+          if (isPending)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                isChallenger
+                    ? 'Tantangan kedaluwarsa dalam 5 menit'
+                    : 'Terima tantangan untuk mulai bertanding',
+                style: TextStyle(
+                    color: Colors.white.withOpacity(0.35), fontSize: 12),
+                textAlign: TextAlign.center)),
+
+          const Spacer(),
+
+          // Tombol pending opponent
+          if (isPending && !isChallenger)
+            Row(children: [
+              Expanded(child: OutlinedButton(
+                onPressed: _isResponding ? null : _decline,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: _red,
+                  side: BorderSide(color: _red.withOpacity(0.6)),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14))),
+                child: const Text('Tolak',
+                    style: TextStyle(fontWeight: FontWeight.bold)))),
+              const SizedBox(width: 12),
+              Expanded(child: ElevatedButton(
+                onPressed: _isResponding ? null : _accept,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _primary,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14))),
+                child: _isResponding
+                    ? const SizedBox(width: 18, height: 18,
+                        child: CircularProgressIndicator(
+                            color: Colors.white, strokeWidth: 2))
+                    : const Text('Terima ⚔️',
+                        style: TextStyle(fontWeight: FontWeight.bold)))),
+            ]),
+
+          // Ready system saat active
+          if (isActive) ...[
+            // Status lawan
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 16, vertical: 10),
+              margin: const EdgeInsets.only(bottom: 10),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.06),
+                borderRadius: BorderRadius.circular(12)),
+              child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const SizedBox(
-                    width: 14, height: 14,
-                    child: CircularProgressIndicator(
-                        color: _primary, strokeWidth: 2),
-                  ),
-                  const SizedBox(width: 10),
-                  Text('Menunggu respons...',
-                      style: TextStyle(
-                          fontSize: 13, color: Colors.grey[500])),
+                  Icon(
+                    _oppReady
+                        ? Icons.check_circle_rounded
+                        : Icons.hourglass_top_rounded,
+                    color: _oppReady ? _green : _amber, size: 16),
+                  const SizedBox(width: 8),
+                  Text(
+                    _oppReady ? 'Lawan sudah siap!' : 'Menunggu lawan siap...',
+                    style: TextStyle(
+                        color: _oppReady ? _green : _amber,
+                        fontSize: 13, fontWeight: FontWeight.w700)),
                 ],
-              ),
-            ],
+              )),
 
-            const SizedBox(height: 24),
+            // Tombol Ready
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: (_myReady || _markingReady) ? null : _markReady,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _myReady ? _slate : _primary,
+                  foregroundColor: Colors.white,
+                  elevation: _myReady ? 0 : 4,
+                  shadowColor: _primary.withOpacity(0.4),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14))),
+                child: _markingReady
+                    ? const SizedBox(width: 20, height: 20,
+                        child: CircularProgressIndicator(
+                            color: Colors.white, strokeWidth: 2))
+                    : Text(
+                        _myReady ? '✓ Sudah Siap!' : '⚔️  Siap Bertanding!',
+                        style: const TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w900)))),
           ],
-        ),
+        ]),
       ),
     );
   }

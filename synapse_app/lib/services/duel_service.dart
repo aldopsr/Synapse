@@ -57,6 +57,20 @@ class DuelService {
     }
   }
 
+  // Tandai siap battle
+  Future<Map<String, dynamic>?> markReady(String duelId) async {
+    try {
+      final res = await http.post(
+        Uri.parse('$_base/duels/$duelId/ready'),
+        headers: await _headers(),
+      );
+      return jsonDecode(res.body);
+    } catch (e) {
+      debugPrint('markReady error: $e');
+      return null;
+    }
+  }
+
   // Batalkan tantangan
   Future<bool> cancelDuel(String duelId) async {
     try {

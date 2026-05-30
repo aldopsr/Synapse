@@ -2,6 +2,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../services/duel_service.dart';
+import 'duel_screen.dart';
 
 class DuelBattleScreen extends StatefulWidget {
   final String duelId;
@@ -420,7 +421,13 @@ class _DuelBattleScreenState extends State<DuelBattleScreen> {
                 ),
                 const SizedBox(height: 32),
                 TextButton(
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: () {
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(builder: (_) => const DuelScreen()),
+                      (route) => route.isFirst,
+                    );
+                  },
                   child: const Text('Kembali ke Arena',
                       style: TextStyle(color: _primary)),
                 ),
@@ -515,21 +522,32 @@ class _DuelBattleScreenState extends State<DuelBattleScreen> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: () {
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const DuelScreen(),
+                      ),
+                      (route) => false,
+                    );
+                  },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _primary,
                     foregroundColor: Colors.white,
-                    padding:
-                        const EdgeInsets.symmetric(vertical: 14),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
-                  child: const Text('Kembali ke Arena',
-                      style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15)),
+                  child: const Text(
+                    'Kembali ke Arena',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                    ),
+                  ),
                 ),
-              ),
+              )
             ],
           ),
         ),

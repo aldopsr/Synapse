@@ -1,12 +1,3 @@
-// lib/widgets/audio_capsule.dart
-//
-// Tombol "Dengarkan Transmisi" (Audio Capsule) untuk Detail Materi.
-// Membersihkan konten HTML/Markdown via TextCleaner lalu memutarnya
-// dengan TtsService. Self-contained: kelola state play/stop sendiri.
-//
-// Pemakaian di MaterialDetailScreen:
-//   AudioCapsule(rawContent: material['content'] ?? material['body'] ?? '')
-
 import 'package:flutter/material.dart';
 import '../services/tts_service.dart';
 import '../utils/text_cleaner.dart';
@@ -16,11 +7,18 @@ class AudioCapsule extends StatefulWidget {
 
   const AudioCapsule({super.key, required this.rawContent});
 
+  static Future<void> stopActiveAudio() async {
+    await _AudioCapsuleState._activeState?._stopAudio();
+  }
+
   @override
   State<AudioCapsule> createState() => _AudioCapsuleState();
 }
 
-class _AudioCapsuleState extends State<AudioCapsule> {
+class _AudioCapsuleState extends State<AudioCapsule>
+    with AutomaticKeepAliveClientMixin {
+  static _AudioCapsuleState? _activeState;
+
   static const Color _primary = Color(0xFF2A9D8F);
   static const Color _accentPurple = Color(0xFFA855F7);
 
@@ -28,41 +26,68 @@ class _AudioCapsuleState extends State<AudioCapsule> {
   TtsState _state = TtsState.stopped;
 
   @override
+  bool get wantKeepAlive => true;
+
+  @override
   void initState() {
     super.initState();
+
     _tts.onStateChanged = (s) {
       if (mounted) setState(() => _state = s);
     };
   }
 
+  Future<void> _stopAudio() async {
+    await _tts.stop();
+
+    if (mounted) {
+      setState(() => _state = TtsState.stopped);
+    }
+  }
+
   @override
   void dispose() {
-    _tts.dispose(); // hentikan suara saat halaman ditutup
+    if (_activeState == this) {
+      _activeState = null;
+    }
+
+    _tts.dispose();
     super.dispose();
   }
 
   Future<void> _toggle() async {
     if (_state == TtsState.playing) {
-      await _tts.stop();
+      await _stopAudio();
       return;
     }
+
+    if (_activeState != null && _activeState != this) {
+      await _activeState!._stopAudio();
+    }
+
     final clean = TextCleaner.cleanForSpeech(widget.rawContent);
+
     if (clean.isEmpty) {
       if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Tidak ada teks untuk dibacakan.')),
       );
       return;
     }
+
+    _activeState = this;
     await _tts.speak(clean);
   }
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
+
     final bool playing = _state == TtsState.playing;
 
     return Container(
-      margin: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+      margin: const EdgeInsets.fromLTRB(0, 0, 0, 0),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
@@ -106,7 +131,7 @@ class _AudioCapsuleState extends State<AudioCapsule> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        playing ? 'Menghentikan...' : 'Dengarkan Transmisi',
+                        playing ? 'Sedang Diputar' : 'Dengarkan Transmisi',
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 15,

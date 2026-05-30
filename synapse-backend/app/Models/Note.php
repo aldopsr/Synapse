@@ -12,10 +12,12 @@ class Note extends Model
     protected $fillable = [
         'user_id',
         'content',
+        'color_index',
     ];
 
     protected $casts = [
-        'created_at' => 'datetime',
-        'updated_at' => 'datetime',
+        'color_index' => 'integer',
+        'created_at'  => 'datetime',
+        'updated_at'  => 'datetime',
     ];
 }

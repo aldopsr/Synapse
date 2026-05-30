@@ -513,38 +513,55 @@ class DuelController extends Controller
         $opponent     = User::find($duel->opponent_id);
         $quiz         = Quiz::find($duel->quiz_id);
         $winner       = $duel->winner_id ? User::find($duel->winner_id) : null;
-
+    
+        $challengerReady = (bool) ($duel->challenger_ready ?? false);
+        $opponentReady   = (bool) ($duel->opponent_ready   ?? false);
+    
+        // my_ready = apakah saya sudah ready
+        // opponent_ready_status = apakah lawan sudah ready
+        $myReady   = $isChallenger ? $challengerReady : $opponentReady;
+        $oppReady  = $isChallenger ? $opponentReady   : $challengerReady;
+    
         return [
-            'id'             => (string) $duel->id,
-            'quiz_id'        => $duel->quiz_id,
-            'quiz_title'     => $quiz?->title ?? 'Quiz',
-            'status'         => $duel->status,
-            'is_my_turn'     => $this->_isMyTurn($duel, $myId),
-            'i_am'           => $isChallenger ? 'challenger' : 'opponent',
-            'my_score'       => $isChallenger
+            'id'                     => (string) $duel->id,
+            'quiz_id'                => $duel->quiz_id,
+            'quiz_title'             => $quiz?->title ?? 'Quiz',
+            'status'                 => $duel->status,
+            'is_my_turn'             => $this->_isMyTurn($duel, $myId),
+            'i_am'                   => $isChallenger ? 'challenger' : 'opponent',
+            'my_score'               => $isChallenger
                 ? $duel->challenger_score : $duel->opponent_score,
-            'opponent_score' => $isChallenger
-                ? $duel->opponent_score : $duel->challenger_score,
-            'my_time'        => $isChallenger
+            'opponent_score'         => $isChallenger
+                ? $duel->opponent_score  : $duel->challenger_score,
+            'my_time'                => $isChallenger
                 ? $duel->challenger_time : $duel->opponent_time,
-            'winner_id'      => $duel->winner_id,
-            'winner_name'    => $winner?->name,
-            'i_won'          => $duel->winner_id
+            'winner_id'              => $duel->winner_id,
+            'winner_name'            => $winner?->name,
+            'i_won'                  => $duel->winner_id
                 ? ($myId === (string) $duel->winner_id) : null,
-            'challenger'     => $challenger ? [
-                'id'         => (string) $challenger->id,
-                'name'       => $challenger->name,
-                'nim'        => $challenger->nim,
-                'duel_code'  => $challenger->duel_code,
+    
+            // ── Ready system ──────────────────────────────────
+            'my_ready'               => $myReady,
+            'opponent_ready_status'  => $oppReady,
+            'both_ready'             => $myReady && $oppReady,
+            'battle_starts_at'       => $duel->battle_starts_at ?? null,
+    
+            // ── Players ───────────────────────────────────────
+            'challenger' => $challenger ? [
+                'id'        => (string) $challenger->id,
+                'name'      => $challenger->name,
+                'nim'       => $challenger->nim,
+                'duel_code' => $challenger->duel_code,
             ] : null,
-            'opponent'       => $opponent ? [
-                'id'         => (string) $opponent->id,
-                'name'       => $opponent->name,
-                'nim'        => $opponent->nim,
-                'duel_code'  => $opponent->duel_code,
+            'opponent' => $opponent ? [
+                'id'        => (string) $opponent->id,
+                'name'      => $opponent->name,
+                'nim'       => $opponent->nim,
+                'duel_code' => $opponent->duel_code,
             ] : null,
-            'expires_at'     => $duel->expires_at,
-            'created_at'     => $duel->created_at,
+    
+            'expires_at'  => $duel->expires_at,
+            'created_at'  => $duel->created_at,
         ];
     }
 
@@ -555,5 +572,58 @@ class DuelController extends Controller
         return $isChallenger
             ? $duel->challenger_score === null
             : $duel->opponent_score === null;
+    }
+
+    // ============================================================
+    // POST /api/duels/{id}/ready
+    // Menandai user sudah siap — countdown mulai saat keduanya ready
+    // ============================================================
+    public function ready(Request $request, string $id)
+    {
+        $user = $request->user();
+        $duel = Duel::find($id);
+ 
+        if (!$duel) {
+            return response()->json(['message' => 'Duel tidak ditemukan.'], 404);
+        }
+ 
+        $myId         = (string) $user->id;
+        $isChallenger = $myId === (string) $duel->challenger_id;
+        $isOpponent   = $myId === (string) $duel->opponent_id;
+ 
+        if (!$isChallenger && !$isOpponent) {
+            return response()->json(['message' => 'Bukan peserta duel ini.'], 403);
+        }
+ 
+        if ($duel->status !== 'active') {
+            return response()->json(['message' => 'Duel belum aktif.'], 422);
+        }
+ 
+        // Set ready flag
+        if ($isChallenger) {
+            $duel->update(['challenger_ready' => true]);
+        } else {
+            $duel->update(['opponent_ready' => true]);
+        }
+ 
+        $duel = $duel->fresh();
+ 
+        // Cek apakah keduanya sudah ready
+        $bothReady = $duel->challenger_ready && $duel->opponent_ready;
+ 
+        if ($bothReady) {
+            // Set battle_starts_at = 3 detik dari sekarang
+            $duel->update([
+                'battle_starts_at' => Carbon::now()->addSeconds(3)->toISOString(),
+            ]);
+        }
+ 
+        return response()->json([
+            'message'          => 'Ready!',
+            'challenger_ready' => (bool) $duel->challenger_ready,
+            'opponent_ready'   => (bool) $duel->opponent_ready,
+            'both_ready'       => $bothReady,
+            'battle_starts_at' => $duel->battle_starts_at,
+        ]);
     }
 }

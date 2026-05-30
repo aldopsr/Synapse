@@ -6,6 +6,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/note_service.dart';
 import '../utils/constants.dart';
+import '../utils/chat_notifier.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 
 // ── Controller global ─────────────────────────────────────────
@@ -14,7 +15,7 @@ class SynapseFabController {
   static bool isGuest = true;
   // Dipanggil setiap kali ada pesan baru dari FAB chatbot
   // ChatbotScreen listen ke notifier ini untuk reload history
-  static final ValueNotifier<int> chatUpdated = ValueNotifier(0);
+  // chatUpdated dipindah ke ChatNotifier di utils/chat_notifier.dart
 }
 
 // ── SynapseFab ────────────────────────────────────────────────
@@ -251,17 +252,27 @@ class _StickyNoteDialog extends StatefulWidget {
 }
 
 class _StickyNoteDialogState extends State<_StickyNoteDialog> {
-  static const Color _primary    = Color(0xFF2A9D8F);
-  static const Color _noteBg     = Color(0xFFE8F8F6);
-  static const Color _noteBorder = Color(0xFFA7E8E1);
+  static const Color _primary = Color(0xFF2A9D8F);
 
-  final NoteService _svc = NoteService();
+  static const List<Color> _noteColors = [
+    Colors.white,
+    Color(0xFFFFF9C4),
+    Color(0xFFFFCCBC),
+    Color(0xFFB2EBF2),
+    Color(0xFFC8E6C9),
+    Color(0xFFE1BEE7),
+    Color(0xFFFFE0B2),
+    Color(0xFFF8BBD0),
+  ];
+
+  final NoteService _svc   = NoteService();
   final TextEditingController _ctrl = TextEditingController();
   final ScrollController _scroll   = ScrollController();
 
   List<NoteModel> _notes = [];
   bool _loading = true, _saving = false;
   String? _editingId;
+  int _selectedColor = 0;
   int _tab = 0;
 
   @override
@@ -277,12 +288,13 @@ class _StickyNoteDialogState extends State<_StickyNoteDialog> {
     if (text.isEmpty) return;
     setState(() => _saving = true);
     if (_editingId != null) {
-      await _svc.updateNote(_editingId!, text);
+      await _svc.updateNote(_editingId!, text, colorIndex: _selectedColor);
       _editingId = null;
     } else {
-      await _svc.createNote(text);
+      await _svc.createNote(text, colorIndex: _selectedColor);
     }
     _ctrl.clear();
+    _selectedColor = 0;
     await _load();
     setState(() { _saving = false; _tab = 0; });
   }
@@ -293,9 +305,15 @@ class _StickyNoteDialogState extends State<_StickyNoteDialog> {
   String _fmt(DateTime dt) {
     final diff = DateTime.now().difference(dt);
     if (diff.inMinutes < 1) return 'Baru saja';
-    if (diff.inHours < 1)   return '${diff.inMinutes}m lalu';
-    if (diff.inDays < 1)    return '${diff.inHours}j lalu';
-    return '${dt.day}/${dt.month}';
+    if (diff.inHours < 1)   return '\${diff.inMinutes}m lalu';
+    if (diff.inDays < 1)    return '\${diff.inHours}j lalu';
+    return '\${dt.day}/\${dt.month}';
+  }
+
+  Color _getNoteColor(NoteModel note) {
+    final idx = note.colorIndex;
+    if (idx < 0 || idx >= _noteColors.length) return Colors.white;
+    return _noteColors[idx];
   }
 
   @override
@@ -305,11 +323,11 @@ class _StickyNoteDialogState extends State<_StickyNoteDialog> {
       insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 80),
       child: Container(
         width: double.infinity,
-        constraints: const BoxConstraints(maxHeight: 440),
+        constraints: const BoxConstraints(maxHeight: 460),
         decoration: BoxDecoration(
-          color: _noteBg,
+          color: const Color(0xFFE8F8F6),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: _noteBorder, width: 1.5),
+          border: Border.all(color: const Color(0xFFA7E8E1), width: 1.5),
           boxShadow: [BoxShadow(
             color: _primary.withOpacity(0.15), blurRadius: 24,
             offset: const Offset(0, 8),
@@ -330,7 +348,8 @@ class _StickyNoteDialogState extends State<_StickyNoteDialog> {
               const SizedBox(width: 4),
               _TabChip(label: '✏️', active: _tab == 1,
                   onTap: () => setState(() {
-                    _tab = 1; _editingId = null; _ctrl.clear();
+                    _tab = 1; _editingId = null;
+                    _ctrl.clear(); _selectedColor = 0;
                   })),
               const SizedBox(width: 6),
               GestureDetector(
@@ -357,8 +376,8 @@ class _StickyNoteDialogState extends State<_StickyNoteDialog> {
 
   Widget _buildList() {
     if (_loading) return const Center(child: Padding(
-        padding: EdgeInsets.all(24),
-        child: CircularProgressIndicator(color: _primary, strokeWidth: 2)));
+      padding: EdgeInsets.all(24),
+      child: CircularProgressIndicator(color: _primary, strokeWidth: 2)));
     if (_notes.isEmpty) return Padding(
       padding: const EdgeInsets.all(24),
       child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
@@ -376,13 +395,14 @@ class _StickyNoteDialogState extends State<_StickyNoteDialog> {
       itemCount: _notes.length,
       itemBuilder: (_, i) {
         final note = _notes[i];
+        final bg = _getNoteColor(note);
         return Container(
           margin: const EdgeInsets.only(bottom: 8),
           padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: bg,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: _noteBorder),
+            border: Border.all(color: Colors.black.withOpacity(0.08)),
           ),
           child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Expanded(child: Column(
@@ -394,7 +414,7 @@ class _StickyNoteDialogState extends State<_StickyNoteDialog> {
                         color: Color(0xFF1A1A2E), height: 1.5)),
                 const SizedBox(height: 4),
                 Text(_fmt(note.updatedAt),
-                    style: TextStyle(fontSize: 11, color: Colors.grey[400])),
+                    style: TextStyle(fontSize: 11, color: Colors.grey[500])),
               ],
             )),
             Column(children: [
@@ -402,30 +422,17 @@ class _StickyNoteDialogState extends State<_StickyNoteDialog> {
                 onTap: () => setState(() {
                   _editingId = note.id;
                   _ctrl.text = note.content;
+                  _selectedColor = note.colorIndex;
                   _tab = 1;
                 }),
-                child: Container(
-                  width: 36, height: 36,
-                  decoration: BoxDecoration(
-                    color: Colors.blue.withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(Icons.edit_rounded,
-                      size: 18, color: Colors.blueAccent),
-                ),
+                child: Icon(Icons.edit_outlined,
+                    size: 16, color: Colors.black.withOpacity(0.3)),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 10),
               GestureDetector(
                 onTap: () async { await _svc.deleteNote(note.id); _load(); },
-                child: Container(
-                  width: 36, height: 36,
-                  decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(Icons.delete_rounded,
-                      size: 18, color: Colors.red[400]),
-                ),
+                child: Icon(Icons.delete_outline_rounded,
+                    size: 16, color: Colors.black.withOpacity(0.3)),
               ),
             ]),
           ]),
@@ -435,15 +442,18 @@ class _StickyNoteDialogState extends State<_StickyNoteDialog> {
   }
 
   Widget _buildWrite() {
+    final bgColor = _noteColors[_selectedColor];
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 0, 12, 0),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Container(
-          constraints: const BoxConstraints(maxHeight: 160),
+        // Text area dengan warna yang dipilih
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          constraints: const BoxConstraints(maxHeight: 120),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: bgColor,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: _primary.withOpacity(0.4)),
+            border: Border.all(color: _primary.withOpacity(0.3)),
           ),
           child: TextField(
             controller: _ctrl,
@@ -454,22 +464,50 @@ class _StickyNoteDialogState extends State<_StickyNoteDialog> {
               border: InputBorder.none,
               contentPadding: EdgeInsets.all(12),
             ),
-            style: const TextStyle(fontSize: 14,
+            style: const TextStyle(fontSize: 13.5,
                 color: Color(0xFF1A1A2E), height: 1.5),
           ),
         ),
+        const SizedBox(height: 8),
+        // Color picker row
+        Row(children: [
+          ...List.generate(_noteColors.length, (i) {
+            final isSelected = _selectedColor == i;
+            return GestureDetector(
+              onTap: () => setState(() => _selectedColor = i),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                margin: const EdgeInsets.only(right: 6),
+                width: isSelected ? 26 : 22,
+                height: isSelected ? 26 : 22,
+                decoration: BoxDecoration(
+                  color: _noteColors[i],
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: isSelected ? _primary : Colors.black.withOpacity(0.15),
+                    width: isSelected ? 2 : 1,
+                  ),
+                ),
+                child: isSelected
+                    ? const Icon(Icons.check_rounded, size: 12, color: Color(0xFF2A9D8F))
+                    : null,
+              ),
+            );
+          }),
+        ]),
         const SizedBox(height: 10),
         Row(children: [
           if (_editingId != null) ...[
             Expanded(child: OutlinedButton(
               onPressed: () => setState(() {
-                _editingId = null; _ctrl.clear(); _tab = 0;
+                _editingId = null; _ctrl.clear();
+                _selectedColor = 0; _tab = 0;
               }),
               style: OutlinedButton.styleFrom(
                 side: BorderSide(color: Colors.grey[300]!),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10)),
-                padding: const EdgeInsets.symmetric(vertical: 11),
+                padding: const EdgeInsets.symmetric(vertical: 10),
               ),
               child: const Text('Batal'),
             )),
@@ -482,7 +520,7 @@ class _StickyNoteDialogState extends State<_StickyNoteDialog> {
               elevation: 0,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10)),
-              padding: const EdgeInsets.symmetric(vertical: 11),
+              padding: const EdgeInsets.symmetric(vertical: 10),
             ),
             child: _saving
                 ? const SizedBox(width: 16, height: 16,
@@ -603,7 +641,7 @@ class _ChatbotDialogState extends State<_ChatbotDialog> {
       setState(() => _loading = false);
       _saveHistory();
       // Notify ChatbotScreen untuk reload
-      SynapseFabController.chatUpdated.value++;
+      ChatNotifier.notify();
       _scrollToBottom();
     }
   }

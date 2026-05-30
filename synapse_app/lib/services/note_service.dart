@@ -8,12 +8,14 @@ import '../utils/constants.dart';
 class NoteModel {
   final String id;
   final String content;
+  final int colorIndex;
   final DateTime createdAt;
   final DateTime updatedAt;
 
   NoteModel({
     required this.id,
     required this.content,
+    this.colorIndex = 0,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -22,6 +24,7 @@ class NoteModel {
     return NoteModel(
       id: (json['_id'] ?? json['id'] ?? '').toString(),
       content: json['content'] ?? '',
+      colorIndex: (json['color_index'] ?? 0) as int,
       createdAt: DateTime.tryParse(json['created_at'] ?? '') ?? DateTime.now(),
       updatedAt: DateTime.tryParse(json['updated_at'] ?? '') ?? DateTime.now(),
     );
@@ -36,7 +39,6 @@ class NoteService {
     return prefs.getString('token');
   }
 
-  // GET semua notes user
   Future<List<NoteModel>> getNotes() async {
     final token = await _getToken();
     if (token == null) return [];
@@ -56,8 +58,7 @@ class NoteService {
     }
   }
 
-  // CREATE note
-  Future<NoteModel?> createNote(String content) async {
+  Future<NoteModel?> createNote(String content, {int colorIndex = 0}) async {
     final token = await _getToken();
     if (token == null) return null;
     try {
@@ -68,7 +69,7 @@ class NoteService {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
         },
-        body: jsonEncode({'content': content}),
+        body: jsonEncode({'content': content, 'color_index': colorIndex}),
       );
       if (res.statusCode == 201) {
         return NoteModel.fromJson(jsonDecode(res.body)['data']);
@@ -80,8 +81,7 @@ class NoteService {
     }
   }
 
-  // UPDATE note
-  Future<bool> updateNote(String id, String content) async {
+  Future<bool> updateNote(String id, String content, {int colorIndex = 0}) async {
     final token = await _getToken();
     if (token == null) return false;
     try {
@@ -92,7 +92,7 @@ class NoteService {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
         },
-        body: jsonEncode({'content': content}),
+        body: jsonEncode({'content': content, 'color_index': colorIndex}),
       );
       return res.statusCode == 200;
     } catch (e) {
@@ -101,7 +101,6 @@ class NoteService {
     }
   }
 
-  // DELETE note
   Future<bool> deleteNote(String id) async {
     final token = await _getToken();
     if (token == null) return false;
