@@ -29,7 +29,7 @@ RUN composer install --no-dev --optimize-autoloader --no-scripts
 COPY . .
 
 # Run post-install scripts
-RUN composer dump-autoload --optimize
+RUN composer dump-autoload --optimize --no-scripts
 
 # Set permissions
 RUN chown -R www-data:www-data storage bootstrap/cache \
