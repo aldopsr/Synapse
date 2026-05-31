@@ -9,14 +9,11 @@ echo "Listen $PORT" > /etc/apache2/ports.conf
 if [ -n "$FIREBASE_CREDENTIALS_BASE64" ]; then
     printf '%s' "$FIREBASE_CREDENTIALS_BASE64" | base64 -d > /var/www/html/storage/app/firebase-credentials.json
     echo "Firebase credentials written."
-    echo "--- DEBUG firebase file ---"
-    cat /var/www/html/storage/app/firebase-credentials.json | head -5
-    echo "--- END DEBUG ---"
 fi
 
-# Cache Laravel config/routes/views
-php artisan config:cache
-php artisan route:cache
-php artisan view:cache
+# Cache Laravel config/routes/views (non-fatal)
+php artisan config:cache || echo "config:cache failed, continuing..."
+php artisan route:cache || echo "route:cache failed, continuing..."
+php artisan view:cache || echo "view:cache failed, continuing..."
 
 exec "$@"
