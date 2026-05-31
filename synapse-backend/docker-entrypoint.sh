@@ -18,6 +18,5 @@ chmod -R 775 /var/www/html/storage
 # Cache Laravel (non-fatal)
 php artisan config:cache || echo "config:cache failed, continuing..."
 php artisan route:cache || echo "route:cache failed, continuing..."
-php artisan view:cache || echo "view:cache failed, continuing..."
 
 exec "$@"
