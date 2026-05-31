@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Course;
+use App\Models\User;
 
 class CourseController extends Controller
 {
@@ -12,21 +13,20 @@ class CourseController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
-        
-        // Asumsi: di tabel 'users' Kapten ada kolom 'role' (admin/dosen/mahasiswa)
-        if ($user->role === 'admin') {
-            // Jika yang login ADMIN: Tampilkan semua matkul yang ada di sistem
-            // Opsional: Boleh di-load juga data dosennya kalau ada relasinya
-            $courses = Course::latest()->get(); 
+
+        if ($user->role === 'admin' || $user->role === 'superadmin') {
+            $courses = Course::latest()->get();
         } else {
-            // Jika yang login DOSEN: Hanya tampilkan matkul yang DITUGASKAN kepadanya
-            $courses = Course::where('dosen_id', $user->id)->latest()->get();
+            // Dosen: tampilkan matkul yang dosen_ids-nya mengandung ID dosen ini
+            $courses = Course::where('dosen_ids', $user->id)->latest()->get();
         }
-        
+
+        $courses = $courses->map(fn($c) => $this->withDosens($c));
+
         return response()->json([
             'success' => true,
             'message' => 'Berhasil mengambil data Mata Kuliah',
-            'data' => $courses
+            'data'    => $courses,
         ]);
     }
 
@@ -35,41 +35,102 @@ class CourseController extends Controller
     {
         $user = $request->user();
 
-        // 🌟 KUNCI: Cek apakah user yang request ini adalah Admin!
-        if ($user->role !== 'admin') {
+        if ($user->role !== 'admin' && $user->role !== 'superadmin') {
             return response()->json([
                 'success' => false,
-                'message' => 'Akses ditolak! Hanya Admin yang dapat membuat Mata Kuliah.'
+                'message' => 'Akses ditolak! Hanya Admin yang dapat membuat Mata Kuliah.',
             ], 403);
         }
 
-        // 🌟 UPDATE VALIDASI: Admin WAJIB mengirimkan ID Dosen saat buat matkul
         $request->validate([
-            'title' => 'required|string|max:255',
+            'title'       => 'required|string|max:255',
             'description' => 'nullable|string',
-            'dosen_id' => 'required|exists:users,id' // Pastikan ID Dosen ini valid di database
+            'dosen_ids'   => 'nullable|array',
+            'dosen_ids.*' => 'exists:users,_id',
         ]);
 
-        // Simpan matkul baru
         $course = Course::create([
-            'title' => $request->title,
+            'title'       => $request->title,
             'description' => $request->description,
-            'dosen_id' => $request->dosen_id, // Tugaskan matkul ke Dosen yang dipilih Admin
-            'created_by' => $user->id, // (Opsional) Rekam ID Admin yang membuat matkul ini
+            'dosen_ids'   => $request->dosen_ids ?? [],
+            'created_by'  => $user->id,
         ]);
 
         return response()->json([
             'success' => true,
-            'message' => 'Mata Kuliah berhasil ditambahkan dan ditugaskan ke Dosen!',
-            'data' => $course
+            'message' => 'Mata Kuliah berhasil ditambahkan!',
+            'data'    => $this->withDosens($course),
         ], 201);
     }
 
+    // 3. UPDATE DAFTAR DOSEN PENGAMPU
     public function update(Request $request, $id)
     {
         $course = Course::findOrFail($id);
-        $request->validate(['dosen_id' => 'required|exists:users,id']);
-        $course->update(['dosen_id' => $request->dosen_id]);
-        return response()->json(['success' => true, 'data' => $course]);
+
+        $request->validate([
+            'dosen_ids'   => 'required|array|min:1',
+            'dosen_ids.*' => 'exists:users,_id',
+            'title'       => 'sometimes|string|max:255',
+            'description' => 'sometimes|nullable|string',
+        ]);
+
+        $data = ['dosen_ids' => $request->dosen_ids];
+        if ($request->has('title'))       $data['title']       = $request->title;
+        if ($request->has('description')) $data['description'] = $request->description;
+
+        $course->update($data);
+
+        return response()->json([
+            'success' => true,
+            'data'    => $this->withDosens($course->fresh()),
+        ]);
+    }
+
+    // 4. TAMBAH SATU DOSEN KE MATKUL
+    public function addDosen(Request $request, $id)
+    {
+        $course = Course::findOrFail($id);
+        $request->validate(['dosen_id' => 'required|exists:users,_id']);
+
+        $ids = $course->dosen_ids ?? [];
+        if (!in_array($request->dosen_id, $ids)) {
+            $ids[] = $request->dosen_id;
+            $course->update(['dosen_ids' => $ids]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Dosen berhasil ditambahkan ke matkul.',
+            'data'    => $this->withDosens($course->fresh()),
+        ]);
+    }
+
+    // 5. HAPUS SATU DOSEN DARI MATKUL
+    public function removeDosen(Request $request, $id, $dosenId)
+    {
+        $course = Course::findOrFail($id);
+
+        $ids = array_values(array_filter(
+            $course->dosen_ids ?? [],
+            fn($d) => $d !== $dosenId
+        ));
+        $course->update(['dosen_ids' => $ids]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Dosen berhasil dihapus dari matkul.',
+            'data'    => $this->withDosens($course->fresh()),
+        ]);
+    }
+
+    // Helper: tambahkan data dosen ke response course
+    private function withDosens(Course $course): array
+    {
+        $data           = $course->toArray();
+        $data['dosens'] = User::whereIn('_id', $course->dosen_ids ?? [])
+            ->get(['_id', 'name', 'email'])
+            ->toArray();
+        return $data;
     }
 }

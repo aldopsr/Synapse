@@ -181,9 +181,9 @@ class _FypScreenState extends State<FypScreen>
             child: _blob(105, Colors.white.withOpacity(0.12))),
         Positioned(top: top + 16, left: 20,
           child: Image.asset('assets/images/logo_synapse.png',
-            width: 42, height: 42, color: Colors.white,
+            width: 42, height: 42,
             errorBuilder: (_, __, ___) => const Icon(
-                Icons.auto_awesome_rounded, color: Colors.white, size: 36))),
+                Icons.auto_awesome_rounded, size: 36))),
         Positioned(top: top + 18, right: 20,
           child: Container(
             width: 42, height: 42,

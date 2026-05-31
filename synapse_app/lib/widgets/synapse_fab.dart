@@ -140,10 +140,9 @@ class _SynapseFabState extends State<SynapseFab> {
                 child: Center(
                   child: Image.asset(
                     'assets/images/logo_synapse.png',
-                    width: 26, height: 26, color: Colors.white,
+                    width: 26, height: 26,
                     errorBuilder: (_, __, ___) => const Icon(
-                        Icons.auto_awesome_rounded,
-                        color: Colors.white, size: 22),
+                        Icons.auto_awesome_rounded, size: 22),
                   ),
                 ),
               ),

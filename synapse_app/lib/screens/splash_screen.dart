@@ -126,7 +126,6 @@ class _SplashScreenState extends State<SplashScreen>
                         ),
                         child: Image.asset(
                           'assets/images/logo_synapse.png',
-                          color: Colors.white,
                         ),
                       ),
                       const SizedBox(height: 30),

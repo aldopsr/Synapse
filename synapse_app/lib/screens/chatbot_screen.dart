@@ -78,6 +78,53 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     super.dispose();
   }
 
+  Widget _buildTypingBubble() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade200,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.smart_toy_rounded,
+              color: Colors.grey,
+              size: 18,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border.all(color: Colors.grey.shade200),
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(16),
+                topRight: Radius.circular(16),
+                bottomRight: Radius.circular(16),
+                bottomLeft: Radius.circular(4),
+              ),
+            ),
+            child: Text(
+              'Sedang mengetik...',
+              style: TextStyle(
+                color: Colors.grey.shade500,
+                fontSize: 14,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _onFabChatUpdated() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -161,6 +208,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
   void _sendPrompt(String text) {
     _controller.text = text;
     _sendMessage();
+    _isLoading = true;
   }
 
   void _sendMessage() async {
@@ -473,8 +521,11 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
               : ListView.builder(
                   controller: _scrollController,
                   padding: const EdgeInsets.all(16),
-                  itemCount: _messages.length,
+                  itemCount: _messages.length + (_isLoading ? 1 : 0),
                   itemBuilder: (context, index) {
+                    if (index == _messages.length) {
+                      return _buildTypingBubble();
+                    }
                     final msg = _messages[index];
                     return Align(
                       alignment: msg.isUser
@@ -544,25 +595,6 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                   },
                 ),
         ),
-
-        if (_isLoading)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const SizedBox(
-                    width: 16, height: 16,
-                    child: CircularProgressIndicator(
-                        strokeWidth: 2, color: Color(0xFF26A69A))),
-                const SizedBox(width: 10),
-                Text("SYNAPSE memproses...",
-                    style: TextStyle(
-                        color: Colors.blueGrey[400],
-                        fontStyle: FontStyle.italic)),
-              ],
-            ),
-          ),
 
         Container(
           decoration: const BoxDecoration(

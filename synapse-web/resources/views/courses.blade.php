@@ -178,6 +178,14 @@ textarea.form-control { resize:vertical; min-height:80px; }
 }
 .btn-submit:hover { background:#1c6e60; }
 .btn-submit:disabled { background:#9ca3af; cursor:not-allowed; }
+
+@media (max-width: 768px) {
+    .page-header { flex-direction:column; align-items:flex-start; gap:10px; }
+    .page-header .btn { width:100%; justify-content:center; }
+    .courses-grid { grid-template-columns:1fr; }
+    .modal-overlay { padding:0; align-items:flex-end; }
+    .modal-box { border-radius:20px 20px 0 0; max-width:100%; }
+}
 </style>
 
 {{-- PAGE HEADER --}}
@@ -236,9 +244,9 @@ textarea.form-control { resize:vertical; min-height:80px; }
                 <textarea id="inputDesc" class="form-control" rows="3" placeholder="Deskripsi singkat mata kuliah..."></textarea>
             </div>
             <div class="form-group">
-                <label>Dosen Pengampu <span class="req">*</span></label>
+                <label>Dosen Pengampu <span style="font-weight:400;color:#9ca3af;font-size:10px">(opsional, bisa diatur di Kelola Dosen)</span></label>
                 <select id="selectDosen" class="form-control" onchange="onDosenChange(this)">
-                    <option value="">— Pilih dosen —</option>
+                    <option value="">— Belum ditentukan —</option>
                 </select>
                 <div class="dosen-preview" id="dosenPreview">
                     <div class="dosen-avatar" id="dosenPreviewAvatar">?</div>
@@ -389,14 +397,21 @@ textarea.form-control { resize:vertical; min-height:80px; }
         const id      = c._id || c.id;
         const title   = esc(c.title || 'Tanpa Judul');
         const desc    = esc(c.description || '—');
-        const dId     = c.dosen_id;
-        const d       = dId ? dosenMap[dId] : null;
+        // Kumpulkan semua dosen pengampu (many-to-many atau singular)
+        let cardDosens = [];
+        if (Array.isArray(c.dosens) && c.dosens.length) {
+            cardDosens = c.dosens;
+        } else if (Array.isArray(c.dosen_ids) && c.dosen_ids.length) {
+            cardDosens = c.dosen_ids.map(did => dosenMap[did] ? {name: dosenMap[did].name || dosenMap[did], _id: did} : null).filter(Boolean);
+        } else if (c.dosen_id) {
+            const dm = dosenMap[c.dosen_id];
+            if (dm) cardDosens = [{name: dm.name || dm, _id: c.dosen_id}];
+        }
 
-        const dosenHtml = d
-            ? `<div class="dosen-chip"><div class="dosen-avatar">${initials(d.name)}</div>${esc(d.name)}</div>`
-            : dId
-                ? `<div class="dosen-chip"><div class="dosen-avatar">?</div>ID: ${esc(String(dId).slice(-6))}</div>`
-                : `<div class="dosen-chip unassigned"><div class="dosen-avatar"><svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>Belum ada dosen</div>`;
+        const currentDosenId = cardDosens.length ? (cardDosens[0]._id || cardDosens[0].id || c.dosen_id || '') : (c.dosen_id || '');
+        const dosenHtml = cardDosens.length
+            ? cardDosens.map(d => `<div class="dosen-chip"><div class="dosen-avatar">${initials(d.name)}</div>${esc(d.name)}</div>`).join('')
+            : `<div class="dosen-chip unassigned"><div class="dosen-avatar"><svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>Belum ada dosen</div>`;
 
         const SVG_BOOK = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>`;
         const SVG_CHECK= `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>`;
@@ -404,7 +419,7 @@ textarea.form-control { resize:vertical; min-height:80px; }
         const SVG_TRASH= `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>`;
 
         const adminActs = isAdmin ? `
-            <button class="btn-act ba-assign admin-only" onclick="bukaModalAssign('${id}','${title.replace(/'/g,"\\'")}','${dId||''}')">
+            <button class="btn-act ba-assign admin-only" onclick="bukaModalAssign('${id}','${title.replace(/'/g,"\\'")}','${currentDosenId}')">
                 ${SVG_EDIT} Ganti Dosen
             </button>
             <button class="btn-act ba-delete admin-only" onclick="hapusMatkul('${id}','${title.replace(/'/g,"\\'")}')">
@@ -446,18 +461,16 @@ textarea.form-control { resize:vertical; min-height:80px; }
     };
 
     window.simpanMatkul = async function() {
-        const title   = $('inputTitle').value.trim();
-        const desc    = $('inputDesc').value.trim();
-        const dosenId = $('selectDosen').value;
-        if (!title)   { toast('Nama mata kuliah wajib diisi.', 'err'); return; }
-        if (!dosenId) { toast('Pilih dosen pengampu terlebih dahulu.', 'err'); return; }
+        const title = $('inputTitle').value.trim();
+        const desc  = $('inputDesc').value.trim();
+        if (!title) { toast('Nama mata kuliah wajib diisi.', 'err'); return; }
         const btn = $('btnSimpanMatkul');
         btn.disabled = true; btn.textContent = 'Menyimpan...';
         try {
             const res  = await fetch(API + '/courses', {
                 method:'POST',
                 headers:{ Authorization:'Bearer '+token, Accept:'application/json', 'Content-Type':'application/json' },
-                body: JSON.stringify({ title, description:desc, dosen_id:dosenId })
+                body: JSON.stringify({ title, description:desc, dosen_id: $('selectDosen').value || null })
             });
             const data = await res.json();
             if (res.ok && data.success) {

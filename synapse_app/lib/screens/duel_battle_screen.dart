@@ -35,11 +35,14 @@ class _DuelBattleScreenState extends State<DuelBattleScreen> {
   Timer?  _timer;
   int     _secondsLeft = 0;
 
-  // FIX: _submitted hanya true setelah _result sudah siap ATAU waiting
   bool                  _submitted       = false;
   bool                  _waitingOpponent = false;
+  bool                  _waitingTimedOut = false;
   Map<String, dynamic>? _result;
   Timer?                _pollingTimer;
+  Timer?                _waitingTimeoutTimer;
+
+  static const int _waitingTimeoutSec = 180; // 3 menit
 
   @override
   void initState() {
@@ -52,6 +55,7 @@ class _DuelBattleScreenState extends State<DuelBattleScreen> {
   void dispose() {
     _timer?.cancel();
     _pollingTimer?.cancel();
+    _waitingTimeoutTimer?.cancel();
     _stopwatch.stop();
     super.dispose();
   }
@@ -118,6 +122,16 @@ class _DuelBattleScreenState extends State<DuelBattleScreen> {
   }
 
   void _startPolling() {
+    // Timeout: jika lawan belum selesai dalam 3 menit, hentikan polling & tampilkan pesan
+    _waitingTimeoutTimer = Timer(
+      const Duration(seconds: _waitingTimeoutSec),
+      () {
+        if (!mounted) return;
+        _pollingTimer?.cancel();
+        setState(() => _waitingTimedOut = true);
+      },
+    );
+
     _pollingTimer = Timer.periodic(const Duration(seconds: 5), (_) async {
       final status = await _service.getStatus(widget.duelId);
       if (!mounted) {
@@ -130,8 +144,7 @@ class _DuelBattleScreenState extends State<DuelBattleScreen> {
       if (duelStatus == 'completed') {
         _pollingTimer?.cancel();
         await _fetchResult();
-        if (!mounted) return;
-        setState(() => _waitingOpponent = false);
+        // _fetchResult already handles setState internally — no extra setState needed
       } else if (duelStatus == 'expired') {
         _pollingTimer?.cancel();
         if (!mounted) return;
@@ -145,16 +158,25 @@ class _DuelBattleScreenState extends State<DuelBattleScreen> {
   }
 
   Future<void> _fetchResult() async {
-    final status = await _service.getStatus(widget.duelId);
-    if (!mounted) return;
-    // FIX: set _result dulu, baru update state
-    final resultData = status?['data'] as Map<String, dynamic>?;
-    if (resultData != null) {
-      setState(() {
-        _result          = resultData;
-        _waitingOpponent = false;
-      });
+    for (int attempt = 0; attempt < 3; attempt++) {
+      if (attempt > 0) {
+        await Future.delayed(const Duration(seconds: 2));
+        if (!mounted) return;
+      }
+
+      final status = await _service.getStatus(widget.duelId);
+      if (!mounted) return;
+
+      final resultData = status?['data'] as Map<String, dynamic>?;
+      if (resultData != null) {
+        setState(() {
+          _result          = resultData;
+          _waitingOpponent = false;
+        });
+        return;
+      }
     }
+    // All retries exhausted — polling will catch it on next tick if still active
   }
 
   String _formatTime(int seconds) {
@@ -394,51 +416,23 @@ class _DuelBattleScreenState extends State<DuelBattleScreen> {
   Widget _buildResultScreen() {
     // Waiting — lawan belum selesai
     if (_waitingOpponent || _result == null) {
-      return Scaffold(
-        backgroundColor: Colors.white,
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(40),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const CircularProgressIndicator(
-                    color: _primary, strokeWidth: 2),
-                const SizedBox(height: 24),
-                const Text(
-                  'Menunggu lawan selesai...',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: _ink,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Halaman ini otomatis update\nsaat lawan selesai.',
-                  style: TextStyle(fontSize: 13, color: _inkMid),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 32),
-                TextButton(
-                  onPressed: () {
-                    Navigator.pushAndRemoveUntil(
-                      context,
-                      MaterialPageRoute(builder: (_) => const DuelScreen()),
-                      (route) => route.isFirst,
-                    );
-                  },
-                  child: const Text('Kembali ke Arena',
-                      style: TextStyle(color: _primary)),
-                ),
-              ],
+      return PopScope(
+        canPop: false,
+        child: Scaffold(
+          backgroundColor: Colors.white,
+          body: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(40),
+              child: _waitingTimedOut
+                  ? _buildTimeoutUI()
+                  : _buildWaitingUI(),
             ),
           ),
         ),
       );
     }
 
-    // Hasil tersedia
+    // Hasil tersedia — wrapped with PopScope to prevent accidental back
     final iWon       = _result!['i_won'];
     final myScore    = _result!['my_score'];
     final oppScore   = _result!['opponent_score'];
@@ -449,109 +443,182 @@ class _DuelBattleScreenState extends State<DuelBattleScreen> {
     final opponentInfo = rawOpp as Map<String, dynamic>?;
     final opponentName = opponentInfo?['name']?.toString() ?? 'Lawan';
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  color: iWon == true
-                      ? _green.withOpacity(0.1)
-                      : _red.withOpacity(0.1),
-                  shape: BoxShape.circle,
+    return PopScope(
+      canPop: false,
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: iWon == true
+                        ? _green.withOpacity(0.1)
+                        : _red.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    iWon == true
+                        ? Icons.emoji_events_rounded
+                        : Icons.sports_martial_arts_rounded,
+                    color: iWon == true ? _green : _red,
+                    size: 40,
+                  ),
                 ),
-                child: Icon(
+                const SizedBox(height: 20),
+                Text(
+                  iWon == true ? '🏆 Kamu Menang!' : '💀 Kamu Kalah',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w800,
+                    color: iWon == true ? _green : _red,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
                   iWon == true
-                      ? Icons.emoji_events_rounded
-                      : Icons.sports_martial_arts_rounded,
-                  color: iWon == true ? _green : _red,
-                  size: 40,
+                      ? 'Luar biasa! Kamu mengalahkan $opponentName'
+                      : '$winnerName bermain lebih baik kali ini',
+                  style: const TextStyle(fontSize: 14, color: _inkMid),
+                  textAlign: TextAlign.center,
                 ),
-              ),
-              const SizedBox(height: 20),
-              Text(
-                iWon == true ? '🏆 Kamu Menang!' : '💀 Kamu Kalah',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w800,
-                  color: iWon == true ? _green : _red,
+                const SizedBox(height: 32),
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: _border),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _buildScoreCol(
+                          'Kamu',
+                          myScore?.toString() ?? '-',
+                          iWon == true ? _green : _red),
+                      Text('VS',
+                          style: TextStyle(
+                              fontSize: 12,
+                              color: _inkLight,
+                              fontWeight: FontWeight.w700)),
+                      _buildScoreCol(
+                          opponentName,
+                          oppScore?.toString() ?? '-',
+                          iWon == true ? _red : _green),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                iWon == true
-                    ? 'Luar biasa! Kamu mengalahkan $opponentName'
-                    : '$winnerName bermain lebih baik kali ini',
-                style: const TextStyle(
-                    fontSize: 14, color: _inkMid),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 32),
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  border: Border.all(color: _border),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    _buildScoreCol(
-                        'Kamu',
-                        myScore?.toString() ?? '-',
-                        iWon == true ? _green : _red),
-                    Text('VS',
-                        style: TextStyle(
-                            fontSize: 12,
-                            color: _inkLight,
-                            fontWeight: FontWeight.w700)),
-                    _buildScoreCol(
-                        opponentName,
-                        oppScore?.toString() ?? '-',
-                        iWon == true ? _red : _green),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 32),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pushAndRemoveUntil(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const DuelScreen(),
+                const SizedBox(height: 32),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.pushAndRemoveUntil(
+                        context,
+                        MaterialPageRoute(builder: (_) => const DuelScreen()),
+                        (route) => false,
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      (route) => false,
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
                     ),
-                  ),
-                  child: const Text(
-                    'Kembali ke Arena',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
+                    child: const Text(
+                      'Kembali ke Arena',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
                     ),
                   ),
                 ),
-              )
-            ],
+              ],
+            ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildWaitingUI() {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const CircularProgressIndicator(color: _primary, strokeWidth: 2),
+        const SizedBox(height: 24),
+        const Text(
+          'Menunggu lawan selesai...',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: _ink),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'Halaman ini otomatis update\nsaat lawan selesai.',
+          style: TextStyle(fontSize: 13, color: _inkMid),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 32),
+        TextButton(
+          onPressed: () {
+            _pollingTimer?.cancel();
+            _waitingTimeoutTimer?.cancel();
+            Navigator.pop(context);
+          },
+          child: const Text('Kembali ke Arena', style: TextStyle(color: _primary)),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTimeoutUI() {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Container(
+          width: 72,
+          height: 72,
+          decoration: BoxDecoration(
+            color: _red.withValues(alpha: 0.08),
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(Icons.hourglass_disabled_rounded, color: _red, size: 36),
+        ),
+        const SizedBox(height: 20),
+        const Text(
+          'Lawan Tidak Merespons',
+          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: _ink),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'Sudah 3 menit berlalu.\nSepertinya lawan meninggalkan pertandingan.',
+          style: TextStyle(fontSize: 13, color: _inkMid),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 32),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: () => Navigator.pop(context),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _primary,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('Kembali ke Arena',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+          ),
+        ),
+      ],
     );
   }
 

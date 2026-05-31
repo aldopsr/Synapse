@@ -502,10 +502,8 @@ class _NotesScreenState extends State<NotesScreen> {
               ),
               child: Image.asset(
                 'assets/images/logo_synapse.png',
-                color: Colors.white,
                 errorBuilder: (_, __, ___) => const Icon(
                   Icons.auto_awesome_rounded,
-                  color: Colors.white,
                   size: 22,
                 ),
               ),

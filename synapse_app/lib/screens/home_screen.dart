@@ -12,7 +12,6 @@ import 'chatbot_screen.dart';
 import 'profile_screen.dart';
 import 'fyp_screen.dart';
 import 'duel_screen.dart';
-import 'duel_waiting_screen.dart';
 import '../services/fcm_service.dart';
 import '../widgets/synapse_fab.dart';
 import 'course_selection_screen.dart';
@@ -130,17 +129,11 @@ class _HomeScreenState extends State<HomeScreen> {
       final duelId = data['duel_id']?.toString() ?? '';
       if (!mounted || duelId.isEmpty) return;
 
-      if (type == 'duel_challenge') {
+      if (type == 'duel_challenge' ||
+          type == 'duel_accepted'  ||
+          type == 'duel_completed') {
         Navigator.push(context, MaterialPageRoute(
-          builder: (_) => DuelWaitingScreen(duelId: duelId, role: 'opponent'),
-        ));
-      } else if (type == 'duel_accepted') {
-        Navigator.push(context, MaterialPageRoute(
-          builder: (_) => DuelWaitingScreen(duelId: duelId, role: 'challenger'),
-        ));
-      } else if (type == 'duel_completed') {
-        Navigator.push(context, MaterialPageRoute(
-          builder: (_) => DuelScreen(),
+          builder: (_) => const DuelScreen(),
         ));
       }
     };

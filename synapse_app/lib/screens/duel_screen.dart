@@ -7,7 +7,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../services/duel_service.dart';
 import 'duel_battle_screen.dart';
 import 'duel_challenge_screen.dart';
-import 'duel_waiting_screen.dart';
 
 class DuelScreen extends StatefulWidget {
   const DuelScreen({super.key});
@@ -16,7 +15,7 @@ class DuelScreen extends StatefulWidget {
 }
 
 class _DuelScreenState extends State<DuelScreen>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   static const Color _primary  = Color(0xFF2A9D8F);
   static const Color _dark     = Color(0xFF0D2B28);
   static const Color _darkMid  = Color(0xFF1A4040);
@@ -35,10 +34,11 @@ class _DuelScreenState extends State<DuelScreen>
   List<dynamic> _pendingOutgoing = [];
   List<dynamic> _activeDuels    = [];
   List<dynamic> _historyDuels   = [];
-  bool _isLoading  = true;
-  bool _isGuest    = false;
-  bool _myReady    = false;
-  bool _oppReady   = false;
+  bool _isLoading     = true;
+  bool _isLoadingData = false; // guard: cegah concurrent _load() calls
+  bool _isGuest       = false;
+  bool _myReady       = false;
+  bool _oppReady      = false;
   int  _cdCount    = 0;      // countdown 3-2-1
   Timer? _cdTimer;
 
@@ -63,14 +63,15 @@ class _DuelScreenState extends State<DuelScreen>
     _glowAnim = Tween<double>(begin: 0.3, end: 0.8).animate(
         CurvedAnimation(parent: _glowCtrl!, curve: Curves.easeInOut));
 
+    WidgetsBinding.instance.addObserver(this);
     _load();
-    // Auto refresh tiap 5 detik untuk update status duel
     _pollTimer = Timer.periodic(
-        const Duration(seconds: 5), (_) => _load(silent: true));
+        const Duration(seconds: 10), (_) => _load(silent: true));
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _pollTimer?.cancel();
     _cdTimer?.cancel();
     _pulseCtrl?.dispose();
@@ -78,70 +79,95 @@ class _DuelScreenState extends State<DuelScreen>
     super.dispose();
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      // App di-background atau ditutup — hentikan polling
+      _pollTimer?.cancel();
+      _pollTimer = null;
+    } else if (state == AppLifecycleState.resumed) {
+      // App kembali ke foreground — restart polling jika bukan guest
+      if (_pollTimer == null && !_isGuest) {
+        _load(silent: true);
+        _pollTimer = Timer.periodic(
+            const Duration(seconds: 10), (_) => _load(silent: true));
+      }
+    }
+  }
+
   Future<void> _load({bool silent = false}) async {
+    // Guard: skip jika ada _load() yang sedang berjalan
+    if (_isLoadingData) return;
+    _isLoadingData = true;
+
     if (!silent) setState(() => _isLoading = true);
 
     final prefs   = await SharedPreferences.getInstance();
     final token   = prefs.getString('token');
 
-    // Cek guest
-    if (token == null || token.isEmpty) {
-      if (mounted) setState(() { _isGuest = true; _isLoading = false; });
-      return;
-    }
+    try {
+      // Cek guest
+      if (token == null || token.isEmpty) {
+        if (mounted) setState(() { _isGuest = true; _isLoading = false; });
+        return;
+      }
 
-    final userStr = prefs.getString('user');
-    Map<String, dynamic> localUser = {};
-    if (userStr != null) {
-      try {
-        final decoded = jsonDecode(userStr);
-        if (decoded is Map) {
-          localUser = Map<String, dynamic>.from(
-              decoded.containsKey('user')
-                  ? decoded['user'] as Map
-                  : decoded);
-        }
-      } catch (_) {}
-    }
+      final userStr = prefs.getString('user');
+      Map<String, dynamic> localUser = {};
+      if (userStr != null) {
+        try {
+          final decoded = jsonDecode(userStr);
+          if (decoded is Map) {
+            localUser = Map<String, dynamic>.from(
+                decoded.containsKey('user')
+                    ? decoded['user'] as Map
+                    : decoded);
+          }
+        } catch (_) {}
+      }
 
-    final results = await Future.wait([
-      _service.getMyDuels(),
-      _service.getHistory(),
-      _service.getMyDuelCode(),
-    ]);
-    if (!mounted) return;
+      final results = await Future.wait([
+        _service.getMyDuels(),
+        _service.getHistory(),
+        _service.getMyDuelCode(),
+      ]);
+      if (!mounted) return;
 
-    final all     = results[0] as List;
-    final history = results[1] as List;
-    final profile = results[2] as Map<String, dynamic>?;
+      final all     = results[0] as List;
+      final history = results[1] as List;
+      final profile = results[2] as Map<String, dynamic>?;
 
-    final name = localUser['name']?.toString().isNotEmpty == true
-        ? localUser['name'].toString()
-        : profile?['name']?.toString() ?? 'Player';
-    final myDuelCode = profile?['duel_code']?.toString() ?? '';
+      final name = localUser['name']?.toString().isNotEmpty == true
+          ? localUser['name'].toString()
+          : profile?['name']?.toString() ?? 'Player';
+      final myDuelCode = profile?['duel_code']?.toString() ?? '';
 
-    final activeDuelData = all.where((d) => d['status'] == 'active').toList();
-    final myR  = activeDuelData.isNotEmpty
-        ? (activeDuelData.first['my_ready'] == true) : false;
-    final oppR = activeDuelData.isNotEmpty
-        ? (activeDuelData.first['opponent_ready_status'] == true) : false;
+      final activeDuelData = all.where((d) => d['status'] == 'active').toList();
+      final myR  = activeDuelData.isNotEmpty
+          ? (activeDuelData.first['my_ready'] == true) : false;
+      final oppR = activeDuelData.isNotEmpty
+          ? (activeDuelData.first['opponent_ready_status'] == true) : false;
 
-    setState(() {
-      _myProfile = {...?profile, 'name': name, 'duel_code': myDuelCode};
-      _pendingIncoming = all.where((d) =>
-          d['status'] == 'pending' && d['i_am'] == 'opponent').toList();
-      _pendingOutgoing = all.where((d) =>
-          d['status'] == 'pending' && d['i_am'] == 'challenger').toList();
-      _activeDuels = activeDuelData;
-      _historyDuels = history;
-      _isLoading = false;
-      _myReady  = myR;
-      _oppReady = oppR;
-    });
+      setState(() {
+        _myProfile = {...?profile, 'name': name, 'duel_code': myDuelCode};
+        _pendingIncoming = all.where((d) =>
+            d['status'] == 'pending' && d['i_am'] == 'opponent').toList();
+        _pendingOutgoing = all.where((d) =>
+            d['status'] == 'pending' && d['i_am'] == 'challenger').toList();
+        _activeDuels = activeDuelData;
+        _historyDuels = history;
+        _isLoading = false;
+        _myReady  = myR;
+        _oppReady = oppR;
+      });
 
-    // Kalau saya sudah ready dan lawan baru ready → countdown
-    if (myR && oppR && _cdCount == 0 && activeDuelData.isNotEmpty && mounted) {
-      _startCountdownInArena(activeDuelData.first['id']?.toString() ?? '');
+      // Kalau saya sudah ready dan lawan baru ready → countdown
+      if (myR && oppR && _cdCount == 0 && activeDuelData.isNotEmpty && mounted) {
+        _startCountdownInArena(activeDuelData.first['id']?.toString() ?? '');
+      }
+    } finally {
+      _isLoadingData = false;
     }
   }
 
@@ -337,9 +363,7 @@ class _DuelScreenState extends State<DuelScreen>
     final isActive   = activeDuel != null;
     final isIncoming = incomingDuel != null;
     final isOutgoing = outgoingDuel != null && !isIncoming && !isActive;
-    final isMyTurn   = activeDuel?['is_my_turn'] == true;
     final quizTitle  = currentDuel?['quiz_title']?.toString() ?? '';
-    final duelId     = (activeDuel ?? currentDuel)?['id']?.toString() ?? '';
 
     if (_isGuest) return _buildGuestView();
 
@@ -539,13 +563,6 @@ class _DuelScreenState extends State<DuelScreen>
                                   duel: currentDuel)
                               : _buildP2Empty(),
                         ),
-
-                        // Action bar hanya muncul saat keduanya sudah ready
-                        if (isActive && _myReady && _oppReady) ...[
-                          const SizedBox(height: 14),
-                          _buildActionBar(
-                              isMyTurn: isMyTurn, duelId: duelId),
-                        ],
 
                         const SizedBox(height: 8),
                       ],
@@ -931,33 +948,6 @@ class _DuelScreenState extends State<DuelScreen>
                 style: TextStyle(color: Colors.white30, fontSize: 12)),
           ],
         ),
-      ),
-    );
-  }
-
-  // ── Action bar ────────────────────────────────────────────
-  Widget _buildActionBar({required bool isMyTurn, required String duelId}) {
-    return GestureDetector(
-      onTap: isMyTurn ? () {
-        HapticFeedback.heavyImpact();
-        Navigator.push(context, MaterialPageRoute(
-            builder: (_) => DuelBattleScreen(duelId: duelId)))
-            .then((_) => _load());
-      } : null,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        decoration: BoxDecoration(
-          color: isMyTurn ? _primary : Colors.white.withOpacity(0.08),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: isMyTurn ? [BoxShadow(
-              color: _primary.withOpacity(0.4),
-              blurRadius: 16, offset: const Offset(0, 4))] : null),
-        child: Center(child: Text(
-          isMyTurn
-              ? '⚔️  Giliranmu — Mulai Sekarang!'
-              : '⏳  Menunggu lawan menyelesaikan...',
-          style: const TextStyle(color: Colors.white,
-              fontSize: 14, fontWeight: FontWeight.w800))),
       ),
     );
   }

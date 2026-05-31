@@ -3,12 +3,98 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Course;
+use App\Models\Material;
+use App\Models\Quiz;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class AiChatController extends Controller
 {
+    /**
+     * Build context string from all Synapse content (courses, materials, quizzes).
+     * Queried fresh on every chat request so new content is always included.
+     */
+    private function buildSynapseContext(): string
+    {
+        $lines = [];
+
+        // === MATA KULIAH ===
+        try {
+            $courses = Course::all(['title', 'description']);
+            if ($courses->isNotEmpty()) {
+                $lines[] = "=== MATA KULIAH YANG TERSEDIA ===";
+                foreach ($courses as $course) {
+                    $title = $course->title ?? '-';
+                    $desc  = $course->description ? ' — ' . $course->description : '';
+                    $lines[] = "• {$title}{$desc}";
+                }
+                $lines[] = '';
+            }
+        } catch (\Exception $e) {
+            Log::warning('Context: gagal load courses — ' . $e->getMessage());
+        }
+
+        // === MATERI & SOAL LATIHAN ===
+        try {
+            $materials = Material::with('questions')->get(['id', 'title', 'description', 'content', 'course_id']);
+            if ($materials->isNotEmpty()) {
+                $lines[] = "=== MATERI & SOAL LATIHAN ===";
+                foreach ($materials as $mat) {
+                    $lines[] = "📘 Materi: {$mat->title}";
+                    if ($mat->description) {
+                        $lines[] = "   Deskripsi: {$mat->description}";
+                    }
+                    // Strip HTML and truncate content to avoid huge prompts
+                    if ($mat->content) {
+                        $plain = strip_tags($mat->content);
+                        $plain = preg_replace('/\s+/', ' ', trim($plain));
+                        if (strlen($plain) > 800) {
+                            $plain = mb_substr($plain, 0, 800) . '...';
+                        }
+                        $lines[] = "   Ringkasan isi: {$plain}";
+                    }
+                    // Practice questions
+                    if ($mat->questions && $mat->questions->isNotEmpty()) {
+                        $lines[] = "   Soal latihan:";
+                        foreach ($mat->questions as $q) {
+                            $lines[] = "   - {$q->question_text}";
+                        }
+                    }
+                    $lines[] = '';
+                }
+            }
+        } catch (\Exception $e) {
+            Log::warning('Context: gagal load materials — ' . $e->getMessage());
+        }
+
+        // === KUIS ===
+        try {
+            $quizzes = Quiz::with('questions')->get();
+            if ($quizzes->isNotEmpty()) {
+                $lines[] = "=== KUIS ===";
+                foreach ($quizzes as $quiz) {
+                    $lines[] = "📝 Kuis: {$quiz->title}";
+                    if (!empty($quiz->description)) {
+                        $lines[] = "   Deskripsi: {$quiz->description}";
+                    }
+                    if ($quiz->questions && $quiz->questions->isNotEmpty()) {
+                        $lines[] = "   Soal kuis:";
+                        foreach ($quiz->questions as $q) {
+                            $lines[] = "   - {$q->question}";
+                        }
+                    }
+                    $lines[] = '';
+                }
+            }
+        } catch (\Exception $e) {
+            Log::warning('Context: gagal load quizzes — ' . $e->getMessage());
+        }
+
+        return implode("\n", $lines);
+    }
+
     public function chat(Request $request)
     {
         $request->validate([
@@ -26,7 +112,23 @@ class AiChatController extends Controller
 
         $url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' . $apiKey;
 
-        $systemPrompt = "Kamu adalah asisten AI pintar dan ramah bernama SYNAPSE. Tugasmu membantu mahasiswa IPB belajar. Jawablah dengan bahasa Indonesia yang santai, mudah dimengerti, dan langsung ke intinya. Pertanyaan user: " . $request->message;
+        $synapseContext = $this->buildSynapseContext();
+
+        $systemPrompt = <<<PROMPT
+Kamu adalah asisten AI bernama SYNAPSE, asisten belajar resmi untuk platform Synapse IPB.
+
+ATURAN WAJIB:
+1. Kamu HANYA boleh menjawab pertanyaan yang berkaitan dengan mata kuliah, materi, soal latihan, dan kuis yang ada di platform Synapse di bawah ini.
+2. Jika pertanyaan di luar konteks Synapse (misalnya olahraga, gosip, politik, coding umum yang tidak ada di materi, dll), tolak dengan sopan dan arahkan user untuk bertanya seputar konten Synapse yang tersedia.
+3. Gunakan bahasa Indonesia yang santai, ramah, dan mudah dipahami mahasiswa.
+4. Jawab langsung ke intinya, tidak perlu panjang lebar kecuali memang dibutuhkan.
+5. Jika ditanya soal latihan atau kuis yang ada di daftar, bantu jelaskan konsepnya — jangan langsung kasih jawabannya saja.
+
+KONTEN SYNAPSE YANG TERSEDIA:
+{$synapseContext}
+
+Pertanyaan mahasiswa: {$request->message}
+PROMPT;
 
         try {
             $response = Http::withHeaders([
@@ -49,7 +151,7 @@ class AiChatController extends Controller
                 return response()->json([
                     'message'   => 'Berhasil',
                     'reply'     => $aiText,
-                    'remaining' => null, // Gemini gratis, tidak ada limit
+                    'remaining' => null,
                 ], 200);
             }
 

@@ -36,8 +36,8 @@ tbody tr:hover { background:#f8fffe; }
 tbody td { padding:14px 18px; font-size:13px; color:#111827; vertical-align:middle; }
 
 /* ── Material info ───────────────────────────────────────── */
-.mat-title { font-weight:700; font-size:14px; color:#111827; }
-.mat-desc  { font-size:12px; color:#9ca3af; margin-top:3px; }
+.mat-title { font-weight:700; font-size:14px; color:#111827; max-width:520px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.mat-desc  { font-size:12px; color:#9ca3af; margin-top:3px; max-width:520px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 
 /* ── Badges ──────────────────────────────────────────────── */
 .badge {
@@ -50,14 +50,14 @@ tbody td { padding:14px 18px; font-size:13px; color:#111827; vertical-align:midd
 .badge-ar  { background:#f5f3ff; color:#7c3aed; border:1px solid #ddd6fe; }
 
 /* ── Row actions ─────────────────────────────────────────── */
-.action-btns { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.action-btns { display:flex; align-items:center; gap:6px; flex-wrap:nowrap; }
 .btn-act {
     display:inline-flex; align-items:center; gap:5px;
     padding:6px 12px; border-radius:8px; font-size:12px; font-weight:700;
     border:1.5px solid var(--b, #e5e7eb); background:var(--bg, #fff);
     color:var(--c, #374151); cursor:pointer; text-decoration:none;
     transition:background .12s, border-color .12s, color .12s;
-    white-space:nowrap; font-family:inherit;
+    white-space:nowrap; font-family:inherit; text-align:center;
 }
 .btn-act svg { width:13px; height:13px; flex-shrink:0; }
 .btn-act:hover { background:var(--bgh, #f5f6f8); border-color:var(--bh, #d1d5db); }
@@ -94,14 +94,20 @@ tbody td { padding:14px 18px; font-size:13px; color:#111827; vertical-align:midd
     Kembali ke Daftar Matkul
 </a>
 
-<div class="page-header">
-    <h2 id="judulHalaman">Materi Mata Kuliah</h2>
-    <a href="/mata-kuliah/{{ $course_id }}/tambah-materi" class="btn btn-primary" id="btnTambah" style="border-radius:99px">
+<div class="page-header" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:12px;flex-wrap:wrap">
+    <h2 id="judulHalaman" style="margin:0;font-size:20px;font-weight:800;color:#111827">Materi Mata Kuliah</h2>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <div style="position:relative">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#c4c8d0;pointer-events:none"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            <input type="text" id="searchMateri" placeholder="Cari materi..." oninput="applySearchMateri()" style="padding:8px 12px 8px 33px;border:1.5px solid #e8eaed;border-radius:99px;font-size:13px;font-family:inherit;outline:none;width:220px;transition:border-color .15s" onfocus="this.style.borderColor='#279685'" onblur="this.style.borderColor='#e8eaed'">
+        </div>
+        <a href="/mata-kuliah/{{ $course_id }}/tambah-materi" class="btn btn-primary" id="btnTambah" style="border-radius:99px">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
         </svg>
         Tambah Materi
     </a>
+    </div>
 </div>
 
 <div class="table-card">
@@ -111,7 +117,7 @@ tbody td { padding:14px 18px; font-size:13px; color:#111827; vertical-align:midd
                 <th width="48">#</th>
                 <th>Materi</th>
                 <th width="120">Latihan</th>
-                <th>Aksi</th>
+                <th style="white-space:nowrap">Aksi</th>
             </tr>
         </thead>
         <tbody id="tabelMateri">
@@ -135,13 +141,14 @@ tbody td { padding:14px 18px; font-size:13px; color:#111827; vertical-align:midd
     if (!token) { window.location.href = '/'; return; }
 
     let activeCourseId = "{{ $course_id ?? '' }}";
+    let allMaterials = [], _matPag = null;
     const userStr = localStorage.getItem('user');
 
     if (userStr) {
         try {
             const user = JSON.parse(userStr);
             if (user.role === 'dosen') {
-                activeCourseId = user.course_id;
+                if (!activeCourseId) activeCourseId = user.course_id;
                 document.getElementById('btnKembali').style.display = 'none';
                 document.getElementById('judulHalaman').innerText = 'Materi Kuliah Saya';
                 document.getElementById('btnTambah').href = `/mata-kuliah/${activeCourseId}/tambah-materi`;
@@ -163,6 +170,79 @@ tbody td { padding:14px 18px; font-size:13px; color:#111827; vertical-align:midd
         warn:  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
     };
 
+    function renderPage(slice) {
+        const tbody = document.getElementById('tabelMateri');
+        if (!slice || !slice.length) {
+            tbody.innerHTML = `<tr class="empty-row"><td colspan="4">
+                <div class="empty-ico">${SVG.inbox}</div>
+                <div class="empty-label">Tidak ada materi</div>
+                <div class="empty-sub">Coba ubah kata kunci pencarian.</div>
+            </td></tr>`;
+            return;
+        }
+        tbody.innerHTML = slice.map((m, i) => {
+            const id          = m._id || m.id;
+            const hasPractice = (m.questions && m.questions.length > 0) || m.has_practice;
+            const hasAr       = (m.ar_assets && m.ar_assets.length > 0) || m.has_ar;
+
+            const practiceBadge = hasPractice
+                ? `<span class="badge badge-yes">${SVG.check} Ada Soal</span>`
+                : `<span class="badge badge-no">Belum Ada</span>`;
+
+            const arBadge = hasAr
+                ? `<span class="badge badge-ar" style="margin-left:6px">${SVG.ar} AR</span>`
+                : '';
+
+            return `<tr>
+                <td style="color:#d1d5db;font-size:12px;font-weight:500">${i + 1}</td>
+                <td style="max-width:0;width:100%">
+                    <div class="mat-title">${esc(m.title)} ${arBadge}</div>
+                    ${m.description ? `<div class="mat-desc">${esc(m.description)}</div>` : ''}
+                </td>
+                <td>${practiceBadge}</td>
+                <td style="white-space:nowrap;vertical-align:middle">
+                    <div class="action-btns">
+                        <a href="/mata-kuliah/${activeCourseId}/materi/${id}/practice" class="btn-act ba-practice">
+                            ${SVG.practice} Latihan
+                        </a>
+                        <a href="/mata-kuliah/${activeCourseId}/edit-materi/${id}" class="btn-act ba-edit">
+                            ${SVG.edit} Edit
+                        </a>
+                        <button class="btn-act ba-delete" onclick="hapusMateri('${id}')">
+                            ${SVG.trash} Hapus
+                        </button>
+                    </div>
+                </td>
+            </tr>`;
+        }).join('');
+    }
+
+    function renderTable(materials) {
+        allMaterials = materials;
+        if (!materials || !materials.length) {
+            document.getElementById('tabelMateri').innerHTML = `
+                <tr class="empty-row"><td colspan="4">
+                    <div class="empty-ico">${SVG.inbox}</div>
+                    <div class="empty-label">Belum ada materi</div>
+                    <div class="empty-sub">Klik "Tambah Materi" untuk mulai menambahkan</div>
+                </td></tr>`;
+            return;
+        }
+        if (window.Paginator) {
+            if (!_matPag) _matPag = window.Paginator('tabelMateri', materials, 10, renderPage);
+            else _matPag.setData(materials);
+        } else {
+            renderPage(materials);
+        }
+    }
+
+    window.applySearchMateri = function() {
+        const q = document.getElementById('searchMateri').value.trim().toLowerCase();
+        const filtered = allMaterials.filter(m => (m.title || '').toLowerCase().includes(q));
+        if (window.Paginator && _matPag) _matPag.setData(filtered);
+        else renderPage(filtered);
+    };
+
     async function fetchMaterials() {
         try {
             const res = await fetch(`${window.apiBaseUrl}/courses/${activeCourseId}/materials`, {
@@ -179,56 +259,6 @@ tbody td { padding:14px 18px; font-size:13px; color:#111827; vertical-align:midd
                     <div class="empty-sub">Periksa koneksi dan coba lagi</div>
                 </td></tr>`;
         }
-    }
-
-    function renderTable(materials) {
-        const tbody = document.getElementById('tabelMateri');
-
-        if (!materials || materials.length === 0) {
-            tbody.innerHTML = `
-                <tr class="empty-row"><td colspan="4">
-                    <div class="empty-ico">${SVG.inbox}</div>
-                    <div class="empty-label">Belum ada materi</div>
-                    <div class="empty-sub">Klik "Tambah Materi" untuk mulai menambahkan</div>
-                </td></tr>`;
-            return;
-        }
-
-        tbody.innerHTML = materials.map((m, i) => {
-            const id          = m._id || m.id;
-            const hasPractice = (m.questions && m.questions.length > 0) || m.has_practice;
-            const hasAr       = (m.ar_assets && m.ar_assets.length > 0) || m.has_ar;
-
-            const practiceBadge = hasPractice
-                ? `<span class="badge badge-yes">${SVG.check} Ada Soal</span>`
-                : `<span class="badge badge-no">Belum Ada</span>`;
-
-            const arBadge = hasAr
-                ? `<span class="badge badge-ar" style="margin-left:6px">${SVG.ar} 3D</span>`
-                : '';
-
-            return `<tr>
-                <td style="color:#d1d5db;font-size:12px;font-weight:500">${i + 1}</td>
-                <td>
-                    <div class="mat-title">${esc(m.title)} ${arBadge}</div>
-                    ${m.description ? `<div class="mat-desc">${esc(m.description)}</div>` : ''}
-                </td>
-                <td>${practiceBadge}</td>
-                <td>
-                    <div class="action-btns">
-                        <a href="/mata-kuliah/${activeCourseId}/materi/${id}/practice" class="btn-act ba-practice">
-                            ${SVG.practice} Latihan
-                        </a>
-                        <a href="/mata-kuliah/${activeCourseId}/edit-materi/${id}" class="btn-act ba-edit">
-                            ${SVG.edit} Edit
-                        </a>
-                        <button class="btn-act ba-delete" onclick="hapusMateri('${id}')">
-                            ${SVG.trash} Hapus
-                        </button>
-                    </div>
-                </td>
-            </tr>`;
-        }).join('');
     }
 
     window.hapusMateri = function(materiId) {

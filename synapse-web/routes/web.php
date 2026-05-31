@@ -100,6 +100,10 @@ Route::get('/kuis/{id}/leaderboard', function ($id) {
     return view('kuis.leaderboard', ['quiz_id' => $id]);
 });
 
+Route::get('/kuis/{quiz_id}/laporan', function ($quiz_id) {
+    return view('laporan_kuis', ['quiz_id' => $quiz_id]);
+});
+
 // ============================================================
 // PENGATURAN AKUN
 // ============================================================

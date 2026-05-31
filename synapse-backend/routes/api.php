@@ -100,6 +100,8 @@ Route::middleware(['auth:sanctum', 'role:dosen,admin,superadmin'])->group(functi
     Route::get('/courses', [CourseController::class, 'index']);
     Route::post('/courses', [CourseController::class, 'store']);
     Route::put('/courses/{id}', [CourseController::class, 'update']);
+    Route::post('/courses/{id}/dosen', [CourseController::class, 'addDosen']);
+    Route::delete('/courses/{id}/dosen/{dosenId}', [CourseController::class, 'removeDosen']);
     Route::get('/courses/{course_id}/materials', [MaterialController::class, 'getByCourse']);
     Route::post('/courses/{course_id}/materials', [MaterialController::class, 'storeByCourse']);
     Route::post('/upload-image', [MaterialController::class, 'uploadImage']);

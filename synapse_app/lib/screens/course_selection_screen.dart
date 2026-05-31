@@ -405,10 +405,8 @@ class _CourseSelectionScreenState extends State<CourseSelectionScreen> {
                       'assets/images/logo_synapse.png',
                       width: 86,
                       height: 86,
-                      color: Colors.white,
                       errorBuilder: (_, __, ___) => const Icon(
                         Icons.auto_awesome_rounded,
-                        color: Colors.white,
                         size: 76,
                       ),
                     ),

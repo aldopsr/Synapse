@@ -141,7 +141,7 @@ class DuelService {
       final res = await http.get(
         Uri.parse('$_base/duels'),
         headers: await _headers(),
-      );
+      ).timeout(const Duration(seconds: 8));
       return jsonDecode(res.body)['data'] ?? [];
     } catch (e) {
       debugPrint('getMyDuels error: $e');
@@ -155,7 +155,7 @@ class DuelService {
       final res = await http.get(
         Uri.parse('$_base/duels/history'),
         headers: await _headers(),
-      );
+      ).timeout(const Duration(seconds: 8));
       return jsonDecode(res.body)['data'] ?? [];
     } catch (e) {
       debugPrint('getHistory error: $e');
@@ -169,7 +169,7 @@ class DuelService {
       final res = await http.get(
         Uri.parse('$_base/duel-quizzes'),
         headers: await _headers(),
-      );
+      ).timeout(const Duration(seconds: 8));
       return jsonDecode(res.body)['data'] ?? [];
     } catch (e) {
       debugPrint('getQuizList error: $e');
@@ -183,7 +183,7 @@ class DuelService {
       final res = await http.get(
         Uri.parse('$_base/user/duel-code'),
         headers: await _headers(),
-      );
+      ).timeout(const Duration(seconds: 8));
       return jsonDecode(res.body);
     } catch (e) {
       debugPrint('getMyDuelCode error: $e');

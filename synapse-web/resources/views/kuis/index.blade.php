@@ -130,6 +130,21 @@
 .duel-table tr:last-child td { border-bottom:none; }
 .duel-table tr:hover td { background:#f8fffe; }
 .d-pill { display:inline-block; padding:2px 9px; border-radius:7px; font-size:11px; font-weight:700; }
+
+/* Date inputs styled same as filter-select */
+input[type=date].filter-select { color:#374151; }
+input[type=date].filter-select::-webkit-calendar-picker-indicator { opacity:.5; cursor:pointer; }
+
+@media (max-width: 768px) {
+    .page-header { flex-direction:column; align-items:flex-start; gap:10px; }
+    .page-header .btn { width:100%; justify-content:center; }
+    .toolbar, .tbl-toolbar { flex-direction:column; align-items:stretch; gap:8px; }
+    .search-wrap { max-width:100%; }
+    #duelFilterBar .filter-select, #duelFilterBar input[type=date] { width:100%; max-width:100%; }
+    .duel-table { min-width:680px; }
+    .tbl-wrap, .table-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    .kuis-grid { grid-template-columns:1fr; }
+}
 </style>
 
 <div class="page-header">
@@ -199,6 +214,28 @@
 </div>
 
 <div id="duelPanel" style="display:none">
+    {{-- Filter bar duel --}}
+    <div class="toolbar" id="duelFilterBar" style="margin-bottom:16px">
+        <div class="search-wrap">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            <input type="text" class="search-input" id="duelSearch" placeholder="Cari nama mahasiswa / kuis..." oninput="applyDuelFilters()">
+        </div>
+        <select class="filter-select" id="duelFilterMatkul" onchange="applyDuelFilters()">
+            <option value="">Semua Matkul</option>
+        </select>
+        <select class="filter-select" id="duelFilterStatus" onchange="applyDuelFilters()">
+            <option value="">Semua Status</option>
+            <option value="completed">Selesai</option>
+            <option value="active">Berlangsung</option>
+            <option value="pending">Menunggu</option>
+            <option value="expired">Kedaluwarsa</option>
+            <option value="declined">Ditolak</option>
+            <option value="cancelled">Dibatalkan</option>
+        </select>
+        <input type="date" class="filter-select" id="duelDateFrom" onchange="applyDuelFilters()" title="Dari tanggal" style="max-width:150px">
+        <input type="date" class="filter-select" id="duelDateTo"   onchange="applyDuelFilters()" title="Sampai tanggal" style="max-width:150px">
+        <span class="count-badge" id="duelCountBadge"></span>
+    </div>
     <div id="duelHistoryTable">
         <div style="padding:40px;text-align:center;color:#9ca3af">Memuat histori duel...</div>
     </div>
@@ -219,6 +256,7 @@
     let allQuizzes = [], courseMap = {}, activeStatus = '';
     let toggleInFlight = new Set(), duelInFlight = new Set();
     let duelHistoryLoaded = false;
+    let allDuelHistory = [];
 
     function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
     function escJs(s){ return String(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'\\"'); }
@@ -260,42 +298,106 @@
         }
     };
 
+    const DUEL_STATUS_MAP = {
+        pending:'background:#fef3c7;color:#d97706',
+        active:'background:#dbeafe;color:#2563eb',
+        completed:'background:#d1fae5;color:#059669',
+        expired:'background:#f1f5f9;color:#64748b',
+        declined:'background:#fee2e2;color:#dc2626',
+        cancelled:'background:#f1f5f9;color:#64748b'
+    };
+    const DUEL_STATUS_LBL = {
+        pending:'Menunggu',active:'Berlangsung',completed:'Selesai',
+        expired:'Kedaluwarsa',declined:'Ditolak',cancelled:'Dibatalkan'
+    };
+    function duelPill(s){
+        return `<span class="d-pill" style="${DUEL_STATUS_MAP[s]||'background:#f1f5f9;color:#64748b'}">${DUEL_STATUS_LBL[s]||s}</span>`;
+    }
+
     async function fetchDuelHistory() {
         if (duelHistoryLoaded) return;
         const el = $('duelHistoryTable');
+        el.innerHTML = `<div style="padding:40px;text-align:center;color:#9ca3af">Memuat histori duel...</div>`;
         try {
             const res  = await fetch(API+'/admin/duels/history',{headers:{Authorization:'Bearer '+token,Accept:'application/json'}});
             const data = await res.json();
-            const list = data.data||[];
+            allDuelHistory = data.data || [];
             duelHistoryLoaded = true;
-            if (!list.length) {
-                el.innerHTML=`<div style="padding:60px;text-align:center;background:#fff;border-radius:14px;border:1px solid #eff0f2">
-                    <div style="width:56px;height:56px;border-radius:16px;background:#f5f6f8;display:flex;align-items:center;justify-content:center;margin:0 auto 14px">${ICO.inbox}</div>
-                    <div style="font-weight:700;font-size:15px;color:#374151;margin-bottom:6px">Belum ada histori duel</div>
-                    <div style="font-size:13px;color:#9ca3af">Aktifkan kuis untuk duel agar mahasiswa bisa bertanding</div>
-                </div>`;
-                return;
+
+            // Populate matkul filter dari response
+            const matkulSel = $('duelFilterMatkul');
+            const courses = data.courses || [];
+            if (courses.length > 0) {
+                matkulSel.innerHTML = '<option value="">Semua Matkul</option>';
+                courses.forEach(c => {
+                    const o = document.createElement('option');
+                    o.value = c.id; o.textContent = c.title;
+                    matkulSel.appendChild(o);
+                });
             }
-            const pill=(s)=>{
-                const map={pending:'background:#fef3c7;color:#d97706',active:'background:#dbeafe;color:#2563eb',completed:'background:#d1fae5;color:#059669',expired:'background:#f1f5f9;color:#64748b',declined:'background:#fee2e2;color:#dc2626',cancelled:'background:#f1f5f9;color:#64748b'};
-                const lbl={pending:'Menunggu',active:'Berlangsung',completed:'Selesai',expired:'Kedaluwarsa',declined:'Ditolak',cancelled:'Dibatalkan'};
-                return `<span class="d-pill" style="${map[s]||'background:#f1f5f9;color:#64748b'}">${lbl[s]||s}</span>`;
-            };
-            el.innerHTML=`<table class="duel-table">
-                <thead><tr><th>Quiz</th><th>Penantang</th><th>Lawan</th><th style="text-align:center">Skor</th><th>Pemenang</th><th style="text-align:center">Status</th><th>Tanggal</th></tr></thead>
-                <tbody>${list.map(d=>`<tr>
-                    <td style="font-weight:600">${esc(d.quiz_title)}</td>
-                    <td><div style="font-weight:600">${esc(d.challenger_name)}</div><div style="font-size:11px;color:#9ca3af">${esc(d.challenger_nim)}</div></td>
-                    <td><div style="font-weight:600">${esc(d.opponent_name)}</div><div style="font-size:11px;color:#9ca3af">${esc(d.opponent_nim)}</div></td>
-                    <td style="text-align:center">${d.challenger_score!==null&&d.opponent_score!==null?`<b style="color:#279685">${d.challenger_score}</b><span style="color:#9ca3af;margin:0 4px">vs</span><b style="color:#279685">${d.opponent_score}</b>`:'<span style="color:#9ca3af">—</span>'}</td>
-                    <td style="font-weight:600;color:#059669">${d.winner_name?esc(d.winner_name):'<span style="color:#9ca3af">—</span>'}</td>
-                    <td style="text-align:center">${pill(d.status)}</td>
-                    <td style="color:#9ca3af;font-size:12px">${d.created_at?new Date(d.created_at).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'}):'—'}</td>
-                </tr>`).join('')}</tbody>
-            </table>`;
+
+            applyDuelFilters();
         } catch(e) {
             el.innerHTML=`<div style="padding:20px;text-align:center;color:#ef4444;background:#fff;border-radius:14px;border:1px solid #eff0f2">Gagal memuat histori. <button onclick="duelHistoryLoaded=false;fetchDuelHistory()" style="background:#279685;color:#fff;border:none;padding:4px 12px;border-radius:7px;cursor:pointer;font-weight:700;margin-left:8px">Coba lagi</button></div>`;
         }
+    }
+
+    window.applyDuelFilters = function() {
+        const q     = ($('duelSearch').value||'').trim().toLowerCase();
+        const matkul= $('duelFilterMatkul').value;
+        const status= $('duelFilterStatus').value;
+        const from  = $('duelDateFrom').value ? new Date($('duelDateFrom').value) : null;
+        const to    = $('duelDateTo').value   ? new Date($('duelDateTo').value + 'T23:59:59') : null;
+
+        const filtered = allDuelHistory.filter(d => {
+            if (q) {
+                const hay = [d.challenger_name,d.challenger_nim,d.opponent_name,d.opponent_nim,d.quiz_title,d.course_title].join(' ').toLowerCase();
+                if (!hay.includes(q)) return false;
+            }
+            if (matkul && d.course_id !== matkul) return false;
+            if (status && d.status !== status)    return false;
+            if (from || to) {
+                const dt = d.created_at ? new Date(d.created_at) : null;
+                if (!dt) return false;
+                if (from && dt < from) return false;
+                if (to   && dt > to)   return false;
+            }
+            return true;
+        });
+
+        const badge = $('duelCountBadge');
+        if (badge) badge.innerHTML = `<span>${filtered.length}</span> dari ${allDuelHistory.length} duel`;
+
+        renderDuelTable(filtered);
+    };
+
+    function renderDuelTable(list) {
+        const el = $('duelHistoryTable');
+        if (!list.length) {
+            el.innerHTML=`<div style="padding:60px;text-align:center;background:#fff;border-radius:14px;border:1px solid #eff0f2">
+                <div style="width:56px;height:56px;border-radius:16px;background:#f5f6f8;display:flex;align-items:center;justify-content:center;margin:0 auto 14px">${ICO.inbox}</div>
+                <div style="font-weight:700;font-size:15px;color:#374151;margin-bottom:6px">${allDuelHistory.length?'Tidak ada hasil filter':'Belum ada histori duel'}</div>
+                <div style="font-size:13px;color:#9ca3af">${allDuelHistory.length?'Coba ubah filter pencarian.':'Aktifkan kuis untuk duel agar mahasiswa bisa bertanding'}</div>
+            </div>`;
+            return;
+        }
+        el.innerHTML=`<div style="overflow-x:auto;-webkit-overflow-scrolling:touch"><table class="duel-table">
+            <thead><tr>
+                <th>Mata Kuliah</th><th>Quiz</th><th>Penantang</th><th>Lawan</th>
+                <th style="text-align:center">Skor</th><th>Pemenang</th>
+                <th style="text-align:center">Status</th><th>Tanggal</th>
+            </tr></thead>
+            <tbody>${list.map(d=>`<tr>
+                <td style="color:#6b7280;font-size:12px;white-space:nowrap">${esc(d.course_title||'—')}</td>
+                <td style="font-weight:600">${esc(d.quiz_title)}</td>
+                <td><div style="font-weight:600">${esc(d.challenger_name)}</div><div style="font-size:11px;color:#9ca3af">${esc(d.challenger_nim)}</div></td>
+                <td><div style="font-weight:600">${esc(d.opponent_name)}</div><div style="font-size:11px;color:#9ca3af">${esc(d.opponent_nim)}</div></td>
+                <td style="text-align:center">${d.challenger_score!==null&&d.opponent_score!==null?`<b style="color:#279685">${d.challenger_score}</b><span style="color:#9ca3af;margin:0 4px">vs</span><b style="color:#279685">${d.opponent_score}</b>`:'<span style="color:#9ca3af">—</span>'}</td>
+                <td style="font-weight:600;color:#059669">${d.winner_name?esc(d.winner_name):'<span style="color:#9ca3af">—</span>'}</td>
+                <td style="text-align:center">${duelPill(d.status)}</td>
+                <td style="color:#9ca3af;font-size:12px;white-space:nowrap">${d.created_at?new Date(d.created_at).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'}):'—'}</td>
+            </tr>`).join('')}</tbody>
+        </table></div>`;
     }
 
     window.toggleDuel = async function(id, cb) {
@@ -357,13 +459,19 @@
         renderGrid(filtered);
     };
 
+    let _pagKuis = null;
+
     function renderGrid(list) {
         const grid=$('kuisGrid');
         if(!list||!list.length){
             grid.innerHTML=`<div class="empty-state"><div class="empty-icon">${ICO.inbox}</div><div class="empty-title">Belum ada kuis</div><div class="empty-sub">${activeStatus||$('searchInput').value?'Coba ubah filter.':'Klik "Buat Kuis Baru" untuk mulai.'}</div></div>`;
             return;
         }
-        grid.innerHTML=list.map(buildCard).join('');
+        if(!_pagKuis){
+            _pagKuis=window.Paginator('kuisGrid', list, 12, function(pg){
+                grid.innerHTML=pg.map(buildCard).join('');
+            });
+        } else { _pagKuis.setData(list); }
     }
 
     function buildCard(q) {
@@ -406,7 +514,7 @@
                     ${ICO.check} Kelola Soal
                 </a>
                 <a class="btn-act ba-edit" href="/kuis/${id}/edit">${ICO.edit} Edit</a>
-                <a class="btn-act ba-lb" href="/kuis/${id}/leaderboard">${ICO.lb}</a>
+                <a class="btn-act ba-lb" href="/kuis/${id}/laporan" title="Laporan & Partisipan">${ICO.lb}</a>
                 <button class="btn-act ba-del" onclick="hapusQuiz('${id}','${escJs(title)}')">${ICO.trash}</button>
             </div>
         </div>`;

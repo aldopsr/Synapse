@@ -666,55 +666,69 @@ class QuizController extends Controller
         ]);
     }
     
-    // ── 2. Histori duel untuk dosen ──────────────────────────────
-    // Tambah method baru:
-    
     public function duelHistory(Request $request)
     {
-        $user = $request->user();
-    
-        // Ambil course_id milik dosen ini
-        $courseIds = \App\Models\Course::where('dosen_id', (string) $user->id)
-            ->get()->map(fn($c) => (string) $c->id)->toArray();
-    
-        if (empty($courseIds) && $user->course_id) {
-            $courseIds = [$user->course_id];
+        $user    = $request->user();
+        $isAdmin = in_array($user->role, ['admin', 'superadmin']);
+
+        // Tentukan quiz yang boleh dilihat
+        if ($isAdmin) {
+            // Admin: semua quiz
+            $quizzes  = \App\Models\Quiz::all();
+            $quizIds  = $quizzes->map(fn($q) => (string) $q->id)->toArray();
+            $courseIds = $quizzes->pluck('course_id')->unique()->filter()->values()->toArray();
+        } else {
+            // Dosen: hanya courses yang dosen_ids-nya mengandung ID dosen ini
+            $courses = \App\Models\Course::where('dosen_ids', (string) $user->id)->get();
+
+            // Fallback ke course_id singular jika belum migrasi
+            if ($courses->isEmpty() && $user->course_id) {
+                $courses = \App\Models\Course::whereIn('_id', [$user->course_id])->get();
+            }
+
+            $courseIds = $courses->map(fn($c) => (string) $c->id)->toArray();
+
+            if (empty($courseIds)) {
+                return response()->json(['message' => 'Berhasil', 'data' => [], 'courses' => []]);
+            }
+
+            $quizzes = \App\Models\Quiz::whereIn('course_id', $courseIds)->get();
+            $quizIds = $quizzes->map(fn($q) => (string) $q->id)->toArray();
+
+            if (empty($quizIds)) {
+                return response()->json(['message' => 'Berhasil', 'data' => [], 'courses' => []]);
+            }
         }
-    
-        // Ambil quiz milik dosen
-        $quizIds = \App\Models\Quiz::whereIn('course_id', $courseIds)
-            ->get()->map(fn($q) => (string) $q->id)->toArray();
-    
-        if (empty($quizIds)) {
-            return response()->json(['message' => 'Berhasil', 'data' => []]);
-        }
-    
-        // Ambil semua duel yang pakai quiz milik dosen ini
+
         $duels = \App\Models\Duel::whereIn('quiz_id', $quizIds)
             ->orderBy('created_at', 'desc')
-            ->limit(100)
+            ->limit(500)
             ->get();
-    
-        if ($duels->isEmpty()) {
-            return response()->json(['message' => 'Berhasil', 'data' => []]);
-        }
-    
-        // Lookup user dan quiz
-        $userIds  = $duels->pluck('challenger_id')->merge($duels->pluck('opponent_id'))->unique()->toArray();
-        $users    = \App\Models\User::whereIn('_id', $userIds)->get()
-                        ->keyBy(fn($u) => (string) $u->id);
-        $quizMap  = \App\Models\Quiz::whereIn('_id', $quizIds)->get()
-                        ->keyBy(fn($q) => (string) $q->id);
-    
-        $result = $duels->map(function ($duel) use ($users, $quizMap) {
+
+        // Build lookup maps
+        $userIds = $duels->pluck('challenger_id')->merge($duels->pluck('opponent_id'))
+            ->push($duels->pluck('winner_id'))->flatten()->unique()->filter()->toArray();
+        $users   = \App\Models\User::whereIn('_id', $userIds)->get()
+            ->keyBy(fn($u) => (string) $u->id);
+        $quizMap = $quizzes->keyBy(fn($q) => (string) $q->id);
+
+        // Build course map for the response
+        $courseMap = \App\Models\Course::whereIn('_id', $courseIds)->get()
+            ->keyBy(fn($c) => (string) $c->id);
+
+        $result = $duels->map(function ($duel) use ($users, $quizMap, $courseMap) {
             $challenger = $users->get((string) $duel->challenger_id);
             $opponent   = $users->get((string) $duel->opponent_id);
             $quiz       = $quizMap->get((string) $duel->quiz_id);
             $winner     = $duel->winner_id ? $users->get((string) $duel->winner_id) : null;
-    
+            $courseId   = $quiz?->course_id ? (string) $quiz->course_id : null;
+            $course     = $courseId ? $courseMap->get($courseId) : null;
+
             return [
                 'id'               => (string) $duel->id,
                 'quiz_title'       => $quiz?->title ?? 'Quiz Dihapus',
+                'course_id'        => $courseId,
+                'course_title'     => $course?->title ?? '—',
                 'status'           => $duel->status,
                 'challenger_name'  => $challenger?->name ?? '-',
                 'challenger_nim'   => $challenger?->nim ?? '-',
@@ -726,7 +740,17 @@ class QuizController extends Controller
                 'created_at'       => $duel->created_at,
             ];
         });
-    
-        return response()->json(['message' => 'Berhasil', 'data' => $result]);
+
+        // Kirim daftar course untuk dropdown filter
+        $coursesForFilter = $courseMap->values()->map(fn($c) => [
+            'id'    => (string) $c->id,
+            'title' => $c->title,
+        ])->values();
+
+        return response()->json([
+            'message' => 'Berhasil',
+            'data'    => $result,
+            'courses' => $coursesForFilter,
+        ]);
     }
 }

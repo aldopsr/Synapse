@@ -199,7 +199,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           'assets/images/logo_synapse.png',
           width: 36,
           height: 36,
-          color: _primary,
           errorBuilder: (_, __, ___) => const Icon(
             Icons.auto_awesome_rounded,
             color: _primary,
@@ -265,11 +264,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
         Positioned(
           right: -40,
           bottom: -45,
-          child: Image.asset(
-            'assets/images/logo_synapse.png',
-            width: 150,
-            height: 150,
-            color: Colors.white.withOpacity(0.08),
+          child: Opacity(
+            opacity: 0.12,
+            child: Image.asset(
+              'assets/images/logo_synapse.png',
+              width: 150,
+              height: 150,
+            ),
           ),
         ),
 
@@ -282,7 +283,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   'assets/images/logo_synapse.png',
                   width: 28,
                   height: 28,
-                  color: Colors.white,
                 ),
                 const SizedBox(width: 9),
                 const Text(

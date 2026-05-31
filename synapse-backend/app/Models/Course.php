@@ -13,14 +13,13 @@ class Course extends Model
     protected $collection = 'courses';
     protected $guarded = []; // Jurus ninja agar semua kolom bisa diisi
 
-    // 🌟 TAMBAHAN: Relasi agar Course tahu siapa Dosen pengampunya
-    public function dosen()
+    // Relasi ke semua dosen pengampu (many via dosen_ids array)
+    public function dosens()
     {
-        // Menyambungkan 'dosen_id' di tabel courses dengan '_id' di tabel users
-        return $this->belongsTo(User::class, 'dosen_id', '_id');
+        $ids = $this->dosen_ids ?? [];
+        return User::whereIn('_id', $ids)->get();
     }
 
-    // (Opsional) Relasi untuk tahu siapa Admin yang membuat matkul ini
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by', '_id');

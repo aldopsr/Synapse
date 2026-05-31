@@ -216,11 +216,7 @@ textarea.fc { resize:vertical; min-height:72px; }
         <div style="width:32px;height:32px;border-radius:9px;background:#279685;display:flex;align-items:center;justify-content:center">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
         </div>
-        <h3>Generate Soal dengan AI</h3>
-        <span class="ai-badge">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
-            Gemini AI
-        </span>
+        <h3>Generate Soal Otomatis</h3>
         <button class="ai-collapse" id="aiCollapseBtn" onclick="toggleAiPanel()">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
         </button>
@@ -229,7 +225,7 @@ textarea.fc { resize:vertical; min-height:72px; }
         <div class="ai-mode-tabs">
             <button class="ai-mode-tab active" onclick="setAiMode('topic')" id="tab-topic">Dari Topik</button>
             <button class="ai-mode-tab" onclick="setAiMode('material')" id="tab-material">Dari Materi</button>
-            <button class="ai-mode-tab" onclick="setAiMode('quiz')" id="tab-quiz">Dari Kuis</button>
+            <button class="ai-mode-tab" onclick="setAiMode('quiz')" id="tab-quiz" style="display:none">Dari Kuis</button>
         </div>
         <div class="ai-input-row" id="aiInputTopic">
             <input type="text" id="aiTopic" placeholder="Contoh: Jaringan komputer — protokol TCP/IP">
@@ -643,13 +639,35 @@ textarea.fc { resize:vertical; min-height:72px; }
 
     async function loadMaterials(){
         try {
-            const qr=await fetch(`${API}/admin/quizzes/${QUIZ}`,{headers:{Authorization:'Bearer '+token,Accept:'application/json'}});
-            const cid=(await qr.json()).data?.course_id;if(!cid)return;
-            const mr=await fetch(`${API}/courses/${cid}/materials`,{headers:{Authorization:'Bearer '+token,Accept:'application/json'}});
-            const list=(await mr.json()).data||[];
-            const sel=$('aiMaterialId');
-            list.forEach(m=>{const o=document.createElement('option');o.value=m._id||m.id;o.textContent=m.title;sel.appendChild(o);});
-        } catch(_){}
+            const qr  = await fetch(`${API}/admin/quizzes/${QUIZ}`, {headers:{Authorization:'Bearer '+token, Accept:'application/json'}});
+            const quiz = (await qr.json()).data || {};
+            // course_id bisa berupa string langsung atau nested object
+            const cid = quiz.course_id || quiz.course?._id || quiz.course?.id;
+            if (!cid) { console.warn('[loadMaterials] course_id tidak ditemukan', quiz); return; }
+
+            const mr   = await fetch(`${API}/courses/${cid}/materials`, {headers:{Authorization:'Bearer '+token, Accept:'application/json'}});
+            const data = await mr.json();
+            const list = data.data || data || [];
+            const sel  = $('aiMaterialId');
+
+            // Clear existing options kecuali placeholder
+            while (sel.options.length > 1) sel.remove(1);
+
+            if (!list.length) {
+                const o = document.createElement('option');
+                o.disabled = true;
+                o.textContent = '— Belum ada materi di matkul ini —';
+                sel.appendChild(o);
+                return;
+            }
+
+            list.forEach(m => {
+                const o = document.createElement('option');
+                o.value = m._id || m.id;
+                o.textContent = m.title || '(tanpa judul)';
+                sel.appendChild(o);
+            });
+        } catch(e) { console.warn('[loadMaterials] error:', e); }
     }
     loadMaterials();
 

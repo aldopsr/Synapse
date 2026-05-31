@@ -105,6 +105,17 @@
 .chart-box-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; }
 .chart-box-header h3 { font-size:14px; font-weight:700; color:#111827; margin:0; }
 .chart-badge { font-size:11px; font-weight:700; color:#279685; background:rgba(39,150,133,.1); padding:3px 10px; border-radius:99px; border:1px solid rgba(39,150,133,.2); }
+.chart-filter {
+    display:inline-flex; align-items:center; gap:4px;
+}
+.chart-filter select {
+    padding:3px 8px; border:1.5px solid #e8eaed; border-radius:7px;
+    font-size:11px; font-weight:600; color:#374151; background:#fff;
+    cursor:pointer; font-family:inherit; outline:none;
+    transition:border-color .15s;
+}
+.chart-filter select:focus { border-color:#279685; }
+.chart-filter select:hover { border-color:#9ca3af; }
 
 /* ── Leaderboard ──────────────────────────────────────── */
 .leaderboard-section { margin-bottom:28px; }
@@ -128,10 +139,52 @@
 .score-low  { background:#fee2e2; color:#991b1b; }
 .empty-state { text-align:center; padding:40px; color:#c4c8d0; font-size:14px; }
 
-@media(max-width:680px) {
+/* ── Duel section title ─── */
+.section-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; flex-wrap:wrap; gap:8px; }
+.section-header .section-title { margin:0; }
+
+@media(max-width:768px) {
+    .greeting-banner { padding:20px; border-radius:16px; gap:10px; }
+    .greeting-text h2 { font-size:17px; }
+    .greeting-text p  { font-size:12px; }
+    .greeting-badge { font-size:11px; padding:5px 12px; align-self:flex-start; }
+
+    .stats-grid { grid-template-columns:repeat(2,1fr); gap:10px; margin-bottom:20px; }
+    .stat-card  { padding:16px; border-radius:14px; }
+    .stat-icon  { width:36px; height:36px; border-radius:10px; margin-bottom:10px; }
+    .stat-icon svg { width:18px; height:18px; }
+    .stat-label { font-size:10px; }
+    .stat-value { font-size:22px; }
+    .stat-sub   { font-size:11px; }
+
+    .quick-actions { grid-template-columns:repeat(2,1fr); gap:10px; margin-bottom:20px; }
+    .qa-btn { padding:13px 14px; border-radius:12px; }
+    .qa-icon { width:34px; height:34px; border-radius:9px; }
+    .qa-icon svg { width:16px; height:16px; }
+    .qa-label { font-size:12px; }
+    .qa-sub   { font-size:10px; }
+
+    .section-title { font-size:13px; }
+
+    .charts-grid { grid-template-columns:1fr; gap:14px; margin-bottom:20px; }
+    .chart-box { padding:16px; border-radius:14px; }
+    .chart-box-header { margin-bottom:14px; }
+    .chart-box-header h3 { font-size:13px; }
+
+    .leaderboard-grid { grid-template-columns:1fr; gap:14px; }
+    .lb-box { border-radius:14px; }
+    .lb-header { padding:12px 16px; }
+    /* Leaderboard table scrollable */
+    .lb-box { overflow-x:auto; }
+    .lb-table { min-width:400px; }
+    .lb-table th, .lb-table td { padding:9px 12px; }
+}
+
+@media(max-width:480px) {
     .greeting-banner { flex-direction:column; align-items:flex-start; }
-    .charts-grid, .leaderboard-grid { grid-template-columns:1fr; }
-    .stat-value { font-size:26px; }
+    .stats-grid { gap:8px; }
+    .stat-value { font-size:20px; }
+    .quick-actions { grid-template-columns:repeat(2,1fr); gap:8px; }
 }
 </style>
 
@@ -165,14 +218,14 @@
     <div class="chart-box">
         <div class="chart-box-header">
             <h3 id="chartTitle1">Memuat...</h3>
-            <span class="chart-badge" id="chartBadge1">Live</span>
+            <div id="chartFilter1"></div>
         </div>
         <div style="position:relative;height:260px;"><canvas id="chart1"></canvas></div>
     </div>
     <div class="chart-box">
         <div class="chart-box-header">
             <h3 id="chartTitle2">Memuat...</h3>
-            <span class="chart-badge" id="chartBadge2">Live</span>
+            <div id="chartFilter2"></div>
         </div>
         <div style="position:relative;height:260px;"><canvas id="chart2"></canvas></div>
     </div>
@@ -282,29 +335,16 @@
     }
 
     function renderAdmin(cards, charts, lb) {
+        _rawAdminCharts = charts;
+
         $('statsContainer').innerHTML =
             statCard('dosen',     'teal',   'Total Dosen',      cards.total_dosen??0,      'akun dosen aktif') +
             statCard('mahasiswa', 'blue',   'Total Mahasiswa',  cards.total_mahasiswa??0,  'pengguna terdaftar') +
             statCard('materi',    'purple', 'Total Materi',     cards.total_materi??0,     'e-modul di sistem') +
             statCard('duel',      'amber',  'Total Duel',       cards.total_duel??0,       'semua pertandingan');
 
-        $('chartTitle1').textContent = 'Aktivitas kuis per mata kuliah';
-        $('chartBadge1').textContent = 'Attempts';
-        const ma = charts.matkul_activity ?? { labels:[], data:[] };
-        c1 = new Chart($('chart1'), {
-            type: 'bar',
-            data: { labels: ma.labels, datasets: [{ label:'Pengerjaan kuis', data: ma.data, backgroundColor: TEAL, borderRadius: 6, borderSkipped: false }] },
-            options: { indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false}, tooltip:{cornerRadius:8, callbacks:{label: ctx => ` ${ctx.parsed.x} pengerjaan`}} }, scales:{ x:{grid:{color:'rgba(0,0,0,.05)'}, border:{display:false}, ticks:{stepSize:1}}, y:{grid:{display:false}, border:{display:false}} } }
-        });
-
-        $('chartTitle2').textContent = 'Registrasi pengguna baru';
-        $('chartBadge2').textContent = '6 bulan';
-        const reg = charts.registrasi ?? { labels:[], data:[] };
-        c2 = new Chart($('chart2'), {
-            type: 'line',
-            data: { labels: reg.labels, datasets: [{ label:'Pengguna baru', data: reg.data, borderColor: BLUE, backgroundColor: BLUE + '20', fill:true, tension:0.4, pointRadius:4, pointBackgroundColor: BLUE }] },
-            options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false}, tooltip:{cornerRadius:8} }, scales:{ x:{grid:{display:false}, border:{display:false}}, y:{grid:{color:'rgba(0,0,0,.05)'}, border:{display:false}, ticks:{stepSize:1}} } }
-        });
+        renderAdminChart1(charts);
+        renderAdminChart2(charts);
 
         $('lbTitle').textContent = 'Leaderboard';
         $('leaderboardGrid').innerHTML = buildDosenLB(lb.dosen??[]) + buildMahasiswaLB(lb.mahasiswa??[]);
@@ -325,6 +365,61 @@
                     <td style="text-align:center;color:#7c3aed;font-weight:700">${d.mahasiswa_aktif}</td>
                 </tr>`).join('')}</tbody>
             </table></div>`;
+    }
+
+    // ── Admin Chart 1: Aktivitas per matkul — filter Top N ──────
+    function renderAdminChart1(charts) {
+        $('chartTitle1').textContent = 'Aktivitas kuis per mata kuliah';
+        const ma = charts.matkul_activity ?? { labels:[], data:[] };
+        const topN = parseInt(($('filterAdminChart1')||{}).value || '999') || 999;
+
+        // Sort descending, slice sesuai topN
+        const pairs = ma.labels.map((l,i)=>({l,d:ma.data[i]??0}));
+        pairs.sort((a,b)=>b.d-a.d);
+        const sliced = pairs.slice(0, Math.min(topN, pairs.length));
+
+        // Filter control
+        $('chartFilter1').innerHTML = `<div class="chart-filter">
+            <select id="filterAdminChart1" onchange="renderAdminChart1(window._rawAdminCharts)">
+                <option value="999">Semua Matkul</option>
+                <option value="5"${topN===5?' selected':''}>Top 5</option>
+                <option value="10"${topN===10?' selected':''}>Top 10</option>
+            </select>
+        </div>`;
+
+        if(c1){c1.destroy();c1=null;}
+        if(!sliced.length){$('chart1').parentElement.innerHTML='<div class="empty-state">Belum ada data</div>';return;}
+        c1 = new Chart($('chart1'), {
+            type:'bar',
+            data:{ labels:sliced.map(p=>p.l), datasets:[{ label:'Pengerjaan kuis', data:sliced.map(p=>p.d), backgroundColor:TEAL, borderRadius:6, borderSkipped:false }] },
+            options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false}, tooltip:{cornerRadius:8, callbacks:{label:ctx=>` ${ctx.parsed.x} pengerjaan`}} }, scales:{ x:{grid:{color:'rgba(0,0,0,.05)'}, border:{display:false}, ticks:{stepSize:1}}, y:{grid:{display:false}, border:{display:false}} } }
+        });
+        window._rawAdminCharts = _rawAdminCharts; // pastikan global bisa diakses dari onchange
+    }
+
+    // ── Admin Chart 2: Registrasi — filter 3/6/12 bulan ────────
+    function renderAdminChart2(charts) {
+        $('chartTitle2').textContent = 'Registrasi pengguna baru';
+        const reg = charts.registrasi ?? { labels:[], data:[] };
+        const nBulan = parseInt(($('filterAdminChart2')||{}).value || '6') || 6;
+
+        // Slice n bulan terakhir
+        const sliced = { labels: reg.labels.slice(-nBulan), data: reg.data.slice(-nBulan) };
+
+        $('chartFilter2').innerHTML = `<div class="chart-filter">
+            <select id="filterAdminChart2" onchange="renderAdminChart2(window._rawAdminCharts)">
+                <option value="3"${nBulan===3?' selected':''}>3 Bulan</option>
+                <option value="6"${nBulan===6?' selected':''}>6 Bulan</option>
+                <option value="12"${nBulan===12?' selected':''}>12 Bulan</option>
+            </select>
+        </div>`;
+
+        if(c2){c2.destroy();c2=null;}
+        c2 = new Chart($('chart2'), {
+            type:'line',
+            data:{ labels:sliced.labels, datasets:[{ label:'Pengguna baru', data:sliced.data, borderColor:BLUE, backgroundColor:BLUE+'20', fill:true, tension:0.4, pointRadius:4, pointBackgroundColor:BLUE }] },
+            options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false}, tooltip:{cornerRadius:8} }, scales:{ x:{grid:{display:false}, border:{display:false}}, y:{grid:{color:'rgba(0,0,0,.05)'}, border:{display:false}, ticks:{stepSize:1}} } }
+        });
     }
 
     function buildMahasiswaLB(list) {
@@ -353,36 +448,8 @@
             statCard('nilai',     'amber',  'Rata-rata Nilai',   rata > 0 ? rata.toFixed(1) : '—', rata > 0 ? 'dari semua percobaan' : 'belum ada percobaan', rata > 0 ? nilaiColor : null) +
             statCard('users',     'purple', 'Mahasiswa Aktif',   cards.mahasiswa_hadir??0, 'unik mengerjakan kuis');
 
-        $('chartTitle1').textContent = 'Tingkat kelulusan per kuis';
-        $('chartBadge1').textContent = 'Matkul saya';
-        const kl = charts.kelulusan_per_kuis ?? { labels:[], data:[] };
-        if (kl.labels.length > 0) {
-            const barColors = kl.data.map(v => v >= 70 ? TEAL : v >= 50 ? AMBER : RED);
-            c1 = new Chart($('chart1'), {
-                type:'bar',
-                data:{ labels:kl.labels, datasets:[{ label:'% Lulus', data:kl.data, backgroundColor:barColors, borderRadius:6, borderSkipped:false }] },
-                options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}, tooltip:{cornerRadius:8, callbacks:{label: ctx => ` ${ctx.parsed.x}% mahasiswa lulus`}}}, scales:{ x:{grid:{color:'rgba(0,0,0,.05)'}, border:{display:false}, min:0, max:100, ticks:{callback: v => v+'%'}}, y:{grid:{display:false}, border:{display:false}} } }
-            });
-        } else {
-            $('chart1').parentElement.innerHTML = `<div class="empty-state">Belum ada data kuis</div>`;
-        }
-
-        $('chartTitle2').textContent = 'Hasil keseluruhan mahasiswa';
-        $('chartBadge2').textContent = 'Semua kuis';
-        const pf = charts.passed_failed ?? { lulus:0, gagal:0 };
-        const total = pf.lulus + pf.gagal;
-        const pct = total > 0 ? Math.round((pf.lulus / total) * 100) : 0;
-        c2 = new Chart($('chart2'), {
-            type:'doughnut',
-            data:{ labels:[`Lulus (${pf.lulus})`, `Tidak Lulus (${pf.gagal})`], datasets:[{ data:[pf.lulus, pf.gagal], backgroundColor:[TEAL,'#fee2e2'], borderWidth:0, hoverOffset:6 }] },
-            options:{ responsive:true, maintainAspectRatio:false, cutout:'68%', plugins:{ legend:{position:'bottom', labels:{padding:16, usePointStyle:true, pointStyle:'circle'}}, tooltip:{cornerRadius:8} } }
-        });
-        const parent = $('chart2').parentElement;
-        parent.style.position = 'relative';
-        const ov = document.createElement('div');
-        ov.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-60%);text-align:center;pointer-events:none;';
-        ov.innerHTML = `<div style="font-size:26px;font-weight:800;color:#1a1a1a">${pct}%</div><div style="font-size:11px;color:#9ca3af;margin-top:2px">Lulus</div>`;
-        parent.appendChild(ov);
+        renderDosenChart1(charts);
+        renderDosenChart2(charts);
 
         if (lb && lb.length > 0) {
             $('lbTitle').textContent = 'Leaderboard Mahasiswaku';
@@ -402,6 +469,93 @@
                 </table></div>`;
             $('leaderboardSection').style.display = '';
         }
+    }
+
+    // ── Dosen Chart 1: Kelulusan per kuis — filter per matkul ───
+    let _rawDosenCharts = {};
+    let _rawDosenLb = [];
+
+    function renderDosenChart1(charts) {
+        _rawDosenCharts = charts;
+        $('chartTitle1').textContent = 'Tingkat kelulusan per kuis';
+        const kl = charts.kelulusan_per_kuis ?? { labels:[], data:[] };
+
+        // Filter berdasarkan sort (nilai tertinggi / terendah / semua)
+        const mode = ($('filterDosenChart1')||{}).value || 'all';
+        let pairs = kl.labels.map((l,i)=>({l, d:kl.data[i]??0}));
+        if(mode==='top') pairs = [...pairs].sort((a,b)=>b.d-a.d).slice(0,5);
+        else if(mode==='bottom') pairs = [...pairs].sort((a,b)=>a.d-b.d).slice(0,5);
+
+        $('chartFilter1').innerHTML = `<div class="chart-filter">
+            <select id="filterDosenChart1" onchange="renderDosenChart1(window._rawDosenCharts)">
+                <option value="all"${mode==='all'?' selected':''}>Semua Kuis</option>
+                <option value="top"${mode==='top'?' selected':''}>5 Tertinggi</option>
+                <option value="bottom"${mode==='bottom'?' selected':''}>5 Terendah</option>
+            </select>
+        </div>`;
+
+        if(c1){c1.destroy();c1=null;}
+        if(!pairs.length){$('chart1').parentElement.innerHTML='<div class="empty-state">Belum ada data kuis</div>';return;}
+        const barColors=pairs.map(p=>p.d>=70?TEAL:p.d>=50?AMBER:RED);
+        c1 = new Chart($('chart1'), {
+            type:'bar',
+            data:{ labels:pairs.map(p=>p.l), datasets:[{ label:'% Lulus', data:pairs.map(p=>p.d), backgroundColor:barColors, borderRadius:6, borderSkipped:false }] },
+            options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}, tooltip:{cornerRadius:8, callbacks:{label:ctx=>` ${ctx.parsed.x}% mahasiswa lulus`}}}, scales:{ x:{grid:{color:'rgba(0,0,0,.05)'}, border:{display:false}, min:0, max:100, ticks:{callback:v=>v+'%'}}, y:{grid:{display:false}, border:{display:false}} } }
+        });
+        window._rawDosenCharts = _rawDosenCharts;
+    }
+
+    // ── Dosen Chart 2: Donut lulus/gagal — filter per kuis ──────
+    function renderDosenChart2(charts) {
+        $('chartTitle2').textContent = 'Hasil keseluruhan mahasiswa';
+
+        // Build opsi per kuis dari kelulusan_per_kuis
+        const kl = charts.kelulusan_per_kuis ?? { labels:[], data:[] };
+        const pf_all = charts.passed_failed ?? { lulus:0, gagal:0 };
+
+        // Per-kuis data (kalau backend kirim passed_failed_per_kuis) atau fallback ke total
+        const perKuis = charts.passed_failed_per_kuis ?? null;
+        const selKuis = ($('filterDosenChart2')||{}).value || '_all';
+
+        // Build filter options
+        let opts = '<option value="_all">Semua Kuis</option>';
+        if(perKuis) {
+            Object.keys(perKuis).forEach(k=>{opts+=`<option value="${k}"${selKuis===k?' selected':''}>${k}</option>`;});
+        } else {
+            kl.labels.forEach((l,i)=>{opts+=`<option value="${i}"${selKuis===String(i)?' selected':''}>${l}</option>`;});
+        }
+
+        $('chartFilter2').innerHTML = kl.labels.length > 1
+            ? `<div class="chart-filter"><select id="filterDosenChart2" onchange="renderDosenChart2(window._rawDosenCharts)">${opts}</select></div>`
+            : `<span class="chart-badge">Semua kuis</span>`;
+
+        // Tentukan data yang dipakai
+        let pf = pf_all;
+        if(perKuis && selKuis!=='_all' && perKuis[selKuis]){
+            pf = perKuis[selKuis];
+        } else if(!perKuis && selKuis!=='_all') {
+            // Estimasi dari data bar chart: % lulus * asumsi total = tidak bisa akurat
+            // tetap pakai total
+        }
+
+        const total=pf.lulus+pf.gagal;
+        const pct=total>0?Math.round(pf.lulus/total*100):0;
+        if(c2){c2.destroy();c2=null;}
+        c2 = new Chart($('chart2'), {
+            type:'doughnut',
+            data:{ labels:[`Lulus (${pf.lulus})`,`Tidak Lulus (${pf.gagal})`], datasets:[{ data:[pf.lulus,pf.gagal], backgroundColor:[TEAL,'#fee2e2'], borderWidth:0, hoverOffset:6 }] },
+            options:{ responsive:true, maintainAspectRatio:false, cutout:'68%', plugins:{ legend:{position:'bottom', labels:{padding:16, usePointStyle:true, pointStyle:'circle'}}, tooltip:{cornerRadius:8} } }
+        });
+        // Overlay % di tengah
+        const parent=$('chart2').parentElement;
+        parent.style.position='relative';
+        document.querySelectorAll('.donut-overlay').forEach(el=>el.remove());
+        const ov=document.createElement('div');
+        ov.className='donut-overlay';
+        ov.style.cssText='position:absolute;top:50%;left:50%;transform:translate(-50%,-60%);text-align:center;pointer-events:none';
+        ov.innerHTML=`<div style="font-size:26px;font-weight:800;color:#1a1a1a">${pct}%</div><div style="font-size:11px;color:#9ca3af;margin-top:2px">Lulus</div>`;
+        parent.appendChild(ov);
+        window._rawDosenCharts=_rawDosenCharts;
     }
 
     function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
