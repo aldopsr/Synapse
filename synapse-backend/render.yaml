@@ -1,0 +1,68 @@
+services:
+  - type: web
+    name: synapse-backend
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: APP_NAME
+        value: Synapse
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: false
+      - key: APP_KEY
+        sync: false  # isi manual di dashboard Render
+      - key: APP_URL
+        sync: false  # isi dengan URL Render setelah deploy
+      - key: APP_FRONTEND_URL
+        sync: false  # isi dengan URL frontend
+
+      - key: DB_CONNECTION
+        value: mongodb
+      - key: MONGODB_URI
+        sync: false  # isi manual (jangan simpan di sini)
+      - key: MONGODB_DATABASE
+        value: synapse_db
+
+      - key: SESSION_DRIVER
+        value: file
+      - key: CACHE_STORE
+        value: file
+      - key: QUEUE_CONNECTION
+        value: sync
+
+      - key: LOG_CHANNEL
+        value: stderr
+      - key: LOG_LEVEL
+        value: error
+
+      - key: FIREBASE_CREDENTIALS
+        value: storage/app/firebase-credentials.json
+      - key: FIREBASE_CREDENTIALS_BASE64
+        sync: false  # isi dengan hasil: base64 firebase-credentials.json
+
+      - key: MAIL_MAILER
+        value: smtp
+      - key: MAIL_HOST
+        value: smtp.gmail.com
+      - key: MAIL_PORT
+        value: "465"
+      - key: MAIL_ENCRYPTION
+        value: tls
+      - key: MAIL_USERNAME
+        sync: false
+      - key: MAIL_PASSWORD
+        sync: false
+      - key: MAIL_FROM_NAME
+        value: SYNAPSE
+
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY_AI
+        sync: false
+
+      - key: SANCTUM_TOKEN_EXPIRATION
+        value: "10080"
+
+      - key: BCRYPT_ROUNDS
+        value: "12"

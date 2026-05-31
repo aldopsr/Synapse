@@ -1,0 +1,13 @@
+vendor/
+node_modules/
+.env
+.env.*
+storage/logs/
+storage/framework/sessions/
+storage/framework/cache/
+storage/framework/views/
+public/storage
+.git/
+.idea/
+.vscode/
+*.log
