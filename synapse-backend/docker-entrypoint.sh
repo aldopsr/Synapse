@@ -5,6 +5,10 @@ set -e
 sed -i "s/__PORT__/$PORT/g" /etc/apache2/sites-available/000-default.conf
 echo "Listen $PORT" > /etc/apache2/ports.conf
 
+# Fix MPM conflict at runtime
+a2dismod mpm_event 2>/dev/null || true
+a2enmod mpm_prefork 2>/dev/null || true
+
 # Decode Firebase credentials
 if [ -n "$FIREBASE_CREDENTIALS_BASE64" ]; then
     printf '%s' "$FIREBASE_CREDENTIALS_BASE64" | base64 -d > /var/www/html/storage/app/firebase-credentials.json
