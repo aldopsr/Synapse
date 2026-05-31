@@ -11,7 +11,11 @@ if [ -n "$FIREBASE_CREDENTIALS_BASE64" ]; then
     echo "Firebase credentials written."
 fi
 
-# Cache Laravel config/routes/views (non-fatal)
+# Set permissions
+chown -R www-data:www-data /var/www/html/storage
+chmod -R 775 /var/www/html/storage
+
+# Cache Laravel (non-fatal)
 php artisan config:cache || echo "config:cache failed, continuing..."
 php artisan route:cache || echo "route:cache failed, continuing..."
 php artisan view:cache || echo "view:cache failed, continuing..."

@@ -13,29 +13,24 @@ RUN docker-php-ext-install mbstring exif pcntl bcmath gd
 # Install MongoDB PHP extension
 RUN pecl install mongodb && docker-php-ext-enable mongodb
 
-# Enable Apache mod_rewrite
-RUN a2enmod rewrite
+# Fix Apache MPM conflict
+RUN a2dismod mpm_event mpm_worker 2>/dev/null || true && a2enmod mpm_prefork rewrite
 
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www/html
 
-# Copy composer files first (for layer caching)
 COPY composer.json composer.lock ./
-RUN composer install --no-dev --optimize-autoloader --no-scripts
+RUN COMPOSER_ALLOW_SUPERUSER=1 composer install --no-dev --optimize-autoloader --no-scripts --no-interaction
 
-# Copy rest of application
 COPY . .
 
-# Run post-install scripts
-RUN composer dump-autoload --optimize --no-scripts
+RUN COMPOSER_ALLOW_SUPERUSER=1 composer dump-autoload --optimize --no-scripts
 
-# Set permissions
 RUN chown -R www-data:www-data storage bootstrap/cache \
     && chmod -R 775 storage bootstrap/cache
 
-# Configure Apache virtual host (PORT placeholder replaced at runtime)
 RUN printf '<VirtualHost *:__PORT__>\n\
     DocumentRoot /var/www/html/public\n\
     <Directory /var/www/html/public>\n\
@@ -46,7 +41,6 @@ RUN printf '<VirtualHost *:__PORT__>\n\
     CustomLog /dev/stdout combined\n\
 </VirtualHost>\n' > /etc/apache2/sites-available/000-default.conf
 
-# Startup script
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
