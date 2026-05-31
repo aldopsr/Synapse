@@ -327,14 +327,15 @@ tbody td { padding:12px 16px; font-size:13px; color:#111827; vertical-align:midd
                 <td><span class="score-pill ${d.is_passed?'sp-pass':'sp-fail'}">${d.is_passed?'Lulus':'Tidak Lulus'}</span></td>
             </tr>`;
         }).join('');
-
-        // Paginator
-        let _lapPag = window._lapPag || null;
-        if(window.Paginator){
-            if(!_lapPag){ window._lapPag=window.Paginator("lbBody",list,25,_doRender); }
-            else { window._lapPag.setData(list); }
-        } else { _doRender(list); }
     }
+
+    // Paginator
+    let _lapPag = window._lapPag || null;
+    if(window.Paginator){
+        if(!_lapPag){ window._lapPag=window.Paginator("lbBody",list,25,_doRender); }
+        else { window._lapPag.setData(list); }
+    } else { _doRender(list); }
+}
     window.switchTab=function(tab){
         currentTab=tab;
         $('tabMhs').classList.toggle('active',tab==='mahasiswa');

@@ -39,7 +39,7 @@ class FypController extends Controller
             ->get();
 
         // course_id => [quiz_ids]
-        $quizByCourse = $allQuizzes->groupBy('course_id')
+        $quizByCourse = $allQuizzes->groupBy(fn($q) => (string) $q->course_id)
             ->map(fn($qs) => $qs->map(fn($q) => (string) $q->id)->toArray());
 
         // 3. Ambil semua attempt user, untuk semua kuis

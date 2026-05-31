@@ -194,7 +194,7 @@ class _MenuDialog extends StatelessWidget {
                     onTap: onNotes, isFirst: true),
                 const Divider(height: 1, indent: 14, endIndent: 14),
                 _MenuItem(icon: Icons.smart_toy_rounded,
-                    label: 'Tanya AI', color: const Color(0xFF2A9D8F),
+                    label: 'Chat', color: const Color(0xFF2A9D8F),
                     onTap: onChatbot, isFirst: false),
               ]),
             ),
@@ -304,9 +304,9 @@ class _StickyNoteDialogState extends State<_StickyNoteDialog> {
   String _fmt(DateTime dt) {
     final diff = DateTime.now().difference(dt);
     if (diff.inMinutes < 1) return 'Baru saja';
-    if (diff.inHours < 1)   return '\${diff.inMinutes}m lalu';
-    if (diff.inDays < 1)    return '\${diff.inHours}j lalu';
-    return '\${dt.day}/\${dt.month}';
+    if (diff.inHours < 1)   return '${diff.inMinutes}m lalu';
+    if (diff.inDays < 1)    return '${diff.inHours}j lalu';
+    return '${dt.day}/${dt.month}';
   }
 
   Color _getNoteColor(NoteModel note) {
@@ -607,6 +607,17 @@ class _ChatbotDialogState extends State<_ChatbotDialog> {
 
     try {
       final token = await _getToken();
+
+      // Kirim max 10 pesan terakhir sebagai context (tanpa pesan user saat ini)
+      const int maxHistory = 10;
+      final prevMsgs = _msgs.sublist(0, _msgs.length - 1);
+      final historySlice = prevMsgs.length > maxHistory
+          ? prevMsgs.sublist(prevMsgs.length - maxHistory)
+          : prevMsgs;
+      final history = historySlice
+          .map((m) => {'role': (m['isUser'] as bool) ? 'user' : 'model', 'text': m['text'] as String})
+          .toList();
+
       final res = await http.post(
         Uri.parse('$_baseUrl/chat'),
         headers: {
@@ -614,7 +625,7 @@ class _ChatbotDialogState extends State<_ChatbotDialog> {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
         },
-        body: jsonEncode({'message': text}),
+        body: jsonEncode({'message': text, 'history': history}),
       );
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);

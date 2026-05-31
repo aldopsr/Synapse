@@ -7,6 +7,7 @@ use App\Models\Course;
 use App\Models\Material;
 use App\Models\Quiz;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -95,11 +96,41 @@ class AiChatController extends Controller
         return implode("\n", $lines);
     }
 
+    private const DAILY_LIMIT = 10;
+
+    private function quotaCacheKey(int $userId): string
+    {
+        return 'chat_quota_' . $userId . '_' . now()->toDateString();
+    }
+
     public function chat(Request $request)
     {
         $request->validate([
-            'message' => 'required|string|max:2000'
+            'message'        => 'required|string|max:2000',
+            'history'        => 'nullable|array|max:20',
+            'history.*.role' => 'required_with:history|string|in:user,model',
+            'history.*.text' => 'required_with:history|string|max:2000',
         ]);
+
+        $user = $request->user();
+
+        // Enforce daily limit for public users
+        if ($user->role === 'public') {
+            $key  = $this->quotaCacheKey($user->id);
+            $used = (int) Cache::get($key, 0);
+
+            if ($used >= self::DAILY_LIMIT) {
+                return response()->json([
+                    'message'   => 'Kuota chat harian habis. Reset esok hari.',
+                    'remaining' => 0,
+                    'limit'     => self::DAILY_LIMIT,
+                ], 429);
+            }
+
+            // Increment counter, expire at midnight
+            $secondsUntilMidnight = now()->secondsUntilEndOfDay() + 1;
+            Cache::put($key, $used + 1, $secondsUntilMidnight);
+        }
 
         $apiKey = env('GEMINI_API_KEY');
 
@@ -126,32 +157,49 @@ ATURAN WAJIB:
 
 KONTEN SYNAPSE YANG TERSEDIA:
 {$synapseContext}
-
-Pertanyaan mahasiswa: {$request->message}
 PROMPT;
+
+        // Build multi-turn contents: history + current message
+        $contents = [];
+        foreach ($request->input('history', []) as $turn) {
+            $contents[] = [
+                'role'  => $turn['role'],
+                'parts' => [['text' => $turn['text']]],
+            ];
+        }
+        $contents[] = [
+            'role'  => 'user',
+            'parts' => [['text' => $request->message]],
+        ];
 
         try {
             $response = Http::withHeaders([
                 'Content-Type' => 'application/json',
             ])->timeout(30)->post($url, [
-                'contents' => [
-                    [
-                        'parts' => [
-                            ['text' => $systemPrompt]
-                        ]
-                    ]
-                ]
+                'systemInstruction' => [
+                    'parts' => [['text' => $systemPrompt]],
+                ],
+                'contents' => $contents,
             ]);
 
             if ($response->successful()) {
                 $responseData = $response->json();
-                $aiText = $responseData['candidates'][0]['content']['parts'][0]['text']
-                    ?? 'Maaf, otak AI saya sedang nge-blank. Coba tanya lagi!';
+                $candidates   = $responseData['candidates'] ?? [];
+                $aiText = !empty($candidates)
+                    ? ($candidates[0]['content']['parts'][0]['text'] ?? 'Maaf, otak AI saya sedang nge-blank. Coba tanya lagi!')
+                    : 'Maaf, otak AI saya sedang nge-blank. Coba tanya lagi!';
+
+                $remaining = null;
+                if ($user->role === 'public') {
+                    $used      = (int) Cache::get($this->quotaCacheKey($user->id), 0);
+                    $remaining = max(0, self::DAILY_LIMIT - $used);
+                }
 
                 return response()->json([
                     'message'   => 'Berhasil',
                     'reply'     => $aiText,
-                    'remaining' => null,
+                    'remaining' => $remaining,
+                    'limit'     => $user->role === 'public' ? self::DAILY_LIMIT : null,
                 ], 200);
             }
 
@@ -172,14 +220,25 @@ PROMPT;
         }
     }
 
-    // TAMBAHAN BARU: endpoint kuota untuk Flutter
-    // Gemini gratis — tidak ada limit, selalu return unlimited
     public function chatQuota(Request $request)
     {
+        $user = $request->user();
+
+        if ($user->role !== 'public') {
+            return response()->json([
+                'limited'   => false,
+                'remaining' => null,
+                'limit'     => null,
+            ], 200);
+        }
+
+        $used      = (int) Cache::get($this->quotaCacheKey($user->id), 0);
+        $remaining = max(0, self::DAILY_LIMIT - $used);
+
         return response()->json([
-            'limited'   => false,
-            'remaining' => null,
-            'limit'     => null,
+            'limited'   => true,
+            'remaining' => $remaining,
+            'limit'     => self::DAILY_LIMIT,
         ], 200);
     }
 
@@ -218,8 +277,10 @@ PROMPT;
 
             if ($response->successful()) {
                 $responseData = $response->json();
-                $aiText = $responseData['candidates'][0]['content']['parts'][0]['text']
-                    ?? 'Analisis tidak tersedia saat ini.';
+                $candidates   = $responseData['candidates'] ?? [];
+                $aiText = !empty($candidates)
+                    ? ($candidates[0]['content']['parts'][0]['text'] ?? 'Analisis tidak tersedia saat ini.')
+                    : 'Analisis tidak tersedia saat ini.';
 
                 return response()->json([
                     'message'  => 'Berhasil',
@@ -276,8 +337,10 @@ PROMPT;
 
             if ($response->successful()) {
                 $responseData = $response->json();
-                $aiText = $responseData['candidates'][0]['content']['parts'][0]['text']
-                    ?? 'Penjelasan tidak tersedia saat ini.';
+                $candidates   = $responseData['candidates'] ?? [];
+                $aiText = !empty($candidates)
+                    ? ($candidates[0]['content']['parts'][0]['text'] ?? 'Penjelasan tidak tersedia saat ini.')
+                    : 'Penjelasan tidak tersedia saat ini.';
 
                 return response()->json([
                     'message'     => 'Berhasil',

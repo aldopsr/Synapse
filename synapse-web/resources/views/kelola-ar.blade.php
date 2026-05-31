@@ -119,7 +119,7 @@ model-viewer { width:100%; height:100%; }
 .ar-modal-close { width:32px; height:32px; border-radius:8px; border:none; background:rgba(255,255,255,.12); color:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; }
 .ar-modal-close:hover { background:rgba(255,255,255,.2); }
 .ar-modal-close svg { width:14px; height:14px; }
-.ar-modal-viewer { width:100%; height:360px; }
+.ar-modal-viewer { width:100%; height:360px; background:#1e293b; }
 
 @media (max-width: 768px) {
     .ar-layout { flex-direction:column; }
@@ -233,7 +233,7 @@ model-viewer { width:100%; height:100%; }
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
         </div>
-        <model-viewer id="modalViewer" class="ar-modal-viewer" camera-controls auto-rotate shadow-intensity="1" environment-image="neutral"></model-viewer>
+        <model-viewer id="modalViewer" class="ar-modal-viewer" camera-controls auto-rotate shadow-intensity="1" exposure="1" environment-image="neutral"></model-viewer>
     </div>
 </div>
 @endsection
@@ -449,7 +449,13 @@ model-viewer { width:100%; height:100%; }
         } catch(_){if(card){card.style.opacity='1';card.style.transform='';}toast('Koneksi bermasalah.','err');}
     };
 
-    window.previewAR=function(url,title){$('modalViewer').src=url;$('modalTitle').textContent=title;$('arModal').classList.add('open');};
+    window.previewAR=function(url,title){
+        $('modalViewer').src='';
+        $('modalTitle').textContent=title;
+        $('arModal').classList.add('open');
+        // Tunggu modal visible sebelum set src, agar WebGL context bisa dibuat
+        requestAnimationFrame(()=>requestAnimationFrame(()=>{ $('modalViewer').src=url; }));
+    };
     window.closeModal=function(){$('arModal').classList.remove('open');$('modalViewer').src='';};
     $('arModal').addEventListener('click',e=>{if(e.target===$('arModal'))closeModal();});
 

@@ -26,12 +26,12 @@ class ArAsset extends Model
 
     /**
      * 🌟 Accessor: URL lengkap untuk file model 3D
-     * Contoh hasil: http://192.168.1.12:8000/storage/ar_models/xxx.glb
+     * Dilewatkan ke /api/download-model/ agar server mengirim header CORS yang dibutuhkan model-viewer.
      */
     public function getModel3dUrlAttribute()
     {
         if (isset($this->attributes['model_3d_path']) && $this->attributes['model_3d_path']) {
-            return asset('storage/' . $this->attributes['model_3d_path']);
+            return url('/api/download-model/' . $this->attributes['model_3d_path']);
         }
         return null;
     }

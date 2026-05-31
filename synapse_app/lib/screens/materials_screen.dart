@@ -37,6 +37,7 @@ class _MaterialsScreenState extends State<MaterialsScreen> {
     final courses   = await MaterialService().getCourses();
     final materials = await MaterialService().getMaterials();
     if (mounted) {
+      materials.shuffle();
       setState(() {
         _courses   = courses;
         _materials = materials;
@@ -76,10 +77,12 @@ class _MaterialsScreenState extends State<MaterialsScreen> {
     // Guard: kalau user sudah pindah matkul lagi, abaikan hasil ini
     if (_selectedCourseId != targetCourse) return;
 
+    final newMaterials = results[0] as List;
+    newMaterials.shuffle();
     setState(() {
-      _materials          = results[0] as List;
+      _materials          = newMaterials;
       _isMaterialsLoading = false;
-      _quizzes            = results[1] as List<QuizModel>;
+      _quizzes            = List<QuizModel>.from(results[1]);
       _isQuizzesLoading   = false;
     });
   }
@@ -641,7 +644,11 @@ class _MaterialsScreenState extends State<MaterialsScreen> {
             ],
           ],
 
-          SliverToBoxAdapter(child: SizedBox(height: HomeScreen.navBarHeight)),
+          SliverToBoxAdapter(
+            child: SizedBox(
+              height: HomeScreen.navBarHeight + MediaQuery.of(context).padding.bottom + 16,
+            ),
+          ),
         ],
       ),
     );

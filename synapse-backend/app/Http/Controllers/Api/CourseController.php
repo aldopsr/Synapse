@@ -66,6 +66,14 @@ class CourseController extends Controller
     // 3. UPDATE DAFTAR DOSEN PENGAMPU
     public function update(Request $request, $id)
     {
+        $user = $request->user();
+        if ($user->role !== 'admin' && $user->role !== 'superadmin') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Akses ditolak! Hanya Admin yang dapat mengubah data Mata Kuliah.',
+            ], 403);
+        }
+
         $course = Course::findOrFail($id);
 
         $request->validate([
@@ -109,6 +117,14 @@ class CourseController extends Controller
     // 5. HAPUS SATU DOSEN DARI MATKUL
     public function removeDosen(Request $request, $id, $dosenId)
     {
+        $user = $request->user();
+        if ($user->role !== 'admin' && $user->role !== 'superadmin') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Akses ditolak! Hanya Admin yang dapat menghapus Dosen dari Mata Kuliah.',
+            ], 403);
+        }
+
         $course = Course::findOrFail($id);
 
         $ids = array_values(array_filter(

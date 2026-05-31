@@ -347,7 +347,7 @@ class _QuizReviewScreenState extends State<QuizReviewScreen> {
 
                       const SizedBox(height: 20),
 
-                      // Tombol Tanya AI
+                      // Tombol Chat
                       SizedBox(
                         width: double.infinity,
                         height: 50,

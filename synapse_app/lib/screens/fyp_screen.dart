@@ -29,6 +29,7 @@ class _FypScreenState extends State<FypScreen>
   String? _error;
   Map<String, dynamic> _summary = {};
   List<dynamic> _items = [];
+  String _filter = 'semua';
 
   @override
   void initState() {
@@ -56,6 +57,16 @@ class _FypScreenState extends State<FypScreen>
       _items   = List<dynamic>.from(result['data'] ?? []);
     });
     _animCtrl?.forward(from: 0);
+  }
+
+  List<dynamic> get _filteredItems {
+    switch (_filter) {
+      case 'kritis':  return _items.where((i) => i['status_color'] == 'red').toList();
+      case 'latihan': return _items.where((i) => i['status_color'] == 'orange' || i['status_color'] == 'yellow').toList();
+      case 'hampir':  return _items.where((i) => i['status_color'] == 'blue').toList();
+      case 'belum':   return _items.where((i) => !['red','orange','yellow','blue'].contains(i['status_color'])).toList();
+      default:        return _items;
+    }
   }
 
   Color _colorOf(String? key) {
@@ -128,30 +139,47 @@ class _FypScreenState extends State<FypScreen>
                                     _buildHandle(),
                                     const SizedBox(height: 18),
                                     _buildSummaryCard(),
-                                    const SizedBox(height: 22),
+                                    const SizedBox(height: 16),
+                                    _buildFilterChips(),
+                                    const SizedBox(height: 18),
                                     _buildSectionTitle(),
                                     const SizedBox(height: 14),
-                                    ..._items.asMap().entries.map((entry) {
-                                      final i    = entry.key;
-                                      final item = Map<String, dynamic>.from(
-                                          entry.value as Map);
-                                      return AnimatedBuilder(
-                                        animation: _animCtrl ??
-                                            const AlwaysStoppedAnimation(1),
-                                        builder: (context, child) {
-                                          final t = _animCtrl != null
-                                              ? (_animCtrl!.value - i * 0.08)
-                                                  .clamp(0.0, 1.0)
-                                              : 1.0;
-                                          return Opacity(
-                                            opacity: t,
-                                            child: Transform.translate(
-                                              offset: Offset(0, 18 * (1 - t)),
-                                              child: child));
-                                        },
-                                        child: _buildRecommendationCard(item, i),
-                                      );
-                                    }),
+                                    if (_filteredItems.isEmpty)
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 32),
+                                        child: Center(
+                                          child: Column(children: [
+                                            Icon(Icons.filter_list_off_rounded,
+                                                size: 48, color: _textMuted.withOpacity(0.5)),
+                                            const SizedBox(height: 12),
+                                            Text('Tidak ada matkul di kategori ini',
+                                                style: TextStyle(color: _textMuted,
+                                                    fontSize: 14, fontWeight: FontWeight.w600)),
+                                          ]),
+                                        ),
+                                      )
+                                    else
+                                      ..._filteredItems.asMap().entries.map((entry) {
+                                        final i    = entry.key;
+                                        final item = Map<String, dynamic>.from(
+                                            entry.value as Map);
+                                        return AnimatedBuilder(
+                                          animation: _animCtrl ??
+                                              const AlwaysStoppedAnimation(1),
+                                          builder: (context, child) {
+                                            final t = _animCtrl != null
+                                                ? (_animCtrl!.value - i * 0.08)
+                                                    .clamp(0.0, 1.0)
+                                                : 1.0;
+                                            return Opacity(
+                                              opacity: t,
+                                              child: Transform.translate(
+                                                offset: Offset(0, 18 * (1 - t)),
+                                                child: child));
+                                          },
+                                          child: _buildRecommendationCard(item, i),
+                                        );
+                                      }),
                                   ],
                                 ),
                     ),
@@ -511,6 +539,82 @@ class _FypScreenState extends State<FypScreen>
     );
   }
 
+
+  Widget _buildFilterChips() {
+    final counts = {
+      'semua':   _items.length,
+      'kritis':  _items.where((i) => i['status_color'] == 'red').length,
+      'latihan': _items.where((i) => i['status_color'] == 'orange' || i['status_color'] == 'yellow').length,
+      'hampir':  _items.where((i) => i['status_color'] == 'blue').length,
+      'belum':   _items.where((i) => !['red','orange','yellow','blue'].contains(i['status_color'])).length,
+    };
+    final chips = [
+      ('semua',   'Semua',   _slate,   Icons.apps_rounded),
+      ('kritis',  'Kritis',  _red,     Icons.warning_rounded),
+      ('latihan', 'Latihan', _amber,   Icons.local_fire_department_rounded),
+      ('hampir',  'Hampir',  _sky,     Icons.auto_graph_rounded),
+      ('belum',   'Belum',   _slate,   Icons.hourglass_empty_rounded),
+    ];
+
+    return SizedBox(
+      height: 38,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: EdgeInsets.zero,
+        itemCount: chips.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (_, idx) {
+          final (key, label, color, icon) = chips[idx];
+          final isActive = _filter == key;
+          final count = counts[key] ?? 0;
+          return GestureDetector(
+            onTap: () => setState(() => _filter = key),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+              decoration: BoxDecoration(
+                color: isActive ? color : Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: isActive ? color : Colors.grey.shade200,
+                  width: 1.5,
+                ),
+                boxShadow: isActive ? [
+                  BoxShadow(color: color.withOpacity(0.25),
+                      blurRadius: 8, offset: const Offset(0, 3)),
+                ] : [],
+              ),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(icon, size: 13,
+                    color: isActive ? Colors.white : color),
+                const SizedBox(width: 5),
+                Text(label,
+                    style: TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.w700,
+                      color: isActive ? Colors.white : _textDark,
+                    )),
+                const SizedBox(width: 5),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: isActive
+                        ? Colors.white.withOpacity(0.25)
+                        : color.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text('$count',
+                      style: TextStyle(
+                        fontSize: 10, fontWeight: FontWeight.w900,
+                        color: isActive ? Colors.white : color,
+                      )),
+                ),
+              ]),
+            ),
+          );
+        },
+      ),
+    );
+  }
 
   Widget _buildEmpty() => Center(child: Padding(
     padding: const EdgeInsets.all(38),

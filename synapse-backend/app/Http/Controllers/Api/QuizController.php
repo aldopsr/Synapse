@@ -649,7 +649,7 @@ class QuizController extends Controller
         // Pastikan hanya dosen yang mengampu matkul ini yang bisa toggle
         $user = auth('sanctum')->user();
         if ($user->role === 'dosen') {
-            $courseIds = \App\Models\Course::where('dosen_id', (string) $user->id)
+            $courseIds = \App\Models\Course::where('dosen_ids', (string) $user->id)
                 ->get()->map(fn($c) => (string) $c->id)->toArray();
             if (!in_array((string) $quiz->course_id, $courseIds)) {
                 return response()->json(['message' => 'Akses ditolak'], 403);

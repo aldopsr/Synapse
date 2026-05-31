@@ -224,7 +224,7 @@ PROMPT;
                     'option_c'        => $q['option_c'] ?? '',
                     'option_d'        => $q['option_d'] ?? '',
                     'correct_answer'  => strtoupper($q['correct_answer'] ?? 'A'),
-                    'correct_answers' => $q['correct_answers'] ?? [],
+                    'correct_answers' => array_map('strtoupper', $q['correct_answers'] ?? []),
                     'explanation'     => $q['explanation'] ?? '',
                     'difficulty'      => $q['difficulty'] ?? $difficulty,
                     'points'          => (int) ($q['points'] ?? 10),

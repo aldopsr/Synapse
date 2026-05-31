@@ -319,9 +319,7 @@ class _CourseSelectionScreenState extends State<CourseSelectionScreen> {
                                       20,
                                       index == 0 ? 4 : 0,
                                       20,
-                                      index == _filteredHomeCourses.length - 1
-                                          ? 36
-                                          : 14,
+                                      14,
                                     ),
                                     child: _buildCourseCard(
                                       _filteredHomeCourses[index],
@@ -332,6 +330,11 @@ class _CourseSelectionScreenState extends State<CourseSelectionScreen> {
                                 childCount: _filteredHomeCourses.length,
                               ),
                             ),
+                  SliverToBoxAdapter(
+                    child: SizedBox(
+                      height: 7 + MediaQuery.of(context).padding.bottom + 16,
+                    ),
+                  ),
                 ],
               ),
             ),

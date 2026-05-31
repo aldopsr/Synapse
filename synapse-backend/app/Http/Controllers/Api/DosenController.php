@@ -70,6 +70,10 @@ class DosenController extends Controller
     {
         $user = User::findOrFail($id);
 
+        $request->validate([
+            'password' => 'sometimes|string|min:6',
+        ]);
+
         $data = $request->only(['name', 'email']);
         if ($request->filled('password')) {
             $data['password'] = Hash::make($request->password);

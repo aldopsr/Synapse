@@ -24,7 +24,7 @@ class _DuelBattleScreenState extends State<DuelBattleScreen> {
   final DuelService _service = DuelService();
 
   List<dynamic>         _questions    = [];
-  final Map<String, String> _answers  = {};
+  final Map<String, dynamic> _answers  = {};
   int                   _currentIndex = 0;
   bool                  _isLoadingQ   = true;
   bool                  _isSubmitting = false;
@@ -271,6 +271,12 @@ class _DuelBattleScreenState extends State<DuelBattleScreen> {
       'D': q['option_d']?.toString() ?? '',
     };
 
+    final isMultiAnswer =
+        (q['question_type']?.toString() ?? 'multiple_choice') == 'multiple_answer';
+    final selectedList = isMultiAnswer
+        ? List<String>.from((_answers[qId] as List?)?.cast<String>() ?? [])
+        : <String>[];
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 20),
       children: [
@@ -281,6 +287,13 @@ class _DuelBattleScreenState extends State<DuelBattleScreen> {
               color: _inkLight,
               fontWeight: FontWeight.w500),
         ),
+        if (isMultiAnswer) ...[
+          const SizedBox(height: 4),
+          const Text(
+            'Pilih semua jawaban yang benar',
+            style: TextStyle(fontSize: 11, color: _primary, fontWeight: FontWeight.w600),
+          ),
+        ],
         const SizedBox(height: 12),
         if (imgUrl != null && imgUrl.isNotEmpty) ...[
           ClipRRect(
@@ -300,9 +313,24 @@ class _DuelBattleScreenState extends State<DuelBattleScreen> {
             )),
         const SizedBox(height: 20),
         ...options.entries.where((e) => e.value.isNotEmpty).map((e) {
-          final isSelected = _answers[qId] == e.key;
+          final isSelected = isMultiAnswer
+              ? selectedList.contains(e.key)
+              : _answers[qId] == e.key;
           return GestureDetector(
-            onTap: () => setState(() => _answers[qId] = e.key),
+            onTap: () => setState(() {
+              if (isMultiAnswer) {
+                final current = List<String>.from(
+                    (_answers[qId] as List?)?.cast<String>() ?? []);
+                if (current.contains(e.key)) {
+                  current.remove(e.key);
+                } else {
+                  current.add(e.key);
+                }
+                _answers[qId] = current;
+              } else {
+                _answers[qId] = e.key;
+              }
+            }),
             child: Container(
               margin: const EdgeInsets.only(bottom: 10),
               padding: const EdgeInsets.all(14),
@@ -323,17 +351,19 @@ class _DuelBattleScreenState extends State<DuelBattleScreen> {
                     height: 28,
                     decoration: BoxDecoration(
                       color: isSelected ? _primary : _border,
-                      shape: BoxShape.circle,
+                      borderRadius: BorderRadius.circular(
+                          isMultiAnswer ? 6 : 14),
                     ),
                     child: Center(
-                      child: Text(e.key,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 12,
-                            color: isSelected
-                                ? Colors.white
-                                : _inkMid,
-                          )),
+                      child: isMultiAnswer && isSelected
+                          ? const Icon(Icons.check_rounded,
+                              size: 16, color: Colors.white)
+                          : Text(e.key,
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 12,
+                                color: isSelected ? Colors.white : _inkMid,
+                              )),
                     ),
                   ),
                   const SizedBox(width: 12),

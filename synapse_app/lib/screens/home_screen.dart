@@ -15,7 +15,6 @@ import 'duel_screen.dart';
 import '../services/fcm_service.dart';
 import '../widgets/synapse_fab.dart';
 import 'course_selection_screen.dart';
-import 'dart:ui';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -38,7 +37,7 @@ class _HomeScreenState extends State<HomeScreen> {
   // PENGATURAN INDEX SINKRONISASI HALAMAN
   final List<Widget> _pages = [
     const CourseSelectionScreen(), // Index 0 -> Materi
-    const ChatbotScreen(),         // Index 1 -> Tanya AI (Chatbot)
+    const ChatbotScreen(),         // Index 1 -> Chat (Chatbot)
     const FypScreen(),             // Index 2 -> FYP
     const ProfileScreen(),         // Index 3 -> Profil
   ];
@@ -156,7 +155,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final bool showFab = _selectedIndex != 1;
 
     return Scaffold(
-      extendBody: true, 
+      extendBody: true,
       body: Stack(
         children: [
           IndexedStack(
@@ -166,71 +165,54 @@ class _HomeScreenState extends State<HomeScreen> {
           if (showFab) SynapseFab(),
         ],
       ),
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.only(left: 14, right: 14, bottom: 16),
-          child: Stack(
-            alignment: Alignment.bottomCenter,
-            clipBehavior: Clip.none, 
-            children: [
-              // 1. BACKGROUND GLASS SEKARANG SUPER PEKAT & TEGAS
-              ClipRRect(
-                borderRadius: BorderRadius.circular(32),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-                  child: CustomPaint(
-                    painter: NotchedGlassPainter(
-                      borderColor: _primary.withOpacity(0.35), // Border outline lebih solid agar kontras nyata
-                      gradientColors: [
-                        Colors.white.withOpacity(0.92), // Sangat pekat di atas
-                        Colors.white.withOpacity(0.85), // Tetap pekat di bawah
-                      ],
-                    ),
-                    child: const SizedBox(
-                      height: 76, 
-                      width: double.infinity,
-                    ),
+      bottomNavigationBar: Container(
+        decoration: const BoxDecoration(
+          color: Color(0xFF0D2B25),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: SizedBox(
+            height: 68,
+            child: Stack(
+              alignment: Alignment.center,
+              clipBehavior: Clip.none,
+              children: [
+                // Row ikon kiri & kanan
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            _buildNavItem(0, Icons.menu_book_rounded, 'Materi'),
+                            _buildNavItem(1, Icons.smart_toy_rounded, 'Chat', isLocked: !_canAccessChatbot),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 72),
+                      Expanded(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            _buildNavItem(2, Icons.explore_rounded, 'FYP', isLocked: !_canAccessQuiz),
+                            _buildNavItem(3, Icons.person_rounded, 'Profil'),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
 
-              // 2. FOREGROUND ICON LAYER
-              Container(
-                height: 76,
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          _buildNavItem(0, Icons.menu_book_rounded, 'Materi'),
-                          _buildNavItem(1, Icons.smart_toy_rounded, 'Tanya AI', isLocked: !_canAccessChatbot),
-                        ],
-                      ),
-                    ),
-                    
-                    const SizedBox(width: 76), // Spacer pembatas notch tengah
-
-                    Expanded(
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          _buildNavItem(2, Icons.explore_rounded, 'FYP', isLocked: !_canAccessQuiz),
-                          _buildNavItem(3, Icons.person_rounded, 'Profil'),
-                        ],
-                      ),
-                    ),
-                  ],
+                // Center button naik ke atas navbar
+                Positioned(
+                  top: -20,
+                  child: _buildCenterButton(),
                 ),
-              ),
-
-              // 3. FLOATING CENTER BUTTON: 3D POLISHED & NO BORDER
-              Positioned(
-                top: -14, 
-                child: _buildCenterButton(),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -244,6 +226,7 @@ class _HomeScreenState extends State<HomeScreen> {
     bool isLocked = false,
   }) {
     final bool isSelected = _selectedIndex == index;
+    const Color navInactive = Color(0xFF5A7A8A);
 
     return GestureDetector(
       onTap: () => _onItemTapped(index),
@@ -253,14 +236,14 @@ class _HomeScreenState extends State<HomeScreen> {
         curve: Curves.easeOutCubic,
         constraints: const BoxConstraints(minWidth: 46, minHeight: 46),
         padding: EdgeInsets.symmetric(
-          horizontal: isSelected ? 12 : 6,
+          horizontal: isSelected ? 14 : 6,
           vertical: 6,
         ),
         decoration: BoxDecoration(
-          color: isSelected ? _primary.withOpacity(0.16) : Colors.transparent,
-          borderRadius: BorderRadius.circular(18),
+          color: isSelected ? const Color(0xFF183C34) : Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
           border: isSelected
-              ? Border.all(color: _primary.withOpacity(0.25), width: 1)
+              ? Border.all(color: _primary.withOpacity(0.30), width: 1)
               : null,
         ),
         child: Stack(
@@ -273,7 +256,7 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 Icon(
                   icon,
-                  color: isSelected ? const Color(0xFF0F172A) : const Color(0xFF64748B),
+                  color: isSelected ? _primary : navInactive,
                   size: 22,
                 ),
                 AnimatedSize(
@@ -281,13 +264,13 @@ class _HomeScreenState extends State<HomeScreen> {
                   curve: Curves.easeOutCubic,
                   child: isSelected
                       ? Padding(
-                          padding: const EdgeInsets.only(top: 2),
+                          padding: const EdgeInsets.only(top: 3),
                           child: Text(
                             label,
                             style: const TextStyle(
-                              color: _primary,
+                              color: Colors.white,
                               fontSize: 10,
-                              fontWeight: FontWeight.w900,
+                              fontWeight: FontWeight.w700,
                               letterSpacing: 0.2,
                             ),
                           ),
@@ -319,7 +302,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // REVISED: TOMBOL 3D POLISHED - TANPA BORDER, GLOSSY EFFECT AKTIF
   Widget _buildCenterButton() {
     return GestureDetector(
       onTap: () => Navigator.push(
@@ -331,67 +313,32 @@ class _HomeScreenState extends State<HomeScreen> {
         height: 60,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          // Gradien Sferis Vertikal Menghasilkan Kedalaman Dimensi Fisik (Terang ke Gelap)
-          gradient: const LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF3EC3B4), // Top: Light Specular Reflective Teal
-              Color(0xFF165950), // Bottom: Deep Shadow Core Teal
-            ],
-          ),
-          // BORDER DIHAPUS TOTAL SESUAI PERMINTAAN KAPTEN!
-          boxShadow: [
-            // Drop Shadow Bawah: Menendang tombol keluar secara visual (Efek 3D Mengambang)
-            BoxShadow(
-              color: const Color(0xFF0A2B27).withOpacity(0.45),
-              blurRadius: 14,
-              spreadRadius: 1,
-              offset: const Offset(0, 6),
-            ),
-            // Inner Glow Soft Top Highlight
-            BoxShadow(
-              color: Colors.white.withOpacity(0.25),
-              blurRadius: 4,
-              spreadRadius: -1,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          color: const Color(0xFF0D2B25),
         ),
-        child: Stack(
-          children: [
-            // GLOSSY REFLECTION SHEEN LAYER (Efek Poles Kaca/Kapsul Mewah di Bagian Atas)
-            Positioned(
-              top: 2,
-              left: 8,
-              right: 8,
-              child: Container(
-                height: 22,
-                decoration: BoxDecoration(
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.white.withOpacity(0.40),
-                      Colors.white.withOpacity(0.0),
-                    ],
-                  ),
+        child: Padding(
+          padding: const EdgeInsets.all(5),
+          child: Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: _primary,
+              boxShadow: [
+                BoxShadow(
+                  color: _primary.withOpacity(0.5),
+                  blurRadius: 14,
+                  offset: const Offset(0, 4),
                 ),
-              ),
+              ],
             ),
-            
-            // IKON DI TENGAH
-            Center(
+            child: Center(
               child: SizedBox(
-                width: 25,
-                height: 25,
+                width: 24,
+                height: 24,
                 child: CustomPaint(
                   painter: CrossedSwordsPainter(color: Colors.white),
                 ),
               ),
             ),
-          ],
+          ),
         ),
       ),
     );

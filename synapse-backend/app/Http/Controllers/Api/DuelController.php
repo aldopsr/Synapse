@@ -343,9 +343,20 @@ class DuelController extends Controller
             $question = $questions->get($qid);
             if (!$question) continue;
 
-            $userAns    = strtoupper(trim($ans['answer'] ?? ''));
-            $correctAns = strtoupper(trim($question->correct_answer ?? ''));
-            $isCorrect  = $userAns === $correctAns && $userAns !== '';
+            $type = $question->question_type ?? 'multiple_choice';
+            if ($type === 'multiple_answer') {
+                $userList    = is_array($ans['answer']) ? $ans['answer'] : [];
+                $userList    = array_map(fn($a) => strtoupper(trim($a)), $userList);
+                $correctList = array_map('strtoupper', $question->correct_answers ?? []);
+                sort($userList);
+                sort($correctList);
+                $isCorrect = !empty($userList) && $userList === $correctList;
+            } else {
+                $raw        = is_array($ans['answer']) ? '' : ($ans['answer'] ?? '');
+                $userAns    = strtoupper(trim($raw));
+                $correctAns = strtoupper(trim($question->correct_answer ?? ''));
+                $isCorrect  = $userAns === $correctAns && $userAns !== '';
+            }
 
             if ($isCorrect) $correctCount++;
 

@@ -49,7 +49,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
 
   bool _isPublic  = false;
   int? _remaining;
-  int  _limit     = 5;
+  int  _limit     = 10;
 
   static const String _historyKey = 'chat_history';
 
@@ -231,6 +231,25 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
 
     try {
       final token = await _getToken();
+      if (token == null) {
+        setState(() {
+          _messages.add(ChatMessage(
+            text: 'Sesi kamu telah berakhir. Silakan login ulang ya! 🔑',
+            isUser: false,
+          ));
+        });
+        return;
+      }
+
+      // Kirim max 10 pesan terakhir sebagai context (tanpa pesan user saat ini)
+      const int maxHistory = 10;
+      final prevMessages = _messages.sublist(0, _messages.length - 1);
+      final historySlice = prevMessages.length > maxHistory
+          ? prevMessages.sublist(prevMessages.length - maxHistory)
+          : prevMessages;
+      final history = historySlice
+          .map((m) => {'role': m.isUser ? 'user' : 'model', 'text': m.text})
+          .toList();
 
       final response = await http.post(
         Uri.parse('$baseUrl/chat'),
@@ -239,7 +258,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
         },
-        body: jsonEncode({'message': userText}),
+        body: jsonEncode({'message': userText, 'history': history}),
       );
 
       if (response.statusCode == 200) {
@@ -248,6 +267,9 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
           _messages.add(ChatMessage(text: data['reply'], isUser: false));
           if (data['remaining'] != null) {
             _remaining = data['remaining'];
+          }
+          if (data['limit'] != null) {
+            _limit = data['limit'];
           }
         });
         _scrollToBottom();
@@ -366,7 +388,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                       fontSize: 32, fontWeight: FontWeight.bold,
                       color: Color(0xFF26A69A))),
               const SizedBox(height: 8),
-              Text("SYNAPSE siap membantu Kapten belajar hari ini.",
+              Text("SYNAPSE siap membantu kamu belajar hari ini.",
                   style: TextStyle(fontSize: 16, color: Colors.blueGrey[400])),
               if (_isPublic && _remaining != null) ...[
                 const SizedBox(height: 14),
