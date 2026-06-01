@@ -19,6 +19,10 @@ fi
 chown -R www-data:www-data /var/www/html/storage
 chmod -R 775 /var/www/html/storage
 
+# Buat folder untuk compiled views
+mkdir -p /tmp/views
+chmod -R 777 /tmp/views
+
 # Clear and recache Laravel config
 php artisan config:clear || echo "config:clear failed, continuing..."
 php artisan cache:clear || echo "cache:clear failed, continuing..."
