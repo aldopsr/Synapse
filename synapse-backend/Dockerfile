@@ -29,6 +29,7 @@ ARG CACHEBUST=20260601143744
 # Cache invalidator - update this value to force rebuild
 ENV CACHE_DATE=20260601_1442
 COPY . .
+RUN rm -f bootstrap/cache/*.php
 
 RUN COMPOSER_ALLOW_SUPERUSER=1 composer dump-autoload --optimize --no-scripts
 

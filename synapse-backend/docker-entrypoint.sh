@@ -1,6 +1,10 @@
 #!/bin/bash
 set -e
 
+# Clear compiled files
+php artisan clear-compiled 2>/dev/null || true
+php artisan optimize:clear 2>/dev/null || true
+
 # Update Apache port
 sed -i "s/__PORT__/$PORT/g" /etc/apache2/sites-available/000-default.conf
 echo "Listen $PORT" > /etc/apache2/ports.conf
