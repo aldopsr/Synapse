@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Material;
+use Illuminate\Support\Facades\Storage;
 use Cloudinary\Cloudinary;
 
 class MaterialController extends Controller
@@ -27,6 +28,19 @@ class MaterialController extends Controller
         return $uploaded['secure_url'];
     }
 
+    private function imageUrl($path)
+    {
+        if (!$path) {
+            return null;
+        }
+
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            return $path;
+        }
+
+        return asset('storage/' . $path);
+    }
+
     public function index()
     {
         $materials = Material::select('id', 'title', 'description', 'content', 'image', 'model_3d_path', 'has_ar', 'has_practice', 'created_at', 'user_id', 'course_id')
@@ -36,18 +50,34 @@ class MaterialController extends Controller
             ->latest()
             ->get();
 
-        return response()->json(['message' => 'Berhasil mengambil daftar materi', 'data' => $materials], 200);
+        $materials->transform(function ($item) {
+            $item->image = $this->imageUrl($item->image);
+            return $item;
+        });
+
+        return response()->json([
+            'message' => 'Berhasil mengambil daftar materi',
+            'data' => $materials
+        ], 200);
     }
 
     public function show($id)
     {
-        $material = Material::with('user:id,name')->with('ar_assets')->with('questions')->find($id);
+        $material = Material::with('user:id,name')
+            ->with('ar_assets')
+            ->with('questions')
+            ->find($id);
 
         if (!$material) {
             return response()->json(['message' => 'Materi tidak ditemukan!'], 404);
         }
 
-        return response()->json(['message' => 'Berhasil mengambil detail materi', 'data' => $material], 200);
+        $material->image = $this->imageUrl($material->image);
+
+        return response()->json([
+            'message' => 'Berhasil mengambil detail materi',
+            'data' => $material
+        ], 200);
     }
 
     public function update(Request $request, $id)
@@ -61,6 +91,14 @@ class MaterialController extends Controller
         $updateData = $request->only(['title', 'description', 'content', 'visibility']);
 
         if ($request->hasFile('image')) {
+            if (
+                $material->image &&
+                !str_starts_with($material->image, 'http') &&
+                Storage::disk('public')->exists($material->image)
+            ) {
+                Storage::disk('public')->delete($material->image);
+            }
+
             $updateData['image'] = $this->uploadToCloudinary(
                 $request->file('image'),
                 'materials',
@@ -70,7 +108,10 @@ class MaterialController extends Controller
 
         $material->update($updateData);
 
-        return response()->json(['message' => 'Materi berhasil diperbarui', 'data' => $material], 200);
+        return response()->json([
+            'message' => 'Materi berhasil diperbarui',
+            'data' => $material
+        ], 200);
     }
 
     public function destroy($id)
@@ -81,6 +122,14 @@ class MaterialController extends Controller
             return response()->json(['message' => 'Materi tidak ditemukan'], 404);
         }
 
+        if (
+            $material->image &&
+            !str_starts_with($material->image, 'http') &&
+            Storage::disk('public')->exists($material->image)
+        ) {
+            Storage::disk('public')->delete($material->image);
+        }
+
         $material->delete();
 
         return response()->json(['message' => 'Materi berhasil dihapus'], 200);
@@ -89,19 +138,20 @@ class MaterialController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'title' => 'required|string',
-            'description' => 'nullable|string',
+            'title' => 'required|string|max:255',
+            'description' => 'required|string',
             'content' => 'required|string',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
             'model_3d' => 'nullable|file|max:20480',
         ]);
 
-        $imagePath = null;
-        $model_3d_path = null;
-        $has_ar = false;
+        $data = $request->only(['title', 'description', 'content']);
+        $data['user_id'] = auth()->id();
+        $data['has_ar'] = false;
+        $data['visibility'] = $request->input('visibility', 'mahasiswa');
 
         if ($request->hasFile('image')) {
-            $imagePath = $this->uploadToCloudinary(
+            $data['image'] = $this->uploadToCloudinary(
                 $request->file('image'),
                 'materials',
                 'image'
@@ -109,63 +159,64 @@ class MaterialController extends Controller
         }
 
         if ($request->hasFile('model_3d')) {
-            $model_3d_path = $this->uploadToCloudinary(
+            $data['model_3d_path'] = $this->uploadToCloudinary(
                 $request->file('model_3d'),
                 'models',
                 'raw'
             );
 
-            $has_ar = true;
+            $data['has_ar'] = true;
         }
 
-        $material = Material::create([
-            'title' => $request->title,
-            'description' => $request->description,
-            'content' => $request->content,
-            'user_id' => $request->user()->id,
-            'image' => $imagePath,
-            'model_3d_path' => $model_3d_path,
-            'has_ar' => $has_ar,
-            'visibility' => $request->input('visibility', 'mahasiswa'),
-        ]);
+        $material = Material::create($data);
 
-        return response()->json(['success' => true, 'message' => 'Materi berhasil ditambahkan!', 'data' => $material]);
+        return response()->json([
+            'message' => 'Materi berhasil ditambahkan!',
+            'data' => $material
+        ], 201);
     }
 
-    public function getQuestions($material_id)
+    public function getQuestions($id)
     {
-        $material = Material::with('questions')->find($material_id);
+        $questions = \App\Models\Question::where('material_id', $id)->get();
 
-        if (!$material) {
-            return response()->json(['message' => 'Materi tidak ditemukan'], 404);
-        }
-
-        return response()->json(['data' => $material->questions], 200);
+        return response()->json([
+            'message' => 'Berhasil mengambil soal latihan',
+            'data' => $questions ?? []
+        ], 200);
     }
 
     public function storeQuestion(Request $request, $material_id)
     {
         $request->validate([
-            'question' => 'required|string',
-            'options' => 'required|array|min:2',
-            'answer' => 'required|string'
+            'question_text' => 'required|string',
+            'option_a' => 'required|string',
+            'option_b' => 'required|string',
+            'option_c' => 'required|string',
+            'option_d' => 'required|string',
+            'correct_answer' => 'required|in:a,b,c,d',
+        ]);
+
+        $question = \App\Models\Question::create([
+            'material_id' => $material_id,
+            'question_text' => $request->question_text,
+            'option_a' => $request->option_a,
+            'option_b' => $request->option_b,
+            'option_c' => $request->option_c,
+            'option_d' => $request->option_d,
+            'correct_answer' => $request->correct_answer,
         ]);
 
         $material = Material::find($material_id);
 
-        if (!$material) {
-            return response()->json(['message' => 'Materi tidak ditemukan'], 404);
+        if ($material) {
+            $material->update(['has_practice' => true]);
         }
 
-        $question = \App\Models\Question::create([
-            'material_id' => $material_id,
-            'question' => $request->question,
-            'options' => $request->options,
-            'answer' => $request->answer,
-            'explanation' => $request->explanation,
-        ]);
-
-        return response()->json(['message' => 'Soal berhasil ditambahkan', 'data' => $question], 201);
+        return response()->json([
+            'message' => 'Soal berhasil ditambahkan',
+            'data' => $question
+        ], 201);
     }
 
     public function destroyQuestion($id)
@@ -176,35 +227,58 @@ class MaterialController extends Controller
             return response()->json(['message' => 'Soal tidak ditemukan'], 404);
         }
 
+        $materialId = $question->material_id;
         $question->delete();
+
+        $remainingQuestions = \App\Models\Question::where('material_id', $materialId)->count();
+
+        if ($remainingQuestions == 0) {
+            Material::where('id', $materialId)->update(['has_practice' => false]);
+        }
 
         return response()->json(['message' => 'Soal berhasil dihapus'], 200);
     }
 
     public function attachAr(Request $request, $material_id)
     {
+        $request->validate([
+            'model_3d' => 'required|file|max:20480'
+        ]);
+
         $material = Material::find($material_id);
 
         if (!$material) {
             return response()->json(['message' => 'Materi tidak ditemukan'], 404);
         }
 
-        $material->update(['has_ar' => true]);
+        $path = $this->uploadToCloudinary(
+            $request->file('model_3d'),
+            'models',
+            'raw'
+        );
 
-        return response()->json(['message' => 'AR berhasil dilampirkan', 'data' => $material]);
+        $material->update([
+            'model_3d_path' => $path,
+            'has_ar' => true
+        ]);
+
+        return response()->json(['message' => 'Aset AR berhasil ditambahkan ke materi!']);
     }
 
     public function arGallery(Request $request)
     {
         $user = $request->user();
 
-        $query = Material::where('has_ar', true)->select('id', 'title', 'course_id', 'model_3d_path');
+        $query = Material::where('has_ar', true)
+            ->select('id', 'title', 'course_id', 'model_3d_path');
 
         if ($user && $user->role === 'dosen') {
             $query->where('course_id', $user->course_id);
         }
 
-        return response()->json(['data' => $query->latest()->get()], 200);
+        $arAssets = $query->latest()->get();
+
+        return response()->json(['data' => $arAssets], 200);
     }
 
     public function getByCourse(Request $request, $course_id)
@@ -220,7 +294,14 @@ class MaterialController extends Controller
                 $query->where('visibility', 'public');
             }
 
-            return response()->json($query->get());
+            $materials = $query->get();
+
+            $materials->transform(function ($item) {
+                $item->image = $this->imageUrl($item->image);
+                return $item;
+            });
+
+            return response()->json($materials);
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 500);
         }
@@ -229,8 +310,8 @@ class MaterialController extends Controller
     public function storeByCourse(Request $request, $course_id)
     {
         $request->validate([
-            'title' => 'required|string',
-            'description' => 'nullable|string',
+            'title' => 'required|string|max:255',
+            'description' => 'required|string',
             'content' => 'required|string',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
             'model_3d' => 'nullable|file|max:20480',
@@ -271,16 +352,18 @@ class MaterialController extends Controller
             'visibility' => $request->input('visibility', 'mahasiswa'),
         ]);
 
-        return response()->json(['success' => true, 'message' => 'Materi berhasil ditambahkan!', 'data' => $material]);
+        return response()->json([
+            'success' => true,
+            'message' => 'Materi berhasil ditambahkan!',
+            'data' => $material
+        ]);
     }
 
     public function uploadImage(Request $request)
     {
         if (!$request->hasFile('upload')) {
             return response()->json([
-                'error' => [
-                    'message' => 'Tidak ada file yang diupload'
-                ]
+                'error' => ['message' => 'Gagal upload gambar']
             ], 400);
         }
 
@@ -290,13 +373,6 @@ class MaterialController extends Controller
             'image'
         );
 
-        return response()->json([
-            'url' => $url
-        ]);
-    }
-
-    public function explainQuestion(Request $request)
-    {
-        return response()->json(['message' => 'Not implemented'], 501);
+        return response()->json(['url' => $url]);
     }
 }
