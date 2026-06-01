@@ -26,6 +26,8 @@ COPY composer.json composer.lock ./
 RUN COMPOSER_ALLOW_SUPERUSER=1 composer install --no-dev --optimize-autoloader --no-scripts --no-interaction
 
 ARG CACHEBUST=20260601143744
+# Cache invalidator - update this value to force rebuild
+ENV CACHE_DATE=20260601_1442
 COPY . .
 
 RUN COMPOSER_ALLOW_SUPERUSER=1 composer dump-autoload --optimize --no-scripts
