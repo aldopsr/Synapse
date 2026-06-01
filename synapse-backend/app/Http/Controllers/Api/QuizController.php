@@ -11,6 +11,7 @@ use App\Models\QuizQuestion;
 use App\Models\QuizAttempt;
 use App\Models\User;
 use Carbon\Carbon;
+use Cloudinary\Cloudinary;
 
 class QuizController extends Controller
 {
@@ -263,7 +264,11 @@ class QuizController extends Controller
             }
 
             if ($request->hasFile('image')) {
-                $data['image'] = $request->file('image')->store('quiz_images', 'public');
+                $data['image'] = $this->uploadToCloudinary(
+                    $request->file('image'),
+                    'quiz_images',
+                    'image'
+                );
             }
 
             $question = QuizQuestion::create($data);
@@ -278,7 +283,11 @@ class QuizController extends Controller
         $question = QuizQuestion::find($id);
         if (!$question) return response()->json(['message' => 'Soal tidak ditemukan'], 404);
 
-        if ($question->image && Storage::disk('public')->exists($question->image)) {
+        if (
+            $question->image &&
+            !str_starts_with($question->image, 'http') &&
+            Storage::disk('public')->exists($question->image)
+        ) {
             Storage::disk('public')->delete($question->image);
         }
         $question->delete();
@@ -752,5 +761,23 @@ class QuizController extends Controller
             'data'    => $result,
             'courses' => $coursesForFilter,
         ]);
+    }
+
+    private function cloudinary()
+    {
+        return new Cloudinary(config('cloudinary.cloud_url'));
+    }
+
+    private function uploadToCloudinary($file, string $folder, string $resourceType = 'image')
+    {
+        $uploaded = $this->cloudinary()->uploadApi()->upload(
+            $file->getRealPath(),
+            [
+                'folder' => $folder,
+                'resource_type' => $resourceType,
+            ]
+        );
+
+        return $uploaded['secure_url'];
     }
 }
