@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\ArAsset;
 use App\Models\Material;
-use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
 
 class ArAssetController extends Controller
 {
@@ -18,36 +17,22 @@ class ArAssetController extends Controller
             $query->where('course_id', $user->course_id);
         }
         $arAssets = $query->latest()->get();
-        return response()->json([
-            'message' => 'Berhasil mengambil daftar AR Assets',
-            'data' => $arAssets
-        ], 200);
+        return response()->json(['message' => 'Berhasil mengambil daftar AR Assets', 'data' => $arAssets], 200);
     }
 
     public function getByMaterial($materialId)
     {
         $material = Material::find($materialId);
-        if (!$material) {
-            return response()->json(['message' => 'Materi tidak ditemukan'], 404);
-        }
+        if (!$material) return response()->json(['message' => 'Materi tidak ditemukan'], 404);
         $arAssets = ArAsset::where('material_id', $materialId)->latest()->get();
-        return response()->json([
-            'message' => 'Berhasil mengambil AR Assets untuk materi ini',
-            'material' => ['id' => $material->id, 'title' => $material->title],
-            'data' => $arAssets
-        ], 200);
+        return response()->json(['message' => 'Berhasil mengambil AR Assets untuk materi ini', 'material' => ['id' => $material->id, 'title' => $material->title], 'data' => $arAssets], 200);
     }
 
     public function show($id)
     {
         $arAsset = ArAsset::with('material:id,title')->find($id);
-        if (!$arAsset) {
-            return response()->json(['message' => 'AR Asset tidak ditemukan'], 404);
-        }
-        return response()->json([
-            'message' => 'Berhasil mengambil detail AR Asset',
-            'data' => $arAsset
-        ], 200);
+        if (!$arAsset) return response()->json(['message' => 'AR Asset tidak ditemukan'], 404);
+        return response()->json(['message' => 'Berhasil mengambil detail AR Asset', 'data' => $arAsset], 200);
     }
 
     public function store(Request $request, $materialId)
@@ -60,9 +45,7 @@ class ArAssetController extends Controller
         ]);
 
         $material = Material::find($materialId);
-        if (!$material) {
-            return response()->json(['message' => 'Materi tidak ditemukan'], 404);
-        }
+        if (!$material) return response()->json(['message' => 'Materi tidak ditemukan'], 404);
 
         $data = [
             'material_id' => $materialId,
@@ -73,34 +56,27 @@ class ArAssetController extends Controller
         ];
 
         if ($request->hasFile('model_3d')) {
-            $uploaded = Cloudinary::uploadFile(
+            $data['model_3d_path'] = cloudinary()->uploadFile(
                 $request->file('model_3d')->getRealPath(),
                 ['folder' => 'ar_models', 'resource_type' => 'raw']
-            );
-            $data['model_3d_path'] = $uploaded->getSecurePath();
+            )->getSecurePath();
         }
 
         if ($request->hasFile('thumbnail')) {
-            $uploaded = Cloudinary::upload(
+            $data['image'] = cloudinary()->upload(
                 $request->file('thumbnail')->getRealPath(),
                 ['folder' => 'ar_thumbnails']
-            );
-            $data['image'] = $uploaded->getSecurePath();
+            )->getSecurePath();
         }
 
         $arAsset = ArAsset::create($data);
-        return response()->json([
-            'message' => 'AR Asset berhasil ditambahkan!',
-            'data' => $arAsset
-        ], 201);
+        return response()->json(['message' => 'AR Asset berhasil ditambahkan!', 'data' => $arAsset], 201);
     }
 
     public function update(Request $request, $id)
     {
         $arAsset = ArAsset::find($id);
-        if (!$arAsset) {
-            return response()->json(['message' => 'AR Asset tidak ditemukan'], 404);
-        }
+        if (!$arAsset) return response()->json(['message' => 'AR Asset tidak ditemukan'], 404);
 
         $request->validate([
             'title'       => 'sometimes|string|max:255',
@@ -112,34 +88,27 @@ class ArAssetController extends Controller
         $updateData = $request->only(['title', 'description']);
 
         if ($request->hasFile('model_3d')) {
-            $uploaded = Cloudinary::uploadFile(
+            $updateData['model_3d_path'] = cloudinary()->uploadFile(
                 $request->file('model_3d')->getRealPath(),
                 ['folder' => 'ar_models', 'resource_type' => 'raw']
-            );
-            $updateData['model_3d_path'] = $uploaded->getSecurePath();
+            )->getSecurePath();
         }
 
         if ($request->hasFile('thumbnail')) {
-            $uploaded = Cloudinary::upload(
+            $updateData['image'] = cloudinary()->upload(
                 $request->file('thumbnail')->getRealPath(),
                 ['folder' => 'ar_thumbnails']
-            );
-            $updateData['image'] = $uploaded->getSecurePath();
+            )->getSecurePath();
         }
 
         $arAsset->update($updateData);
-        return response()->json([
-            'message' => 'AR Asset berhasil diupdate!',
-            'data' => $arAsset->fresh()
-        ], 200);
+        return response()->json(['message' => 'AR Asset berhasil diupdate!', 'data' => $arAsset->fresh()], 200);
     }
 
     public function destroy($id)
     {
         $arAsset = ArAsset::find($id);
-        if (!$arAsset) {
-            return response()->json(['message' => 'AR Asset tidak ditemukan'], 404);
-        }
+        if (!$arAsset) return response()->json(['message' => 'AR Asset tidak ditemukan'], 404);
         $arAsset->delete();
         return response()->json(['message' => 'AR Asset berhasil dihapus!'], 200);
     }
