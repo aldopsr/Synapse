@@ -58,12 +58,12 @@ class StudentCourseController extends Controller
         $materials = $query->get();
 
         // Transform image path → full URL
-        $materials->transform(function ($item) {
-            if ($item->image && !str_starts_with($item->image, 'http')) {
-                $item->image = asset('storage/' . $item->image);
-            }
-            return $item;
-        });
+        // $materials->transform(function ($item) {
+        //     if ($item->image && !str_starts_with($item->image, 'http')) {
+        //         $item->image = asset('storage/' . $item->image);
+        //     }
+        //     return $item;
+        // });
 
         return response()->json([
             'success' => true,

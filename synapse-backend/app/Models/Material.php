@@ -11,35 +11,44 @@ class Material extends Model
     use HasFactory;
 
     protected $guarded = [];
+    protected $appends = ['model_3d_url', 'image_url'];
 
-    protected $appends = ['model_3d_url'];
-
-    /**
-     * Default values — visibility default 'mahasiswa'
-     * Nilai: 'mahasiswa' | 'umum'
-     */
     protected $attributes = [
         'visibility' => 'mahasiswa',
     ];
 
     public function getModel3dUrlAttribute()
     {
-        if (isset($this->attributes['model_3d_path']) && $this->attributes['model_3d_path']) {
-            return asset('storage/' . $this->attributes['model_3d_path']);
+        if (!isset($this->attributes['model_3d_path']) || !$this->attributes['model_3d_path']) {
+            return null;
         }
-        return null;
+        $path = $this->attributes['model_3d_path'];
+        if (str_starts_with($path, 'http')) {
+            return $path;
+        }
+        return asset('storage/' . $path);
     }
 
-    // ── Helper: apakah materi ini bisa diakses role tertentu? ──
+    public function getImageUrlAttribute()
+    {
+        if (!isset($this->attributes['image']) || !$this->attributes['image']) {
+            return null;
+        }
+        $image = $this->attributes['image'];
+        if (str_starts_with($image, 'http')) {
+            return $image;
+        }
+        return asset('storage/' . $image);
+    }
+
     public function isAccessibleBy(string $role): bool
     {
         $visibility = $this->attributes['visibility'] ?? 'mahasiswa';
-
         return match ($role) {
-            'mahasiswa'  => true,                          // mahasiswa akses semua
-            'public'     => $visibility === 'umum',        // public hanya yang umum
-            'guest'      => $visibility === 'umum',        // tamu hanya yang umum
-            default      => true,                          // admin/dosen akses semua
+            'mahasiswa' => true,
+            'public'    => $visibility === 'umum',
+            'guest'     => $visibility === 'umum',
+            default     => true,
         };
     }
 
