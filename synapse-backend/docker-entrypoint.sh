@@ -5,6 +5,10 @@ set -e
 php artisan clear-compiled 2>/dev/null || true
 php artisan optimize:clear 2>/dev/null || true
 
+echo "=== CHECK CONTROLLER ==="
+grep -n "Cloudinary" /var/www/html/app/Http/Controllers/Api/MaterialController.php || echo "No Cloudinary found"
+echo "=== END CHECK ==="
+
 # Update Apache port
 sed -i "s/__PORT__/$PORT/g" /etc/apache2/sites-available/000-default.conf
 echo "Listen $PORT" > /etc/apache2/ports.conf
