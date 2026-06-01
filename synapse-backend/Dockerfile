@@ -29,6 +29,9 @@ ARG CACHEBUST=20260601143744
 # Cache invalidator - update this value to force rebuild
 ENV CACHE_DATE=20260601_1442
 COPY . .
+
+COPY docker/php.ini /usr/local/etc/php/conf.d/uploads.ini
+
 RUN rm -f bootstrap/cache/*.php
 
 RUN COMPOSER_ALLOW_SUPERUSER=1 composer dump-autoload --optimize --no-scripts
