@@ -5,7 +5,7 @@ set -e
 sed -i "s/__PORT__/$PORT/g" /etc/apache2/sites-available/000-default.conf
 echo "Listen $PORT" > /etc/apache2/ports.conf
 
-# Fix MPM conflict at runtime
+# Fix MPM
 a2dismod mpm_event 2>/dev/null || true
 a2enmod mpm_prefork 2>/dev/null || true
 
@@ -19,7 +19,9 @@ fi
 chown -R www-data:www-data /var/www/html/storage
 chmod -R 775 /var/www/html/storage
 
-# Cache Laravel (non-fatal)
+# Clear and recache Laravel config
+php artisan config:clear || echo "config:clear failed, continuing..."
+php artisan cache:clear || echo "cache:clear failed, continuing..."
 php artisan config:cache || echo "config:cache failed, continuing..."
 php artisan route:cache || echo "route:cache failed, continuing..."
 
