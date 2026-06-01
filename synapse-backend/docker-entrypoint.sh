@@ -7,6 +7,8 @@ php artisan optimize:clear 2>/dev/null || true
 
 echo "=== CHECK CONTROLLER ==="
 grep -n "Cloudinary" /var/www/html/app/Http/Controllers/Api/MaterialController.php || echo "No Cloudinary found"
+echo "=== CHECK ALL CLOUDINARY FACADE ==="
+grep -rn "Cloudinary::" /var/www/html/app/ || echo "None found"
 echo "=== END CHECK ==="
 
 # Update Apache port
