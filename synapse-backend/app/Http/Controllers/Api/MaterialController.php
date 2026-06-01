@@ -148,11 +148,20 @@ class MaterialController extends Controller
 
     public function uploadImage(Request $request)
     {
-        if ($request->hasFile('upload')) {
-            $url = cloudinary()->upload($request->file('upload')->getRealPath(), ['folder' => 'ckeditor'])->getSecurePath();
-            return response()->json(['url' => $url]);
+        if (!$request->hasFile('upload')) {
+            return response()->json([
+                'error' => [
+                    'message' => 'Tidak ada file yang diupload'
+                ]
+            ], 400);
         }
-        return response()->json(['error' => ['message' => 'Gagal upload gambar']], 400);
+
+        $uploaded = $request->file('upload')
+            ->storeOnCloudinary('ckeditor');
+
+        return response()->json([
+            'url' => $uploaded->getSecurePath()
+        ]);
     }
 
     public function explainQuestion(Request $request)

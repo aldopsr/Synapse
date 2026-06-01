@@ -55,19 +55,29 @@ class ArAssetController extends Controller
             'description' => $request->description,
         ];
 
-        if ($request->hasFile('model_3d')) {
-            $data['model_3d_path'] = cloudinary()->uploadFile(
-                $request->file('model_3d')->getRealPath(),
-                ['folder' => 'ar_models', 'resource_type' => 'raw']
-            )->getSecurePath();
-        }
+    if ($request->hasFile('model_3d')) {
 
-        if ($request->hasFile('thumbnail')) {
-            $data['image'] = cloudinary()->upload(
-                $request->file('thumbnail')->getRealPath(),
-                ['folder' => 'ar_thumbnails']
-            )->getSecurePath();
-        }
+        $uploadedModel = $request->file('model_3d')->storeOnCloudinaryAs(
+            'ar_models',
+            pathinfo(
+                $request->file('model_3d')->getClientOriginalName(),
+                PATHINFO_FILENAME
+            ),
+            [
+                'resource_type' => 'raw'
+            ]
+        );
+
+        $data['model_3d_path'] = $uploadedModel->getSecurePath();
+    }
+
+    if ($request->hasFile('thumbnail')) {
+
+        $uploadedThumbnail = $request->file('thumbnail')
+            ->storeOnCloudinary('ar_thumbnails');
+
+        $data['image'] = $uploadedThumbnail->getSecurePath();
+    }
 
         $arAsset = ArAsset::create($data);
         return response()->json(['message' => 'AR Asset berhasil ditambahkan!', 'data' => $arAsset], 201);
@@ -88,17 +98,27 @@ class ArAssetController extends Controller
         $updateData = $request->only(['title', 'description']);
 
         if ($request->hasFile('model_3d')) {
-            $updateData['model_3d_path'] = cloudinary()->uploadFile(
-                $request->file('model_3d')->getRealPath(),
-                ['folder' => 'ar_models', 'resource_type' => 'raw']
-            )->getSecurePath();
+
+            $uploadedModel = $request->file('model_3d')->storeOnCloudinaryAs(
+                'ar_models',
+                pathinfo(
+                    $request->file('model_3d')->getClientOriginalName(),
+                    PATHINFO_FILENAME
+                ),
+                [
+                    'resource_type' => 'raw'
+                ]
+            );
+
+            $updateData['model_3d_path'] = $uploadedModel->getSecurePath();
         }
 
         if ($request->hasFile('thumbnail')) {
-            $updateData['image'] = cloudinary()->upload(
-                $request->file('thumbnail')->getRealPath(),
-                ['folder' => 'ar_thumbnails']
-            )->getSecurePath();
+
+            $uploadedThumbnail = $request->file('thumbnail')
+                ->storeOnCloudinary('ar_thumbnails');
+
+            $updateData['image'] = $uploadedThumbnail->getSecurePath();
         }
 
         $arAsset->update($updateData);
