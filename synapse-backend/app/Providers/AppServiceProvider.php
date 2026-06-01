@@ -17,7 +17,10 @@ class AppServiceProvider extends ServiceProvider
         });
 
         config([
-            'cloudinary.cloud_url' => 'cloudinary://' . env('CLOUDINARY_KEY') . ':' . env('CLOUDINARY_SECRET') . '@' . env('CLOUDINARY_CLOUD_NAME'),
-        ]);
+    'filesystems.disks.cloudinary' => [
+        'driver' => 'cloudinary',
+        'url' => 'cloudinary://' . env('CLOUDINARY_KEY') . ':' . env('CLOUDINARY_SECRET') . '@' . env('CLOUDINARY_CLOUD_NAME'),
+    ],
+]);
     }
 }
