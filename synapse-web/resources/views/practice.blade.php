@@ -143,11 +143,11 @@ select.fc { cursor:pointer; }
         <div style="width:34px;height:34px;border-radius:9px;background:#279685;display:flex;align-items:center;justify-content:center;flex-shrink:0">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
         </div>
-        <h3>Generate Soal dengan AI</h3>
-        <span class="ai-badge">
+        <h3>Generate Soal Otomatis</h3>
+        <!-- <span class="ai-badge">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
             Gemini AI
-        </span>
+        </span> -->
         <button class="ai-collapse" id="aiCollapseBtn" onclick="toggleAiPanel()">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
         </button>
@@ -156,7 +156,7 @@ select.fc { cursor:pointer; }
     <div class="ai-body" id="aiBody">
         <p style="font-size:12px;color:#0f6e56;margin:10px 0 14px;background:rgba(39,150,133,.08);padding:8px 12px;border-radius:8px;display:flex;align-items:center;gap:6px">
             <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-            AI akan membaca isi e-modul materi ini dan membuat soal latihan yang relevan secara otomatis.
+            Synapse akan membaca isi e-modul materi ini dan membuat soal latihan yang relevan secara otomatis.
         </p>
 
         <div class="ai-counts-row">
