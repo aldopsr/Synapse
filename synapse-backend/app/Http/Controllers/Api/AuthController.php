@@ -2,9 +2,10 @@
 
 namespace App\Http\Controllers\Api;
 
-use Illuminate\Support\Facades\Mail;
-use App\Mail\OtpMail;
-use App\Mail\PasswordChangedMail;
+// use Illuminate\Support\Facades\Mail;
+// use App\Mail\OtpMail;
+// use App\Mail\PasswordChangedMail;
+use App\Services\BrevoMailer;
 use Carbon\Carbon;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
@@ -61,7 +62,7 @@ class AuthController extends Controller
             'otp_expires_at' => Carbon::now()->addMinutes(10),
         ]);
 
-        Mail::to($user->email)->send(new OtpMail($otp));
+        BrevoMailer::sendOtp($user->email, (string) $otp, $user->name);
 
         return response()->json([
             'message' => 'Registrasi Berhasil! Cek email untuk OTP.',
@@ -135,7 +136,7 @@ class AuthController extends Controller
 
         $user->update(['password' => Hash::make($request->new_password)]);
 
-        Mail::to($user->email)->send(new PasswordChangedMail($user->name));
+        BrevoMailer::sendPasswordChanged($user->email, $user->name);
 
         return response()->json(['message' => 'Password berhasil diubah!'], 200);
     }
@@ -191,7 +192,7 @@ class AuthController extends Controller
             'otp_expires_at' => Carbon::now()->addMinutes(10),
         ]);
 
-        Mail::to($user->email)->send(new OtpMail($otp));
+        BrevoMailer::sendOtp($user->email, (string) $otp, $user->name);
 
         return response()->json(['message' => 'Kode OTP baru telah dikirim.'], 200);
     }
@@ -208,16 +209,12 @@ class AuthController extends Controller
             return response()->json(['message' => 'Email tidak terdaftar di sistem.'], 404);
         }
 
-        if (!in_array($user->role, ['dosen', 'admin', 'superadmin'])) {
-            return response()->json(['message' => 'Email ini bukan akun dosen. Fitur lupa sandi hanya tersedia untuk dosen.'], 403);
-        }
-
         $otp = rand(100000, 999999);
 
         // Simpan di Cache — TERPISAH dari OTP registrasi di DB
         Cache::put('otp_reset_' . $request->email, (string)$otp, now()->addMinutes(10));
 
-        Mail::to($user->email)->send(new OtpMail($otp));
+        BrevoMailer::sendOtp($user->email, (string) $otp, $user->name);
 
         return response()->json(['message' => 'OTP reset password telah dikirim.'], 200);
     }
@@ -271,7 +268,7 @@ class AuthController extends Controller
         $user->update(['password' => Hash::make($request->new_password)]);
         Cache::forget("reset_token_{$request->email}");
 
-        Mail::to($user->email)->send(new PasswordChangedMail($user->name));
+        BrevoMailer::sendPasswordChanged($user->email, $user->name);
 
         return response()->json(['message' => 'Password berhasil direset!'], 200);
     }

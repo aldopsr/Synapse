@@ -429,9 +429,10 @@ class _ForgotPasswordSheetState extends State<ForgotPasswordSheet> {
         Uri.parse('$baseUrl/forgot-password/reset'),
         headers: {'Accept': 'application/json', 'Content-Type': 'application/json'},
         body: jsonEncode({
+          'email': _emailController.text.trim(),
           'reset_token': _resetToken,
-          'password': _newPasswordController.text,
-          'password_confirmation': _newPasswordController.text,
+          'new_password': _newPasswordController.text,
+          'new_password_confirmation': _newPasswordController.text,
         }),
       );
       if (!mounted) return;

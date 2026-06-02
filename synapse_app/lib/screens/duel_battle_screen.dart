@@ -551,7 +551,7 @@ class _DuelBattleScreenState extends State<DuelBattleScreen> {
                       Navigator.pushAndRemoveUntil(
                         context,
                         MaterialPageRoute(builder: (_) => const DuelScreen()),
-                        (route) => false,
+                        (route) => route.isFirst,
                       );
                     },
                     style: ElevatedButton.styleFrom(
