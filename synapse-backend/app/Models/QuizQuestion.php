@@ -34,10 +34,10 @@ class QuizQuestion extends Model
      */
     public function getImageUrlAttribute()
     {
-        if (isset($this->attributes['image']) && $this->attributes['image']) {
-            return asset('storage/' . $this->attributes['image']);
-        }
-        return null;
+        $image = $this->attributes['image'] ?? null;
+        if (!$image) return null;
+        if (str_starts_with($image, 'http')) return $image;
+        return asset('storage/' . $image);
     }
 
     /**
