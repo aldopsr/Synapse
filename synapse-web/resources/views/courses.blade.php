@@ -503,7 +503,7 @@ textarea.form-control { resize:vertical; min-height:80px; }
             const res = await fetch(API + '/courses/' + assignTargetId, {
                 method:'PUT',
                 headers:{ Authorization:'Bearer '+token, Accept:'application/json', 'Content-Type':'application/json' },
-                body: JSON.stringify({ dosen_id:newDosenId })
+                body: JSON.stringify({ dosen_ids:[newDosenId] })
             });
             if (res.ok) {
                 tutupModal('modalAssign');
