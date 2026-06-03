@@ -26,14 +26,14 @@ class QuotaService
         return self::LIMITS[$type][$role] ?? null;
     }
 
-    private function usageKey(int $userId, string $type): string
+    private function usageKey(string|int $userId, string $type): string
     {
         return "quota_{$type}_{$userId}_" . now()->toDateString();
     }
 
-    public function getUsed(int $userId, string $type): int
+    public function getUsed(string|int $userId, string $type): int
     {
-        return (int) Cache::get($this->usageKey($userId, $type), 0);
+        return (int) Cache::get($this->usageKey((string) $userId, $type), 0);
     }
 
     public function getRemaining($user, string $type): ?int
