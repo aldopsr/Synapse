@@ -250,6 +250,8 @@ textarea.fc { resize:vertical; min-height:72px; }
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
             Generate Soal Sekarang
         </button>
+        {{-- Quota info --}}
+        <div id="generateQuotaBar" style="display:none;margin-top:10px;padding:9px 12px;border-radius:9px;font-size:12px;font-weight:600;display:flex;align-items:center;gap:8px;"></div>
         <div class="ai-preview" id="aiPreview" style="display:none">
             <div class="ai-preview-header">
                 <h4 id="aiPreviewTitle">— soal berhasil di-generate</h4>
@@ -671,6 +673,28 @@ textarea.fc { resize:vertical; min-height:72px; }
     }
     loadMaterials();
 
+    function updateQuotaBar(remaining, limit) {
+        const bar = $('generateQuotaBar');
+        if (remaining === null || remaining === undefined || limit === null) { bar.style.display='none'; return; }
+        bar.style.display = 'flex';
+        const isLow      = remaining <= 3;
+        const isExhausted = remaining <= 0;
+        bar.style.background  = isExhausted ? '#fef2f2' : isLow ? '#fffbeb' : '#f0fdf9';
+        bar.style.border      = `1px solid ${isExhausted ? '#fca5a5' : isLow ? '#fcd34d' : '#6ee7b7'}`;
+        bar.style.color       = isExhausted ? '#dc2626' : isLow ? '#92400e' : '#0f6e56';
+        const icon = isExhausted ? '⛔' : isLow ? '⚠️' : '⚡';
+        bar.innerHTML = `<span>${icon}</span><span>Sisa kuota generate: <strong>${remaining}/${limit} soal</strong> hari ini</span>`;
+    }
+
+    async function loadGenerateQuota() {
+        try {
+            const res = await fetch(`${API}/ai/generate-quota`, {headers:{Authorization:'Bearer '+token,Accept:'application/json'}});
+            if (!res.ok) return;
+            const data = await res.json();
+            if (data.limited) updateQuotaBar(data.remaining, data.limit);
+        } catch(_) {}
+    }
+
     window.generateSoal=async function(){
         const mc=parseInt($('cntMC').value)||0,tf=parseInt($('cntTF').value)||0,ma=parseInt($('cntMA').value)||0;
         const total=mc+tf+ma;
@@ -684,12 +708,26 @@ textarea.fc { resize:vertical; min-height:72px; }
         try {
             const res=await fetch(`${API}/ai/generate-questions`,{method:'POST',headers:{Authorization:'Bearer '+token,Accept:'application/json','Content-Type':'application/json'},body:JSON.stringify(body)});
             const data=await res.json();
-            if(!res.ok){toast(data.message||'Gagal generate.','err');return;}
+            if(!res.ok){
+                toast(data.message||'Gagal generate.','err');
+                if(data.quota_remaining!==undefined||data.remaining!==undefined){
+                    updateQuotaBar(data.remaining??data.quota_remaining, data.limit??data.quota_limit);
+                }
+                return;
+            }
             aiQuestions=data.questions||[];renderAiPreview();
             toast(`${aiQuestions.length} soal berhasil di-generate!`);
+            // Update quota bar & tampilkan notif jika mendekati habis
+            updateQuotaBar(data.quota_remaining, data.quota_limit);
+            if(data.notification){
+                const type = data.notification.type==='error'?'err':'warn';
+                toast(data.notification.message, type);
+            }
         } catch(_){toast('Koneksi bermasalah.','err');}
         finally{btn.disabled=false;}
     };
+
+    loadGenerateQuota();
 
     function typeLabel(t){return{multiple_choice:'Pilihan Ganda',true_false:'Benar/Salah',multiple_answer:'Multi Jawaban'}[t]||t;}
     function typeBadgeClass(t){return{multiple_choice:'badge-mc',true_false:'badge-tf',multiple_answer:'badge-ma'}[t]||'badge-mc';}

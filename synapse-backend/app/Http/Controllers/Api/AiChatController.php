@@ -6,22 +6,24 @@ use App\Http\Controllers\Controller;
 use App\Models\Course;
 use App\Models\Material;
 use App\Models\Quiz;
+use App\Services\QuotaService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class AiChatController extends Controller
 {
-    /**
-     * Build context string from all Synapse content (courses, materials, quizzes).
-     * Queried fresh on every chat request so new content is always included.
-     */
+    private QuotaService $quota;
+
+    public function __construct(QuotaService $quota)
+    {
+        $this->quota = $quota;
+    }
+
     private function buildSynapseContext(): string
     {
         $lines = [];
 
-        // === MATA KULIAH ===
         try {
             $courses = Course::all(['title', 'description']);
             if ($courses->isNotEmpty()) {
@@ -37,7 +39,6 @@ class AiChatController extends Controller
             Log::warning('Context: gagal load courses — ' . $e->getMessage());
         }
 
-        // === MATERI & SOAL LATIHAN ===
         try {
             $materials = Material::with('questions')->get(['id', 'title', 'description', 'content', 'course_id']);
             if ($materials->isNotEmpty()) {
@@ -47,7 +48,6 @@ class AiChatController extends Controller
                     if ($mat->description) {
                         $lines[] = "   Deskripsi: {$mat->description}";
                     }
-                    // Strip HTML and truncate content to avoid huge prompts
                     if ($mat->content) {
                         $plain = strip_tags($mat->content);
                         $plain = preg_replace('/\s+/', ' ', trim($plain));
@@ -56,7 +56,6 @@ class AiChatController extends Controller
                         }
                         $lines[] = "   Ringkasan isi: {$plain}";
                     }
-                    // Practice questions
                     if ($mat->questions && $mat->questions->isNotEmpty()) {
                         $lines[] = "   Soal latihan:";
                         foreach ($mat->questions as $q) {
@@ -70,7 +69,6 @@ class AiChatController extends Controller
             Log::warning('Context: gagal load materials — ' . $e->getMessage());
         }
 
-        // === KUIS ===
         try {
             $quizzes = Quiz::with('questions')->get();
             if ($quizzes->isNotEmpty()) {
@@ -96,13 +94,6 @@ class AiChatController extends Controller
         return implode("\n", $lines);
     }
 
-    private const DAILY_LIMIT = 10;
-
-    private function quotaCacheKey(int $userId): string
-    {
-        return 'chat_quota_' . $userId . '_' . now()->toDateString();
-    }
-
     public function chat(Request $request)
     {
         $request->validate([
@@ -114,26 +105,20 @@ class AiChatController extends Controller
 
         $user = $request->user();
 
-        // Enforce daily limit for public users
-        if ($user->role === 'public') {
-            $key  = $this->quotaCacheKey($user->id);
-            $used = (int) Cache::get($key, 0);
-
-            if ($used >= self::DAILY_LIMIT) {
+        // Enforce daily quota for public and mahasiswa
+        if ($this->quota->getLimit($user->role, 'chat') !== null) {
+            if ($this->quota->isExhausted($user, 'chat')) {
+                $info = $this->quota->info($user, 'chat');
                 return response()->json([
-                    'message'   => 'Kuota chat harian habis. Reset esok hari.',
-                    'remaining' => 0,
-                    'limit'     => self::DAILY_LIMIT,
+                    'message'      => 'Kuota chat harian habis. Reset esok hari pukul 00.00 WIB.',
+                    'remaining'    => 0,
+                    'limit'        => $info['limit'],
+                    'notification' => $info['notification'],
                 ], 429);
             }
-
-            // Increment counter, expire at midnight
-            $secondsUntilMidnight = now()->secondsUntilEndOfDay() + 1;
-            Cache::put($key, $used + 1, $secondsUntilMidnight);
         }
 
         $apiKey = env('GEMINI_API_KEY');
-
         if (!$apiKey) {
             Log::error('GEMINI_API_KEY tidak ditemukan di .env');
             return response()->json([
@@ -159,7 +144,6 @@ KONTEN SYNAPSE YANG TERSEDIA:
 {$synapseContext}
 PROMPT;
 
-        // Build multi-turn contents: history + current message
         $contents = [];
         foreach ($request->input('history', []) as $turn) {
             $contents[] = [
@@ -189,17 +173,17 @@ PROMPT;
                     ? ($candidates[0]['content']['parts'][0]['text'] ?? 'Maaf, otak AI saya sedang nge-blank. Coba tanya lagi!')
                     : 'Maaf, otak AI saya sedang nge-blank. Coba tanya lagi!';
 
-                $remaining = null;
-                if ($user->role === 'public') {
-                    $used      = (int) Cache::get($this->quotaCacheKey($user->id), 0);
-                    $remaining = max(0, self::DAILY_LIMIT - $used);
-                }
+                // Consume quota after successful response
+                $remaining    = $this->quota->consume($user, 'chat');
+                $limit        = $this->quota->getLimit($user->role, 'chat');
+                $notification = $this->quota->buildNotification($remaining, 'chat');
 
                 return response()->json([
-                    'message'   => 'Berhasil',
-                    'reply'     => $aiText,
-                    'remaining' => $remaining,
-                    'limit'     => $user->role === 'public' ? self::DAILY_LIMIT : null,
+                    'message'      => 'Berhasil',
+                    'reply'        => $aiText,
+                    'remaining'    => $remaining,
+                    'limit'        => $limit,
+                    'notification' => $notification,
                 ], 200);
             }
 
@@ -223,23 +207,7 @@ PROMPT;
     public function chatQuota(Request $request)
     {
         $user = $request->user();
-
-        if ($user->role !== 'public') {
-            return response()->json([
-                'limited'   => false,
-                'remaining' => null,
-                'limit'     => null,
-            ], 200);
-        }
-
-        $used      = (int) Cache::get($this->quotaCacheKey($user->id), 0);
-        $remaining = max(0, self::DAILY_LIMIT - $used);
-
-        return response()->json([
-            'limited'   => true,
-            'remaining' => $remaining,
-            'limit'     => self::DAILY_LIMIT,
-        ], 200);
+        return response()->json($this->quota->info($user, 'chat'), 200);
     }
 
     public function analyzeScore(Request $request)
@@ -251,11 +219,8 @@ PROMPT;
         ]);
 
         $apiKey = env('GEMINI_API_KEY');
-
         if (!$apiKey) {
-            return response()->json([
-                'message' => 'Fitur AI sedang tidak tersedia.'
-            ], 503);
+            return response()->json(['message' => 'Fitur AI sedang tidak tersedia.'], 503);
         }
 
         $url   = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' . $apiKey;
@@ -293,17 +258,14 @@ PROMPT;
                 'body'   => $response->body(),
             ]);
 
-            return response()->json([
-                'message' => 'Analisis AI tidak tersedia saat ini.'
-            ], 503);
+            return response()->json(['message' => 'Analisis AI tidak tersedia saat ini.'], 503);
 
         } catch (\Exception $e) {
             Log::error('Gemini analyzeScore error: ' . $e->getMessage());
-            return response()->json([
-                'message' => 'Gagal menganalisis skor.'
-            ], 500);
+            return response()->json(['message' => 'Gagal menganalisis skor.'], 500);
         }
     }
+
     public function explainQuestion(Request $request)
     {
         $request->validate([
@@ -312,11 +274,8 @@ PROMPT;
         ]);
 
         $apiKey = env('GEMINI_API_KEY');
-
         if (!$apiKey) {
-            return response()->json([
-                'message' => 'Fitur AI sedang tidak tersedia.'
-            ], 503);
+            return response()->json(['message' => 'Fitur AI sedang tidak tersedia.'], 503);
         }
 
         $url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' . $apiKey;
@@ -348,20 +307,16 @@ PROMPT;
                 ], 200);
             }
 
-            \Log::error('Gemini explainQuestion error', [
+            Log::error('Gemini explainQuestion error', [
                 'status' => $response->status(),
                 'body'   => $response->body(),
             ]);
 
-            return response()->json([
-                'message' => 'Penjelasan AI tidak tersedia saat ini.'
-            ], 503);
+            return response()->json(['message' => 'Penjelasan AI tidak tersedia saat ini.'], 503);
 
         } catch (\Exception $e) {
-            \Log::error('Gemini explainQuestion error: ' . $e->getMessage());
-            return response()->json([
-                'message' => 'Gagal menghubungi AI.'
-            ], 500);
+            Log::error('Gemini explainQuestion error: ' . $e->getMessage());
+            return response()->json(['message' => 'Gagal menghubungi AI.'], 500);
         }
     }
 }

@@ -4,6 +4,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Services\QuotaService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use App\Models\Quiz;
@@ -13,10 +14,12 @@ class GeminiController extends Controller
 {
     private string $apiKey;
     private string $apiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+    private QuotaService $quota;
 
-    public function __construct()
+    public function __construct(QuotaService $quota)
     {
         $this->apiKey = config('services.gemini.key', env('GEMINI_API_KEY', ''));
+        $this->quota  = $quota;
     }
 
     // ============================================================
@@ -43,6 +46,19 @@ class GeminiController extends Controller
             'difficulty'                  => 'nullable|in:mudah,sedang,sulit',
         ]);
 
+        $user = $request->user();
+
+        // Check daily generate quota
+        if ($this->quota->isExhausted($user, 'generate_questions')) {
+            $info = $this->quota->info($user, 'generate_questions');
+            return response()->json([
+                'message'      => 'Kuota generate soal harian habis. Reset esok hari pukul 00.00 WIB.',
+                'remaining'    => 0,
+                'limit'        => $info['limit'],
+                'notification' => $info['notification'],
+            ], 429);
+        }
+
         $counts = $request->counts;
         $mcCount  = (int) ($counts['multiple_choice'] ?? 0);
         $tfCount  = (int) ($counts['true_false']      ?? 0);
@@ -51,6 +67,17 @@ class GeminiController extends Controller
 
         if ($total === 0) {
             return response()->json(['message' => 'Jumlah soal minimal 1.'], 422);
+        }
+
+        // Cap at remaining quota if limited
+        $remaining = $this->quota->getRemaining($user, 'generate_questions');
+        if ($remaining !== null && $total > $remaining) {
+            return response()->json([
+                'message'      => "Sisa kuota kamu hanya {$remaining} soal hari ini.",
+                'remaining'    => $remaining,
+                'limit'        => $this->quota->getLimit($user->role, 'generate_questions'),
+                'notification' => $this->quota->buildNotification($remaining, 'generate_questions'),
+            ], 422);
         }
 
         if ($total > 30) {
@@ -231,10 +258,21 @@ PROMPT;
                 ];
             }, $questions);
 
+            // Consume $total slots from daily quota
+            $remainingAfter = null;
+            for ($i = 0; $i < $total; $i++) {
+                $remainingAfter = $this->quota->consume($user, 'generate_questions');
+            }
+            $quotaLimit   = $this->quota->getLimit($user->role, 'generate_questions');
+            $notification = $this->quota->buildNotification($remainingAfter, 'generate_questions');
+
             return response()->json([
-                'message'   => 'Soal berhasil di-generate!',
-                'count'     => count($questions),
-                'questions' => $questions,
+                'message'         => 'Soal berhasil di-generate!',
+                'count'           => count($questions),
+                'questions'       => $questions,
+                'quota_remaining' => $remainingAfter,
+                'quota_limit'     => $quotaLimit,
+                'notification'    => $notification,
             ]);
 
         } catch (\Exception $e) {
@@ -320,6 +358,15 @@ PROMPT;
                 'message' => 'Error: ' . $e->getMessage(),
             ], 500);
         }
+    }
+
+    // ── GET /api/ai/generate-quota ────────────────────────
+    public function generateQuota(Request $request)
+    {
+        return response()->json(
+            $this->quota->info($request->user(), 'generate_questions'),
+            200
+        );
     }
 
     // ── POST /api/ai/fyp-advice ────────────────────────────

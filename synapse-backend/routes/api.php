@@ -147,6 +147,7 @@ Route::middleware(['auth:sanctum', 'role:dosen,admin,superadmin'])->group(functi
     Route::get('/admin/duels/history',             [QuizController::class, 'duelHistory']);
 
     Route::post('/ai/generate-questions',   [GeminiController::class, 'generateQuestions']);
+    Route::get('/ai/generate-quota',        [GeminiController::class, 'generateQuota']);
     Route::post('/ai/generate-description', [GeminiController::class, 'generateDescription']);
 });
 

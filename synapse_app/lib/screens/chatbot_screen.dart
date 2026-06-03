@@ -47,9 +47,9 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
 
   final String baseUrl = AppConstants.baseUrl;
 
-  bool _isPublic  = false;
+  bool _hasLimit  = false;
   int? _remaining;
-  int  _limit     = 10;
+  int  _limit     = 15;
 
   static const String _historyKey = 'chat_history';
 
@@ -169,35 +169,55 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
   }
 
   Future<void> _checkRoleAndQuota() async {
-    final prefs   = await SharedPreferences.getInstance();
-    final userStr = prefs.getString('user');
-    if (userStr == null) return;
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+    if (token == null) return;
 
     try {
-      final user = jsonDecode(userStr);
-      if ((user['role'] ?? '') != 'public') return;
-
-      setState(() => _isPublic = true);
-
-      final token = prefs.getString('token');
-      if (token == null) return;
-
       final res = await http.get(
         Uri.parse('$baseUrl/chat/quota'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Accept': 'application/json',
-        },
+        headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
       );
 
       if (res.statusCode == 200 && mounted) {
         final data = jsonDecode(res.body);
-        setState(() {
-          _remaining = data['remaining'];
-          _limit     = data['limit'] ?? 5;
-        });
+        if (data['limited'] == true) {
+          setState(() {
+            _hasLimit  = true;
+            _remaining = data['remaining'];
+            _limit     = data['limit'] ?? 15;
+          });
+          // Tampilkan notifikasi jika sudah dekat habis saat pertama buka
+          _handleNotification(data['notification']);
+        }
       }
     } catch (_) {}
+  }
+
+  void _handleNotification(dynamic notif) {
+    if (notif == null || !mounted) return;
+    final type    = notif['type'] as String?;
+    final message = notif['message'] as String? ?? '';
+
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Row(children: [
+        Icon(
+          type == 'error' ? Icons.block_rounded : Icons.timer_outlined,
+          color: Colors.white,
+          size: 16,
+        ),
+        const SizedBox(width: 8),
+        Expanded(child: Text(message, style: const TextStyle(fontSize: 13))),
+      ]),
+      backgroundColor: type == 'error'
+          ? Colors.redAccent
+          : const Color(0xFFB45309),
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+      duration: Duration(seconds: type == 'error' ? 6 : 4),
+    ));
   }
 
   Future<String?> _getToken() async {
@@ -214,7 +234,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
   void _sendMessage() async {
     if (_controller.text.trim().isEmpty) return;
 
-    if (_isPublic && _remaining != null && _remaining! <= 0) {
+    if (_hasLimit && _remaining != null && _remaining! <= 0) {
       _showQuotaDialog();
       return;
     }
@@ -265,21 +285,19 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
         final data = jsonDecode(response.body);
         setState(() {
           _messages.add(ChatMessage(text: data['reply'], isUser: false));
-          if (data['remaining'] != null) {
-            _remaining = data['remaining'];
-          }
-          if (data['limit'] != null) {
-            _limit = data['limit'];
-          }
+          if (data['remaining'] != null) _remaining = data['remaining'];
+          if (data['limit']     != null) _limit     = data['limit'];
         });
         _scrollToBottom();
+        _handleNotification(data['notification']);
       } else if (response.statusCode == 429) {
+        final data = jsonDecode(response.body);
         setState(() {
           _remaining = 0;
-          _messages.add(ChatMessage(
-            text: 'Kuota chat harianmu sudah habis ($_limit pesan/hari). Reset esok hari ya! 😊',
-            isUser: false,
-          ));
+        });
+        _handleNotification(data['notification'] ?? {
+          'type': 'error',
+          'message': 'Kuota chat harian habis. Reset esok hari pukul 00.00 WIB.',
         });
         _scrollToBottom();
       } else {
@@ -390,7 +408,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
               const SizedBox(height: 8),
               Text("SYNAPSE siap membantu kamu belajar hari ini.",
                   style: TextStyle(fontSize: 16, color: Colors.blueGrey[400])),
-              if (_isPublic && _remaining != null) ...[
+              if (_hasLimit && _remaining != null) ...[
                 const SizedBox(height: 14),
                 Container(
                   width: double.infinity,
@@ -519,7 +537,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
               ],
             ),
       body: Column(children: [
-        if (_isPublic && _remaining != null && _messages.isNotEmpty)
+        if (_hasLimit && _remaining != null && _messages.isNotEmpty)
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -634,7 +652,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                 controller: _controller,
                 minLines: 1,
                 maxLines: 4,
-                enabled: !(_isPublic &&
+                enabled: !(_hasLimit &&
                     _remaining != null &&
                     _remaining! <= 0),
                 style: const TextStyle(color: Colors.white),
@@ -644,7 +662,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                 decoration: InputDecoration(
                   filled: true,
                   fillColor: Colors.transparent,
-                  hintText: (_isPublic &&
+                  hintText: (_hasLimit &&
                           _remaining != null &&
                           _remaining! <= 0)
                       ? 'Kuota habis — reset esok hari...'

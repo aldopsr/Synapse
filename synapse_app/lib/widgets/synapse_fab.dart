@@ -547,7 +547,6 @@ class _ChatbotDialogState extends State<_ChatbotDialog> {
   static const Color _bgColor    = Color(0xFFF5F7FA);
   static const Color _bubbleUser = Color(0xFF26A69A);
 
-  // Key sama dengan ChatbotScreen agar history tersinkron
   static const String _historyKey = 'chat_history';
 
   final TextEditingController _ctrl = TextEditingController();
@@ -555,12 +554,49 @@ class _ChatbotDialogState extends State<_ChatbotDialog> {
   final List<Map<String, dynamic>> _msgs = [];
   bool _loading = false;
 
+  bool  _hasLimit  = false;
+  int?  _remaining;
+  int   _limit     = 15;
+  // Banner notifikasi yang tampil di dalam dialog
+  Map<String, dynamic>? _notifBanner;
+
   String get _baseUrl => AppConstants.baseUrl;
 
   @override
   void initState() {
     super.initState();
     _loadHistory();
+    _checkQuota();
+  }
+
+  Future<void> _checkQuota() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+      if (token == null) return;
+      final res = await http.get(
+        Uri.parse('$_baseUrl/chat/quota'),
+        headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
+      );
+      if (res.statusCode == 200 && mounted) {
+        final data = jsonDecode(res.body);
+        if (data['limited'] == true) {
+          setState(() {
+            _hasLimit  = true;
+            _remaining = data['remaining'];
+            _limit     = data['limit'] ?? 15;
+          });
+          _updateBanner(data['notification']);
+        }
+      }
+    } catch (_) {}
+  }
+
+  void _updateBanner(dynamic notif) {
+    if (!mounted) return;
+    setState(() {
+      _notifBanner = notif != null ? Map<String, dynamic>.from(notif) : null;
+    });
   }
 
   Future<void> _loadHistory() async {
@@ -593,6 +629,14 @@ class _ChatbotDialogState extends State<_ChatbotDialog> {
     final text = _ctrl.text.trim();
     if (text.isEmpty || _loading) return;
 
+    if (_hasLimit && _remaining != null && _remaining! <= 0) {
+      _updateBanner({
+        'type': 'error',
+        'message': 'Kuota chat harian habis. Reset esok hari pukul 00.00 WIB.',
+      });
+      return;
+    }
+
     setState(() {
       _msgs.add({
         'text': text,
@@ -608,7 +652,6 @@ class _ChatbotDialogState extends State<_ChatbotDialog> {
     try {
       final token = await _getToken();
 
-      // Kirim max 10 pesan terakhir sebagai context (tanpa pesan user saat ini)
       const int maxHistory = 10;
       final prevMsgs = _msgs.sublist(0, _msgs.length - 1);
       final historySlice = prevMsgs.length > maxHistory
@@ -627,13 +670,26 @@ class _ChatbotDialogState extends State<_ChatbotDialog> {
         },
         body: jsonEncode({'message': text, 'history': history}),
       );
+
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
-        setState(() => _msgs.add({
-          'text': data['reply'] ?? 'Maaf, tidak ada respons.',
-          'isUser': false,
-          'timestamp': DateTime.now().toIso8601String(),
-        }));
+        setState(() {
+          _msgs.add({
+            'text': data['reply'] ?? 'Maaf, tidak ada respons.',
+            'isUser': false,
+            'timestamp': DateTime.now().toIso8601String(),
+          });
+          if (data['remaining'] != null) _remaining = data['remaining'];
+          if (data['limit']     != null) _limit     = data['limit'];
+        });
+        _updateBanner(data['notification']);
+      } else if (res.statusCode == 429) {
+        final data = jsonDecode(res.body);
+        setState(() => _remaining = 0);
+        _updateBanner(data['notification'] ?? {
+          'type': 'error',
+          'message': 'Kuota chat harian habis. Reset esok hari pukul 00.00 WIB.',
+        });
       } else {
         setState(() => _msgs.add({
           'text': 'Gagal menghubungi AI. Coba lagi.',
@@ -650,7 +706,6 @@ class _ChatbotDialogState extends State<_ChatbotDialog> {
     } finally {
       setState(() => _loading = false);
       _saveHistory();
-      // Notify ChatbotScreen untuk reload
       ChatNotifier.notify();
       _scrollToBottom();
     }
@@ -867,6 +922,41 @@ class _ChatbotDialogState extends State<_ChatbotDialog> {
                   ),
           ),
 
+          // Banner notifikasi kuota
+          if (_notifBanner != null)
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 250),
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              color: _notifBanner!['type'] == 'error'
+                  ? const Color(0xFFFFEBEB)
+                  : const Color(0xFFFFF8E1),
+              child: Row(children: [
+                Icon(
+                  _notifBanner!['type'] == 'error'
+                      ? Icons.block_rounded
+                      : Icons.timer_outlined,
+                  size: 14,
+                  color: _notifBanner!['type'] == 'error'
+                      ? Colors.redAccent
+                      : const Color(0xFFB45309),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    _notifBanner!['message'] ?? '',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: _notifBanner!['type'] == 'error'
+                          ? Colors.redAccent
+                          : const Color(0xFFB45309),
+                    ),
+                  ),
+                ),
+              ]),
+            ),
+
           // Input — teal seperti chatbot screen
           Container(
             padding: const EdgeInsets.fromLTRB(12, 10, 12, 14),
@@ -886,13 +976,17 @@ class _ChatbotDialogState extends State<_ChatbotDialog> {
                     style: const TextStyle(color: Colors.white, fontSize: 13),
                     cursorColor: Colors.white,
                     maxLines: 2, minLines: 1,
+                    enabled: !(_hasLimit && _remaining != null && _remaining! <= 0),
                     decoration: InputDecoration(
-                      hintText: 'Tanya sesuatu...',
+                      hintText: (_hasLimit && _remaining != null && _remaining! <= 0)
+                          ? 'Kuota habis — reset esok hari...'
+                          : 'Tanya sesuatu...',
                       hintStyle: TextStyle(
                           color: Colors.white.withOpacity(0.7), fontSize: 13),
                       border: InputBorder.none,
                       enabledBorder: InputBorder.none,
                       focusedBorder: InputBorder.none,
+                      disabledBorder: InputBorder.none,
                       contentPadding: const EdgeInsets.symmetric(
                           horizontal: 14, vertical: 8),
                     ),
