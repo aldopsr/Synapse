@@ -1,6 +1,6 @@
 @extends('layouts.app')
-@section('title') Data Mahasiswa - Synapse @endsection
-@section('header_title') Data Mahasiswa @endsection
+@section('title') Daftar Mahasiswa - Synapse @endsection
+@section('header_title') Daftar Mahasiswa @endsection
 
 @section('content')
 <style>
